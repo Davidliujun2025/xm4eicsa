@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CarePilot AI - 违禁词库管理</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">🤖</div>
+        <div>
+          <h2>CarePilot AI</h2>
+          <p>智能客服助手</p>
+        </div>
+      </div>
+      <nav class="nav-menu">
+        <button class="nav-item">工作台</button>
+        <button class="nav-item">智能对话</button>
+        <button class="nav-item">对话记录</button>
+        <button class="nav-item">话术库</button>
+        <button class="nav-item">用户管理</button>
+        <button class="nav-item">角色管理</button>
+        <button class="nav-item active">平台管理</button>
+        <button class="nav-item">系统设置</button>
+        <button class="nav-item">操作日志</button>
+        <button class="nav-item">数据统计</button>
+      </nav>
+      <div class="profile">
+        <img src="https://api.dicebear.com/8.x/initials/svg?seed=ZG" alt="avatar" />
+        <div>
+          <h4>张管理员</h4>
+          <p>高级管理员</p>
+        </div>
+      </div>
+    </aside>
+
+    <main class="content">
+      <header class="page-header">
+        <div>
+          <h1>违禁词库管理</h1>
+          <p>动态维护违禁词库与平台风险规则，确保 AI 话术合规</p>
+        </div>
+        <div class="status-pill">服务运行中</div>
+      </header>
+
+      <section class="stats" id="stats"></section>
+
+      <section class="panel">
+        <div class="tabs">
+          <button class="tab active" data-tab="word-library">违禁词库</button>
+          <button class="tab" data-tab="operation-log">变更历史</button>
+          <button class="tab" data-tab="hit-log">触发记录</button>
+        </div>
+
+        <div class="tab-content active" id="word-library">
+          <div class="toolbar">
+            <select id="platformSelect"></select>
+            <input id="searchInput" placeholder="搜索违禁词..." />
+            <button id="uploadCsvBtn" class="ghost">上传CSV</button>
+            <button id="addOpenBtn" class="primary">+ 添加违禁词</button>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>违禁词</th>
+                <th>生效平台</th>
+                <th>添加时间</th>
+                <th>添加人</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="wordTableBody"></tbody>
+          </table>
+          <div class="pager" id="wordPager"></div>
+        </div>
+
+        <div class="tab-content" id="operation-log">
+          <div class="toolbar">
+            <input id="opDateStart" type="date" />
+            <input id="opDateEnd" type="date" />
+            <input id="operatorFilter" placeholder="操作人" />
+            <select id="operationPlatformFilter"></select>
+            <select id="actionFilter">
+              <option value="">操作类型</option>
+              <option value="ADD">添加</option>
+              <option value="DELETE">移除</option>
+              <option value="BATCH_IMPORT">批量导入</option>
+            </select>
+            <input id="opKeyword" placeholder="关键词搜索" />
+            <button id="reloadOps" class="primary">查询</button>
+            <button id="exportOps" class="ghost">导出报表</button>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>操作时间</th>
+                <th>操作人</th>
+                <th>IP 地址</th>
+                <th>操作类型</th>
+                <th>生效平台</th>
+                <th>违禁词</th>
+                <th>详情</th>
+              </tr>
+            </thead>
+            <tbody id="operationBody"></tbody>
+          </table>
+          <div class="pager" id="operationPager"></div>
+        </div>
+
+        <div class="tab-content" id="hit-log">
+          <div class="toolbar">
+            <input id="hitDateStart" type="date" />
+            <input id="hitDateEnd" type="date" />
+            <select id="hitPlatformFilter"></select>
+            <input id="actorFilter" placeholder="客服人员" />
+            <input id="hitKeyword" placeholder="对话 ID / 违禁词" />
+            <button id="reloadHits" class="primary">查询</button>
+            <button id="exportHits" class="ghost">导出报表</button>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>触发时间</th>
+                <th>客服人员</th>
+                <th>所属平台</th>
+                <th>触发违禁词</th>
+                <th>触发场景</th>
+                <th>对话 ID</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="hitBody"></tbody>
+          </table>
+          <div class="pager" id="hitPager"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="addDialog">
+    <h3>新增违禁词</h3>
+    <label>违禁词</label>
+    <input id="newWord" />
+    <label>生效平台</label>
+    <select id="newWordPlatform"></select>
+    <div class="dialog-actions">
+      <button id="cancelAdd">取消</button>
+      <button id="confirmAdd" class="primary">添加</button>
+    </div>
+  </dialog>
+
+  <dialog id="csvDialog">
+    <h3>CSV 批量导入（word,platform）</h3>
+    <textarea id="csvInput" rows="8" placeholder="例：\n敏感词1,TAOBAO\n敏感词2,JD"></textarea>
+    <div class="dialog-actions">
+      <button id="previewCsvBtn">预览</button>
+      <button id="confirmCsvBtn" class="primary">确认导入</button>
+      <button id="cancelCsv">关闭</button>
+    </div>
+    <div id="csvPreview"></div>
+  </dialog>
+
+  <script src="./main.js"></script>
+</body>
+</html>
