@@ -1,0 +1,27 @@
+server:
+  port: 8080
+  servlet:
+    encoding:
+      charset: UTF-8
+      force: true
+
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/carepilot?serverTimezone=Asia/Shanghai&characterEncoding=utf-8
+    username: root
+    password: zjy235356
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 30
+      minimum-idle: 5
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    db-config:
+      id-type: auto
+
+logging:
+  level:
+    com.carepilot: debug
