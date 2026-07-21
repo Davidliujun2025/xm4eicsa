@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能对话工作台</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="workbench-container">
+        <header class="workbench-header">
+            <h1>智能对话工作台</h1>
+            <div class="header-right">
+                <div class="token-bar" onclick="showTokenModal()">
+                    <span class="token-label">今日 Token 消耗</span>
+                    <div class="token-progress">
+                        <div class="token-progress-bar" id="tokenProgressBar"></div>
+                    </div>
+                    <span class="token-text" id="tokenText">0/50000</span>
+                </div>
+            </div>
+        </header>
+
+        <div class="workbench-body">
+            <aside class="conversation-sidebar">
+                <div class="sidebar-header">
+                    <h2>历史对话</h2>
+                    <button class="new-conversation-btn" onclick="startNewConversation()">+ 新对话</button>
+                </div>
+                <div class="conversation-list" id="conversationList">
+                    <div class="empty-state">暂无对话记录</div>
+                </div>
+            </aside>
+
+            <main class="main-content">
+                <div class="input-section">
+                    <div class="platform-selector">
+                        <label class="platform-label">服务平台</label>
+                        <select id="platformSelect" class="platform-select">
+                            <option value="" disabled selected>请选择服务平台</option>
+                            <option value="淘宝">淘宝</option>
+                            <option value="天猫">天猫</option>
+                            <option value="京东">京东</option>
+                            <option value="拼多多">拼多多</option>
+                            <option value="抖音">抖音</option>
+                            <option value="小红书">小红书</option>
+                            <option value="快手">快手</option>
+                            <option value="视频号">视频号</option>
+                            <option value="微信小店">微信小店</option>
+                            <option value="其他平台">其他平台</option>
+                        </select>
+                        <span class="platform-error" id="platformError"></span>
+                    </div>
+
+                    <div class="question-input">
+                        <label class="question-label">客户问题</label>
+                        <textarea id="questionInput" class="question-textarea" 
+                            placeholder="请输入客户问题..." maxlength="500"></textarea>
+                        <div class="char-counter">
+                            <span id="charCount">0</span>/500
+                        </div>
+                        <span class="question-error" id="questionError"></span>
+                    </div>
+
+                    <button id="generateBtn" class="generate-btn" disabled>
+                        生成AI回复
+                    </button>
+
+                    <div class="loading-state" id="loadingState">
+                        <div class="loading-spinner"></div>
+                        <span class="loading-text">AI正在分析客户问题，生成高质量回复建议</span>
+                        <span class="loading-hint" id="loadingHint"></span>
+                    </div>
+                </div>
+
+                <div class="result-section" id="resultSection">
+                    <div class="result-header">
+                        <span class="result-title">AI回复结果</span>
+                        <button class="script-library-btn" onclick="showScriptLibrary()">
+                            📚 查看话术库
+                        </button>
+                    </div>
+
+                    <div class="conversation-messages" id="conversationMessages">
+                    </div>
+
+                    <div class="risk-warning" id="riskWarning">
+                        <div class="risk-header">
+                            <span class="risk-icon">⚠️</span>
+                            <span class="risk-title">风险提示</span>
+                        </div>
+                        <div class="risk-content">
+                            <div class="risk-platform" id="riskPlatform"></div>
+                            <div class="risk-suggestion" id="riskSuggestion"></div>
+                        </div>
+                    </div>
+
+                    <div class="error-message" id="errorMessage"></div>
+                </div>
+            </main>
+        </div>
+
+        <div class="modal-overlay" id="tokenModal">
+            <div class="modal">
+                <div class="modal-header">
+                    <h3>今日 Token 消耗详情</h3>
+                    <button class="close-btn" onclick="closeTokenModal()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="token-detail">
+                        <div class="detail-item">
+                            <span class="detail-label">今日已消耗</span>
+                            <span class="detail-value" id="tokenUsedToday">0</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">每日限额</span>
+                            <span class="detail-value">50000</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">使用率</span>
+                            <span class="detail-value" id="tokenUsagePercent">0%</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label">剩余额度</span>
+                            <span class="detail-value" id="tokenRemaining">50000</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="scriptLibraryModal">
+            <div class="modal modal-large">
+                <div class="modal-header">
+                    <h3>我的话术库</h3>
+                    <button class="close-btn" onclick="closeScriptLibrary()">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="script-library-content" id="scriptLibraryContent">
+                        <div class="empty-state">暂无收藏的话术</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="toast-container" id="toastContainer"></div>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+</html>
