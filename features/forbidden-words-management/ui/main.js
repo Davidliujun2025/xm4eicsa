@@ -8,7 +8,9 @@ const state = {
   operationPage: 1,
   hitPage: 1,
   wordRows: [],
-  csvPreviewRows: []
+  csvPreviewRows: [],
+  csvRawContent: "",
+  csvFileName: ""
 };
 
 const platforms = ["ALL", "TAOBAO", "JD", "PINDUODUO", "DOUYIN", "KUAISHOU"];
@@ -57,14 +59,13 @@ async function api(path, options = {}) {
   return response.json();
 }
 
-function renderStats(totalWords, totalHits) {
+function renderStats(totalWords, totalTriggerCount) {
   const words = Number.isFinite(totalWords) ? totalWords.toLocaleString("zh-CN") : "-";
-  const hits = Number.isFinite(totalHits) ? totalHits.toLocaleString("zh-CN") : "-";
+  const triggerCount = Number.isFinite(totalTriggerCount) ? totalTriggerCount.toLocaleString("zh-CN") : "-";
   qs("stats").innerHTML = `
     <div class="card"><h5>总违禁词数</h5><strong>${words}</strong></div>
     <div class="card"><h5>覆盖平台数</h5><strong>-</strong></div>
-    <div class="card"><h5>今日触发次数</h5><strong>${hits}</strong></div>
-    <div class="card"><h5>今日拦截次数</h5><strong>${hits}</strong></div>
+    <div class="card"><h5>今日触发次数</h5><strong>${triggerCount}</strong></div>
   `;
 }
 
@@ -171,7 +172,6 @@ async function loadOperationLogs() {
       <td>${actionTag(row.action)}</td>
       <td>${displayPlatform(row.platform)}</td>
       <td>"${row.targetWord || "-"}"</td>
-      <td>${row.action === "BATCH_IMPORT" ? '<a href="#" class="link-fake">查看详情</a>' : "-"}</td>
     </tr>
   `).join("");
 
@@ -252,6 +252,110 @@ function renderCsvPreview(rows) {
   qs("csvPreview").innerHTML = html;
 }
 
+function csvCell(value) {
+  const text = (value ?? "").toString();
+  if (/[",\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+  return text;
+}
+
+function downloadCsv(filename, headers, rows) {
+  const lines = [headers.map(csvCell).join(",")]
+    .concat(rows.map((r) => r.map(csvCell).join(",")));
+  const blob = new Blob([`\uFEFF${lines.join("\n")}`], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+function formatExportTime() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  const ss = String(d.getSeconds()).padStart(2, "0");
+  return `${y}${m}${day}-${hh}${mm}${ss}`;
+}
+
+function buildOperationExportRows() {
+  return Array.from(qs("operationBody").querySelectorAll("tr")).map((tr) => {
+    const tds = tr.querySelectorAll("td");
+    return [
+      tds[0]?.textContent?.trim() || "",
+      tds[1]?.textContent?.trim() || "",
+      tds[2]?.textContent?.trim() || "",
+      tds[3]?.textContent?.trim() || "",
+      tds[4]?.textContent?.trim() || "",
+      tds[5]?.textContent?.trim() || ""
+    ];
+  });
+}
+
+function buildHitExportRows() {
+  return Array.from(qs("hitBody").querySelectorAll("tr")).map((tr) => {
+    const tds = tr.querySelectorAll("td");
+    return [
+      tds[0]?.textContent?.trim() || "",
+      tds[1]?.textContent?.trim() || "",
+      tds[2]?.textContent?.trim() || "",
+      tds[3]?.textContent?.trim() || "",
+      tds[4]?.textContent?.trim() || "",
+      tds[5]?.textContent?.trim() || "",
+      tds[6]?.textContent?.trim() || ""
+    ];
+  });
+}
+
+function updateCsvFileMeta() {
+  const meta = qs("csvFileMeta");
+  if (!state.csvFileName) {
+    meta.textContent = "尚未选择文件";
+    return;
+  }
+  meta.textContent = `已选择：${state.csvFileName}`;
+}
+
+function resetCsvState() {
+  state.csvRawContent = "";
+  state.csvFileName = "";
+  state.csvPreviewRows = [];
+  const input = qs("csvFileInput");
+  input.value = "";
+  qs("csvPreview").innerHTML = "";
+  updateCsvFileMeta();
+}
+
+function readCsvFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("文件读取失败"));
+    reader.readAsText(file, "utf-8");
+  });
+}
+
+async function handleCsvFile(file) {
+  if (!file) return;
+  const isCsv = file.name.toLowerCase().endsWith(".csv") || file.type === "text/csv";
+  if (!isCsv) {
+    alert("请上传 .csv 文件");
+    return;
+  }
+  state.csvRawContent = await readCsvFile(file);
+  state.csvFileName = file.name;
+  state.csvPreviewRows = [];
+  qs("csvPreview").innerHTML = "";
+  updateCsvFileMeta();
+}
+
 function bindTabs() {
   document.querySelectorAll(".tab").forEach((tab) => {
     tab.addEventListener("click", async () => {
@@ -297,11 +401,69 @@ function bindDialogs() {
   });
 
   const csvDialog = qs("csvDialog");
-  qs("uploadCsvBtn").addEventListener("click", () => csvDialog.showModal());
-  qs("cancelCsv").addEventListener("click", () => csvDialog.close());
+  const csvDropzone = qs("csvDropzone");
+  const csvFileInput = qs("csvFileInput");
+  const chooseCsvBtn = qs("chooseCsvBtn");
+
+  qs("uploadCsvBtn").addEventListener("click", () => {
+    resetCsvState();
+    csvDialog.showModal();
+  });
+  qs("cancelCsv").addEventListener("click", () => {
+    csvDialog.close();
+    resetCsvState();
+  });
+
+  chooseCsvBtn.addEventListener("click", () => {
+    csvFileInput.click();
+  });
+
+  csvDropzone.addEventListener("click", () => {
+    csvFileInput.click();
+  });
+
+  csvDropzone.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      csvFileInput.click();
+    }
+  });
+
+  csvFileInput.addEventListener("change", async (e) => {
+    const [file] = e.target.files || [];
+    try {
+      await handleCsvFile(file);
+    } catch (err) {
+      alert(err.message || "读取文件失败");
+    }
+  });
+
+  csvDropzone.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    csvDropzone.classList.add("dragover");
+  });
+
+  csvDropzone.addEventListener("dragleave", () => {
+    csvDropzone.classList.remove("dragover");
+  });
+
+  csvDropzone.addEventListener("drop", async (e) => {
+    e.preventDefault();
+    csvDropzone.classList.remove("dragover");
+    const [file] = e.dataTransfer?.files || [];
+    try {
+      await handleCsvFile(file);
+    } catch (err) {
+      alert(err.message || "读取文件失败");
+    }
+  });
 
   qs("previewCsvBtn").addEventListener("click", async () => {
-    const csvContent = qs("csvInput").value;
+    if (!state.csvRawContent.trim()) {
+      alert("请先选择 CSV 文件");
+      return;
+    }
+    const csvContent = state.csvRawContent;
     const rows = await api("/forbidden-words/csv/preview", {
       method: "POST",
       body: JSON.stringify({ csvContent })
@@ -311,6 +473,14 @@ function bindDialogs() {
   });
 
   qs("confirmCsvBtn").addEventListener("click", async () => {
+    if (!state.csvRawContent.trim()) {
+      alert("请先选择 CSV 文件");
+      return;
+    }
+    if (!state.csvPreviewRows.length) {
+      alert("请先点击预览并确认数据");
+      return;
+    }
     const hasError = state.csvPreviewRows.some((r) => !r.valid);
     if (hasError) {
       alert("存在格式错误行，请修复后再确认导入");
@@ -321,6 +491,7 @@ function bindDialogs() {
       body: JSON.stringify({ previewItems: state.csvPreviewRows })
     });
     csvDialog.close();
+    resetCsvState();
     await loadWords();
     await loadOperationLogs();
   });
@@ -343,7 +514,16 @@ function bindFilters() {
   });
 
   qs("exportOps").addEventListener("click", () => {
-    alert("报表导出预留中");
+    const rows = buildOperationExportRows();
+    if (!rows.length) {
+      alert("暂无可导出的变更历史数据");
+      return;
+    }
+    downloadCsv(
+      `变更历史-${formatExportTime()}.csv`,
+      ["操作时间", "操作人", "IP 地址", "操作类型", "生效平台", "违禁词"],
+      rows
+    );
   });
 
   qs("reloadHits").addEventListener("click", async () => {
@@ -352,7 +532,16 @@ function bindFilters() {
   });
 
   qs("exportHits").addEventListener("click", () => {
-    alert("报表导出预留中");
+    const rows = buildHitExportRows();
+    if (!rows.length) {
+      alert("暂无可导出的触发记录数据");
+      return;
+    }
+    downloadCsv(
+      `触发记录-${formatExportTime()}.csv`,
+      ["触发时间", "客服人员", "所属平台", "触发违禁词", "触发场景", "对话 ID", "操作"],
+      rows
+    );
   });
 }
 

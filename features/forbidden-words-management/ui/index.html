@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CarePilot AI - 违禁词库管理</title>
-  <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./styles.css?v=20260721-2" />
 </head>
 <body>
   <div class="app-shell">
@@ -17,24 +17,14 @@
         </div>
       </div>
       <nav class="nav-menu">
-        <button class="nav-item">工作台</button>
-        <button class="nav-item">智能对话</button>
-        <button class="nav-item">对话记录</button>
-        <button class="nav-item">话术库</button>
+        <button class="nav-item">管理看板</button>
         <button class="nav-item">用户管理</button>
-        <button class="nav-item">角色管理</button>
-        <button class="nav-item active">平台管理</button>
-        <button class="nav-item">系统设置</button>
+        <button class="nav-item">Token 管理</button>
+        <button class="nav-item active">违禁词管理</button>
+        <button class="nav-item">评估报告</button>
         <button class="nav-item">操作日志</button>
-        <button class="nav-item">数据统计</button>
+        <button class="nav-item">系统设置</button>
       </nav>
-      <div class="profile">
-        <img src="https://api.dicebear.com/8.x/initials/svg?seed=ZG" alt="avatar" />
-        <div>
-          <h4>张管理员</h4>
-          <p>高级管理员</p>
-        </div>
-      </div>
     </aside>
 
     <main class="content">
@@ -43,7 +33,37 @@
           <h1>违禁词库管理</h1>
           <p>动态维护违禁词库与平台风险规则，确保 AI 话术合规</p>
         </div>
-        <div class="status-pill">服务运行中</div>
+        <div class="header-actions" aria-label="用户工具栏">
+          <button class="top-link" type="button" aria-label="帮助中心">
+            <span class="icon-circle" aria-hidden="true">
+              <svg viewBox="0 0 24 24" class="icon-svg">
+                <circle cx="12" cy="12" r="9"></circle>
+                <path d="M9.8 9.4a2.4 2.4 0 0 1 4.7.7c0 1.2-.7 1.9-1.6 2.4-.9.5-1.4 1-1.4 1.9"></path>
+                <circle cx="12" cy="16.9" r=".7" class="icon-fill"></circle>
+              </svg>
+            </span>
+            <span>帮助中心</span>
+          </button>
+
+          <button class="notify-btn" type="button" aria-label="通知消息">
+            <svg viewBox="0 0 24 24" class="icon-svg bell" aria-hidden="true">
+              <path d="M6.8 16.4h10.4l-1.4-2V10a3.8 3.8 0 0 0-7.6 0v4.4l-1.4 2Z"></path>
+              <path d="M10.2 18.2a1.8 1.8 0 0 0 3.6 0"></path>
+            </svg>
+            <span class="notify-dot" aria-hidden="true"></span>
+          </button>
+
+          <button class="account-btn" type="button" aria-label="账号菜单">
+            <span class="avatar-dot" aria-hidden="true">
+              <span class="avatar-head"></span>
+              <span class="avatar-body"></span>
+            </span>
+            <span class="account-name">张小倩</span>
+            <svg viewBox="0 0 24 24" class="icon-svg caret" aria-hidden="true">
+              <path d="m7 10 5 5 5-5"></path>
+            </svg>
+          </button>
+        </div>
       </header>
 
       <section class="stats" id="stats"></section>
@@ -102,7 +122,6 @@
                 <th>操作类型</th>
                 <th>生效平台</th>
                 <th>违禁词</th>
-                <th>详情</th>
               </tr>
             </thead>
             <tbody id="operationBody"></tbody>
@@ -154,7 +173,13 @@
 
   <dialog id="csvDialog">
     <h3>CSV 批量导入（word,platform）</h3>
-    <textarea id="csvInput" rows="8" placeholder="例：\n敏感词1,TAOBAO\n敏感词2,JD"></textarea>
+    <div id="csvDropzone" class="csv-dropzone" role="button" tabindex="0" aria-label="CSV 文件上传区域">
+      <p class="csv-dropzone-title">点击选择文件或将 CSV 文件拖拽到此处</p>
+      <p class="csv-dropzone-sub">仅支持 .csv 文件，格式为 word,platform</p>
+      <button id="chooseCsvBtn" type="button" class="ghost">选择 CSV 文件</button>
+      <input id="csvFileInput" type="file" accept=".csv,text/csv" hidden />
+    </div>
+    <div id="csvFileMeta" class="csv-file-meta">尚未选择文件</div>
     <div class="dialog-actions">
       <button id="previewCsvBtn">预览</button>
       <button id="confirmCsvBtn" class="primary">确认导入</button>
@@ -163,6 +188,6 @@
     <div id="csvPreview"></div>
   </dialog>
 
-  <script src="./main.js"></script>
+  <script src="./main.js?v=20260721-2"></script>
 </body>
 </html>
