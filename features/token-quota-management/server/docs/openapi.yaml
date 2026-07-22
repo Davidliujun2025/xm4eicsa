@@ -1,0 +1,301 @@
+openapi: 3.1.0
+info:
+  title: Personal Token Usage API
+  version: 2.0.0
+  description: AI 客服个人 Token 消耗查询与工作台内部上报接口。
+servers:
+  - url: http://127.0.0.1:8080
+paths:
+  /api/v1/internal/token-usage/events:
+    post:
+      summary: 上报一次已完成的模型调用
+      security: [{ internalServiceKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/TokenUsageEvent' }
+      responses:
+        '201': { description: 首次写入 }
+        '200': { description: 幂等重复上报 }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+  /api/v1/token-usage/me/today:
+    get:
+      summary: 今日 Token 统计与额度状态
+      security: [{ trustedUserHeader: [] }]
+      responses:
+        '200':
+          description: 今日统计
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TodayUsage' }
+        '401': { $ref: '#/components/responses/Error' }
+  /api/v1/token-usage/me/summary:
+    get:
+      summary: 四周期汇总或自定义区间汇总
+      security: [{ trustedUserHeader: [] }]
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+      responses:
+        '200':
+          description: 不传时间返回四周期卡片；传时间返回单区间汇总
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - { $ref: '#/components/schemas/UsageOverview' }
+                  - { $ref: '#/components/schemas/UsageSummary' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+  /api/v1/token-usage/me/trend:
+    get:
+      summary: 7 天、30 天或自定义 Token 趋势
+      security: [{ trustedUserHeader: [] }]
+      parameters:
+        - { name: range, in: query, schema: { type: string, enum: [LAST_7_DAYS, LAST_30_DAYS, CUSTOM], default: LAST_7_DAYS } }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: bucket, in: query, schema: { type: string, enum: [DAY, HOUR], default: DAY } }
+      responses:
+        '200':
+          description: 趋势序列；日趋势自动补零
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/TrendSeries' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+  /api/v1/token-usage/me/records:
+    get:
+      summary: Token 使用记录分页查询
+      security: [{ trustedUserHeader: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: provider, in: query, schema: { $ref: '#/components/schemas/Provider' } }
+        - { name: model, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: 分页记录
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UsageRecordPage' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+  /api/v1/token-usage/me/records/{requestId}:
+    get:
+      summary: 单次 AI 调用详情
+      security: [{ trustedUserHeader: [] }]
+      parameters:
+        - { name: requestId, in: path, required: true, schema: { type: string, minLength: 1, maxLength: 160 } }
+      responses:
+        '200':
+          description: 调用详情
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UsageRecord' }
+        '401': { $ref: '#/components/responses/Error' }
+        '404': { $ref: '#/components/responses/Error' }
+  /api/v1/token-usage/me/status:
+    get:
+      summary: 使用率、高使用率及失败异常状态
+      security: [{ trustedUserHeader: [] }]
+      responses:
+        '200':
+          description: 今日状态
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UsageStatus' }
+        '401': { $ref: '#/components/responses/Error' }
+  /api/v1/token-usage/me/stream:
+    get:
+      summary: 今日汇总 SSE
+      security: [{ trustedUserHeader: [] }]
+      responses:
+        '200':
+          description: summary 事件和心跳
+          content:
+            text/event-stream: {}
+  /api/v1/provider-quotas/capabilities:
+    get:
+      summary: 厂商额度查询能力清单
+      responses:
+        '200': { description: 能力清单 }
+  /api/v1/provider-quotas/{provider}:
+    get:
+      summary: 查询已配置厂商余额或套餐额度
+      security: [{ internalServiceKey: [] }]
+      parameters:
+        - { name: provider, in: path, required: true, schema: { $ref: '#/components/schemas/Provider' } }
+      responses:
+        '200': { description: 厂商额度快照 }
+        '401': { $ref: '#/components/responses/Error' }
+        '502': { $ref: '#/components/responses/Error' }
+components:
+  securitySchemes:
+    internalServiceKey:
+      type: apiKey
+      in: header
+      name: X-Internal-Api-Key
+    trustedUserHeader:
+      type: apiKey
+      in: header
+      name: X-User-Id
+      description: 仅允许可信网关注入；生产环境替换为验证后的登录身份。
+  responses:
+    Error:
+      description: 标准错误
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResponse' }
+  schemas:
+    Provider:
+      type: string
+      enum: [KIMI, CLAUDE, GPT, DEEPSEEK, MINIMAX, GROK, GLM, OTHER]
+    CallStatus:
+      type: string
+      enum: [SUCCEEDED, FAILED, CANCELLED, TIMEOUT]
+    TokenUsageEvent:
+      type: object
+      additionalProperties: false
+      required: [idempotencyKey, userId, requestId, provider, model, inputTokens, outputTokens,
+        cachedInputTokens, totalTokens, responseTimeMs, status, occurredAt]
+      properties:
+        idempotencyKey: { type: string, minLength: 1, maxLength: 160 }
+        userId: { type: string, minLength: 1, maxLength: 128 }
+        conversationId: { type: [string, 'null'], maxLength: 160 }
+        requestId: { type: string, minLength: 1, maxLength: 160 }
+        provider: { $ref: '#/components/schemas/Provider' }
+        model: { type: string, minLength: 1, maxLength: 160 }
+        inputContentLength: { type: integer, format: int64, minimum: 0, default: 0 }
+        outputContentLength: { type: integer, format: int64, minimum: 0, default: 0 }
+        inputTokens: { type: integer, format: int64, minimum: 0 }
+        outputTokens: { type: integer, format: int64, minimum: 0 }
+        cachedInputTokens: { type: integer, format: int64, minimum: 0 }
+        totalTokens: { type: integer, format: int64, minimum: 0 }
+        responseTimeMs: { type: integer, format: int64, minimum: 0 }
+        status: { $ref: '#/components/schemas/CallStatus' }
+        occurredAt: { type: string, format: date-time }
+        providerReportedCost: { type: number, minimum: 0, default: 0 }
+        costCurrency: { type: string, default: UNKNOWN }
+    UsageSummary:
+      type: object
+      required: [userId, inputTokens, outputTokens, cachedInputTokens, totalTokens,
+        successfulCalls, failedCalls, averageResponseTimeMs, empty, from, to, generatedAt]
+      properties:
+        userId: { type: string }
+        inputTokens: { type: integer, format: int64 }
+        outputTokens: { type: integer, format: int64 }
+        cachedInputTokens: { type: integer, format: int64 }
+        totalTokens: { type: integer, format: int64 }
+        successfulCalls: { type: integer, format: int64 }
+        failedCalls: { type: integer, format: int64 }
+        averageResponseTimeMs: { type: integer, format: int64 }
+        empty: { type: boolean }
+        from: { type: string, format: date-time }
+        to: { type: string, format: date-time }
+        generatedAt: { type: string, format: date-time }
+    TodayUsage:
+      allOf:
+        - { $ref: '#/components/schemas/UsageSummary' }
+        - type: object
+          required: [dailyTokenLimit, remainingTokens, usageRate, usagePercent, level, highUsage]
+          properties:
+            dailyTokenLimit: { type: [integer, 'null'], format: int64 }
+            remainingTokens: { type: [integer, 'null'], format: int64 }
+            usageRate: { type: [number, 'null'] }
+            usagePercent: { type: [number, 'null'] }
+            level: { type: string, enum: [NORMAL, HIGH, EXHAUSTED, UNCONFIGURED] }
+            highUsage: { type: boolean }
+    UsageOverview:
+      type: object
+      required: [userId, today, thisWeek, thisMonth, history, empty, generatedAt]
+      properties:
+        userId: { type: string }
+        today: { $ref: '#/components/schemas/UsageSummary' }
+        thisWeek: { $ref: '#/components/schemas/UsageSummary' }
+        thisMonth: { $ref: '#/components/schemas/UsageSummary' }
+        history: { $ref: '#/components/schemas/UsageSummary' }
+        empty: { type: boolean }
+        generatedAt: { type: string, format: date-time }
+    UsageRecord:
+      type: object
+      required: [idempotencyKey, requestId, provider, model, inputContentLength,
+        outputContentLength, inputTokens, outputTokens, cachedInputTokens, totalTokens,
+        responseTimeMs, status, occurredAt]
+      properties:
+        idempotencyKey: { type: string }
+        conversationId: { type: [string, 'null'] }
+        requestId: { type: string }
+        provider: { $ref: '#/components/schemas/Provider' }
+        model: { type: string }
+        inputContentLength: { type: integer, format: int64 }
+        outputContentLength: { type: integer, format: int64 }
+        inputTokens: { type: integer, format: int64 }
+        outputTokens: { type: integer, format: int64 }
+        cachedInputTokens: { type: integer, format: int64 }
+        totalTokens: { type: integer, format: int64 }
+        responseTimeMs: { type: integer, format: int64 }
+        status: { $ref: '#/components/schemas/CallStatus' }
+        occurredAt: { type: string, format: date-time }
+        providerReportedCost: { type: number }
+        costCurrency: { type: string }
+    UsageRecordPage:
+      type: object
+      required: [items, page, size, totalElements, totalPages, empty]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/UsageRecord' } }
+        page: { type: integer, minimum: 1 }
+        size: { type: integer, minimum: 1, maximum: 100 }
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }
+        empty: { type: boolean }
+    TrendPoint:
+      type: object
+      required: [bucketStart, inputTokens, outputTokens, totalTokens, calls]
+      properties:
+        bucketStart: { type: string, format: date-time }
+        inputTokens: { type: integer, format: int64 }
+        outputTokens: { type: integer, format: int64 }
+        totalTokens: { type: integer, format: int64 }
+        calls: { type: integer, format: int64 }
+    TrendSeries:
+      type: object
+      required: [userId, from, to, items, empty]
+      properties:
+        userId: { type: string }
+        from: { type: string, format: date-time }
+        to: { type: string, format: date-time }
+        items: { type: array, items: { $ref: '#/components/schemas/TrendPoint' } }
+        empty: { type: boolean }
+    UsageStatus:
+      type: object
+      required: [userId, usedTokens, dailyTokenLimit, usageRate, remainingTokens, level,
+        highUsage, successfulCalls, failedCalls, failureRate, abnormal, abnormalReason, generatedAt]
+      properties:
+        userId: { type: string }
+        usedTokens: { type: integer, format: int64 }
+        dailyTokenLimit: { type: [integer, 'null'], format: int64 }
+        usageRate: { type: [number, 'null'] }
+        remainingTokens: { type: [integer, 'null'], format: int64 }
+        level: { type: string, enum: [NORMAL, HIGH, EXHAUSTED, UNCONFIGURED] }
+        highUsage: { type: boolean }
+        successfulCalls: { type: integer, format: int64 }
+        failedCalls: { type: integer, format: int64 }
+        failureRate: { type: number }
+        abnormal: { type: boolean }
+        abnormalReason: { type: string, enum: [NONE, HIGH_FAILURE_RATE] }
+        generatedAt: { type: string, format: date-time }
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }

@@ -1,0 +1,7 @@
+/build/
+/out/
+/work/
+*.class
+*.o
+*.exe
+.env
