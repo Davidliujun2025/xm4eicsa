@@ -1,6 +1,6 @@
 # 假数据验证报告
 
-验证日期：2026-07-22
+验证日期：2026-07-22；MySQL 改造复核：2026-07-24
 
 执行命令：
 
@@ -38,4 +38,11 @@ Java 使用 `-Xlint:all -Werror`，C++ 使用 `-Wall -Wextra -Wpedantic -Werror`
 
 ## 未在本机执行
 
-本机未安装 PostgreSQL 客户端和服务，因此未执行真实 PostgreSQL 集成测试。PostgreSQL DDL 和 JDBC 代码已纳入严格 Java 编译；部署前仍需在项目测试数据库执行迁移与连接测试。
+2026-07-24 检查时，本机 `PATH` 中没有 `mysql` 客户端，项目内也未提供
+MySQL Connector/J，因此未执行真实 MySQL 集成测试。MySQL 改造后的 Java
+主代码和测试代码已用 `-Xlint:all -Werror` 编译，70 项内存仓库断言通过；
+C++20 严格编译和契约测试退出码为 0。部署前仍必须在项目 MySQL 8.0.19+
+测试库执行 DDL、JDBC 连接、幂等写入、额度读取及查询测试。
+
+补充：本次环境中 `javac` 无法在 `xian/build` 覆盖旧 `.class`，所以等价构建
+命令输出到共享工作区临时目录；这是构建目录写入问题，不是源码编译错误。

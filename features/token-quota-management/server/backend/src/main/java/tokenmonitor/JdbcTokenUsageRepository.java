@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/** PostgreSQL repository. Database primary key gives cross-instance idempotency. */
+/** MySQL 8 repository. Database primary key gives cross-instance idempotency. */
 public final class JdbcTokenUsageRepository implements TokenUsageRepository {
     private static final String INSERT = """
             INSERT INTO token_usage_event (
@@ -21,7 +21,7 @@ public final class JdbcTokenUsageRepository implements TokenUsageRepository {
               output_tokens,cached_input_tokens,total_tokens,response_time_ms,status,occurred_at,
               provider_reported_cost,cost_currency)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-            ON CONFLICT (idempotency_key) DO NOTHING
+            ON DUPLICATE KEY UPDATE idempotency_key=idempotency_key
             """;
 
     private final DataSource dataSource;
