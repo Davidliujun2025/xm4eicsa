@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Token 使用看板（本地预览）</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="page">
+    <div class="topbar">
+      <button class="menu-toggle">☰</button>
+      <div class="brand">CarePilot AI</div>
+    </div>
+    <div class="page-content">
+      <div class="container">
+        <div class="header-row">
+          <div>
+            <h1>Token统计</h1>
+            <div class="data-note" id="dataSourceNote">当前为本地模拟数据，可切换为后端接口。</div>
+          </div>
+          <div class="time-filters">
+            <button class="filter-btn active" data-range="7">最近7天</button>
+            <button class="filter-btn" data-range="30">最近30天</button>
+            <button class="filter-btn" data-range="0">自定义</button>
+          </div>
+        </div>
+        <div class="custom-range-panel" id="customRangePanel" style="display:none;">
+          <label>开始：<input type="date" id="customStart" /></label>
+          <label>结束：<input type="date" id="customEnd" /></label>
+          <button id="applyCustomRange" class="filter-btn">确定</button>
+        </div>
+
+        <div id="emptyState" class="empty-state" style="display:none;">
+          <div class="empty-content">
+            <div class="empty-icon">📭</div>
+            <div class="empty-title">暂无 Token 使用数据</div>
+            <div class="empty-desc">当你开始使用 AI 服务后，消耗数据将在这里展示。</div>
+          </div>
+        </div>
+
+        <div class="stats-cards"></div>
+
+        <div class="chart-panel">
+          <div class="chart-header">
+            <div class="chart-title">Token消耗趋势</div>
+            <div class="chart-tabs">
+              <button class="tab-btn active" data-period="day">按日</button>
+              <button class="tab-btn" data-period="week">按周</button>
+              <button class="tab-btn" data-period="month">按月</button>
+            </div>
+          </div>
+          <div class="chart-card">
+            <canvas id="trendChart"></canvas>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-header">
+            <div class="title">Token使用记录</div>
+            <div class="meta">显示 1 到 5 条，共 24 条记录</div>
+          </div>
+          <table class="record-table">
+            <thead>
+              <tr>
+                <th>调用时间</th>
+                <th>模型名称</th>
+                <th>输入TOKEN</th>
+                <th>输出TOKEN</th>
+                <th>总消耗</th>
+                <th>状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="recordTableBody"></tbody>
+          </table>
+          <div id="pagination" class="pagination"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <div id="detailModal" class="modal">
+      <div class="modal-inner">
+        <div class="modal-header">
+          <strong>记录详情</strong>
+          <button id="closeModal" class="btn-link">关闭</button>
+        </div>
+        <div id="modalBody" class="modal-body"></div>
+      </div>
+    </div>
+
+    <div id="errorState" class="error-state" style="display:none">
+      <p>初始化失败。</p>
+      <button id="retryBtn">重试</button>
+    </div>
+
+    <aside class="sidebar" id="mainSidebar">
+      <div class="sidebar-inner">
+        <div class="brand">
+          <div class="brand-logo">
+            <svg width="56" height="56" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <defs>
+                <linearGradient id="robotGradient" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#6ae1ff" />
+                  <stop offset="100%" stop-color="#1e5cff" />
+                </linearGradient>
+                <linearGradient id="earcupGradient" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="#78d9ff" />
+                  <stop offset="100%" stop-color="#1958d8" />
+                </linearGradient>
+              </defs>
+
+              <!-- white background -->
+              <rect x="0" y="0" width="120" height="120" fill="#ffffff"/>
+
+              <!-- robot head -->
+              <rect x="26" y="34" width="68" height="36" rx="18" fill="url(#robotGradient)"/>
+
+              <!-- eyes -->
+              <ellipse cx="44" cy="50" rx="4" ry="8" fill="#ffffff"/>
+              <ellipse cx="76" cy="50" rx="4" ry="8" fill="#ffffff"/>
+
+              <!-- mouth -->
+              <rect x="52" y="62" width="16" height="4" rx="2" fill="#ffffff"/>
+
+              <!-- headphone arc -->
+              <path d="M28 36 C28 18, 92 18, 92 36" fill="none" stroke="url(#robotGradient)" stroke-width="8" stroke-linecap="round"/>
+
+              <!-- left earcup -->
+              <rect x="18" y="32" width="14" height="28" rx="7" fill="url(#earcupGradient)"/>
+
+              <!-- right earcup -->
+              <rect x="88" y="32" width="14" height="28" rx="7" fill="url(#earcupGradient)"/>
+
+              <!-- microphone arm -->
+              <path d="M96 44 C102 44, 106 48, 106 54" fill="none" stroke="url(#earcupGradient)" stroke-width="6" stroke-linecap="round"/>
+
+              <!-- microphone head -->
+              <rect x="102" y="54" width="10" height="6" rx="3" fill="url(#earcupGradient)"/>
+            </svg>
+          </div>
+          <div class="brand-texts">
+            <div class="brand-title">CarePilot AI</div>
+            <div class="brand-sub">智能客服助手</div>
+          </div>
+        </div>
+
+        <nav class="menu">
+            <ul class="sub-menu">
+              <li class="menu-item"><span class="icon"> 
+                  <!-- chat bubble outline -->
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 5c0-1.105.895-2 2-2h12c1.105 0 2 .895 2 2v10c0 1.105-.895 2-2 2H7.414L4 20.414V5z" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linejoin="round"/></svg>
+                </span><span class="label">智能对话</span></li>
+              <li class="menu-item"><span class="icon">
+                  <!-- clock outline -->
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M12 7.5v4.5l3 1.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </span><span class="label">对话记录</span></li>
+              <li class="menu-item"><span class="icon">
+                  <!-- book outline -->
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 5.5c0-1 .9-1.5 1.8-1.5h10.4c.9 0 1.8.5 1.8 1.5v13c0 1-.9 1.5-1.8 1.5H5.8c-.9 0-1.8-.5-1.8-1.5v-13z" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M5 6h6m0 0v12m0-12h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+                </span><span class="label">个人话术库</span></li>
+              <li class="menu-item"><span class="icon">
+                  <!-- clipboard/checklist -->
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M8 3h8a2 2 0 012 2v2H6V5a2 2 0 012-2z" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M6 7h12a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V9a2 2 0 012-2z" stroke="currentColor" stroke-width="1.6" fill="none"/><path d="M9.5 12.5l1.5 1.5 3.5-3.5" stroke="currentColor" stroke-width="1.6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </span><span class="label">我的评估</span></li>
+              <li class="menu-item section-title"><span class="icon">
+                  <!-- personal dashboard icon -->
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M6 4V19a1 1 0 0 0 1 1H18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                    <rect x="10" y="13" width="1" height="4" rx="0.5" fill="currentColor"/>
+                    <rect x="13.5" y="8" width="1" height="9" rx="0.5" fill="currentColor"/>
+                    <rect x="17" y="10" width="1" height="7" rx="0.5" fill="currentColor"/>
+                  </svg>
+                </span><span class="label">个人看板</span></li>
+              <li class="menu-item active child-item"><span class="label">Token统计</span></li>
+              <li class="menu-item child-item"><span class="label">Token额度管理</span></li>
+            </ul>
+          </nav>
+      </div>
+    </aside>
+  </div>
+
+  <script src="mockData.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
