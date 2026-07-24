@@ -1,0 +1,88 @@
+package com.acme.aicslogin.user;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+import java.time.Instant;
+
+@Entity
+@Table(name = "customer_service_user")
+public class CustomerServiceUser {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, unique = true, length = 32)
+    private String account;
+
+    @Column(name = "password_hash", nullable = false, length = 100)
+    private String passwordHash;
+
+    @Column(name = "display_name", nullable = false, length = 64)
+    private String displayName;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    private UserStatus status;
+
+    @Column(name = "last_login_at")
+    private Instant lastLoginAt;
+
+    @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
+    private Instant createdAt;
+
+    @Column(name = "updated_at", nullable = false, insertable = false, updatable = false)
+    private Instant updatedAt;
+
+    protected CustomerServiceUser() {
+    }
+
+    public static CustomerServiceUser create(
+            String account,
+            String passwordHash,
+            String displayName,
+            UserStatus status
+    ) {
+        CustomerServiceUser user = new CustomerServiceUser();
+        user.account = account;
+        user.passwordHash = passwordHash;
+        user.displayName = displayName;
+        user.status = status;
+        return user;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public String getAccount() {
+        return account;
+    }
+
+    public String getPasswordHash() {
+        return passwordHash;
+    }
+
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    public UserStatus getStatus() {
+        return status;
+    }
+
+    public Instant getLastLoginAt() {
+        return lastLoginAt;
+    }
+
+    public void markLoggedIn(Instant instant) {
+        this.lastLoginAt = instant;
+    }
+}

@@ -12,7 +12,7 @@
 - 使用率、剩余额度、`NORMAL/HIGH/EXHAUSTED/UNCONFIGURED` 状态；默认 80% 为高使用率。
 - 空数据标记：汇总、趋势、记录接口均返回 `empty`，前端可隐藏图表和表格。
 - 幂等上报、客服数据隔离、统一异常响应、SSE 实时汇总。
-- PostgreSQL 建表 SQL；开发和测试可使用线程安全内存仓库。
+- MySQL 8 建表 SQL；开发和测试可使用线程安全内存仓库。
 - Kimi、DeepSeek、Claude、GPT 等厂商 Token 上报模型；厂商余额能力单独列出，不把余额误认为本地消耗。
 
 ## 数据边界
@@ -73,17 +73,21 @@ $env:TOKEN_MONITOR_DAILY_TOKEN_LIMIT='50000'
 java --add-modules jdk.httpserver -cp build/classes tokenmonitor.TokenMonitorApplication
 ```
 
-PostgreSQL 模式：
+MySQL 8 模式：
 
 1. 执行 `backend/db/V1__create_token_usage_event.sql`。
-2. 将 PostgreSQL JDBC Driver 放入运行时 classpath。
+2. 将 MySQL Connector/J 放入运行时 classpath。
 3. 配置：
 
 ```text
-TOKEN_MONITOR_JDBC_URL=jdbc:postgresql://127.0.0.1:5432/token_monitor
+TOKEN_MONITOR_JDBC_URL=jdbc:mysql://127.0.0.1:3306/ai_customer_service?useUnicode=true&characterEncoding=utf8&connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
 TOKEN_MONITOR_JDBC_USER=token_monitor
 TOKEN_MONITOR_JDBC_PASSWORD=replace-me
 ```
+
+MySQL 模式下，个人额度优先读取 `customer_token_quota`；无有效记录时回退
+`TOKEN_MONITOR_DAILY_TOKEN_LIMIT`。`occurred_at` 按 UTC 写入，统计时再按
+`TOKEN_MONITOR_ZONE` 切分自然日。
 
 ## 配置
 
@@ -118,5 +122,5 @@ scripts/
 ## 生产接入待办
 
 - 将示例 `X-User-Id` 替换为项目统一登录身份。
-- 将默认额度解析器替换为额度管理模块实现。
-- 在部署环境执行 PostgreSQL 集成测试和压测。
+- 由额度管理模块维护 `customer_token_quota`。
+- 在部署环境执行 MySQL 8 集成测试和压测。
