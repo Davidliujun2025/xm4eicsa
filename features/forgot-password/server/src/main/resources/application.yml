@@ -1,0 +1,19 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: password-reset-backend
+  datasource:
+    url: ${MYSQL_URL:jdbc:mysql://localhost:3306/xm4?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true}
+    username: ${MYSQL_USERNAME:root}
+    password: ${MYSQL_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+carepilot:
+  password-reset:
+    reset-token-ttl: 30m
+    code-ttl: 5m
+    code-cooldown: 60s
+    code-length: 6
+    username-pattern: "^1[3-9][0-9]{9}$"
