@@ -25,7 +25,5 @@
 ## 验证证据
 
 - Java 21：`-Xlint:all -Werror`。
-- C++20：`-Wall -Wextra -Wpedantic -Werror`。
 - 70 项 Java 断言：汇总、趋势、补零、分页、详情、输入/输出长度、空状态、使用率、每用户额度、异常、隔离、刷新一致性。
-- C++ 契约测试：内部认证头、DeepSeek Provider、文本长度及 Token JSON 字段。
 - 假数据测试不需要 MySQL 或真实厂商密钥。
