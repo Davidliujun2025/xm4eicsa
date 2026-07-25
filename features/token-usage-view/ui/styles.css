@@ -75,11 +75,10 @@ body{background:linear-gradient(180deg,#f7fbff 0%, #f2f7ff 100%);color:#123654}
 .error-state{position:fixed;left:20px;bottom:20px;background:#fff;padding:12px;border-radius:8px;box-shadow:0 6px 18px rgba(15,40,90,0.04)}
 .sidebar{position:fixed;left:0;top:0;bottom:0;width:220px;background:#ffffff;color:#1f3a70;padding:22px 14px;border-right:1px solid #eef3fb;z-index:1000}
 .sidebar .sidebar-inner{display:flex;flex-direction:column;height:100%}
-.sidebar .brand{display:flex;align-items:center;gap:12px;padding:8px 6px;margin-bottom:18px}
-.sidebar .brand-logo{width:56px;height:40px;display:flex;align-items:center;justify-content:center}
-.sidebar .brand-texts{display:flex;flex-direction:column}
-.sidebar .brand-title{font-weight:800;font-size:16px;color:#0b3b8a;line-height:1}
-.sidebar .brand-sub{font-size:12px;color:#8fa3c6;margin-top:2px}
+.sidebar .brand{display:flex;align-items:center;padding:4px 6px;margin-bottom:18px}
+.sidebar .brand-logo{display:flex;align-items:center}
+.sidebar .brand-logo-horizontal{width:178px;height:auto;display:block}
+.sidebar .brand-logo-icon{display:none;width:44px;height:44px}
 .sidebar .menu{margin-top:8px}
 .sidebar .sub-menu{list-style:none;padding:0;margin:0}
 .sidebar .menu-item{display:flex;align-items:center;gap:14px;padding:12px 10px;border-radius:8px;color:#284362;cursor:pointer;margin-bottom:8px}
@@ -94,5 +93,5 @@ body{background:linear-gradient(180deg,#f7fbff 0%, #f2f7ff 100%);color:#123654}
 
 /* push page content to the right */
 .page{padding-left:260px}
-@media (max-width:900px){.sidebar{width:92px}.page{padding-left:112px}}
+@media (max-width:900px){.sidebar{width:92px}.page{padding-left:112px}.sidebar .brand{justify-content:center;padding:4px 0}.sidebar .brand-logo-horizontal{display:none}.sidebar .brand-logo-icon{display:block}}
 @media (max-width:1100px){.container{padding:0 12px}}

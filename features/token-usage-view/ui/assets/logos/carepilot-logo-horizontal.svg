@@ -1,0 +1,42 @@
+<svg width="1280" height="320" viewBox="0 0 1280 320" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="CarePilot AI horizontal logo">
+  <defs>
+    <linearGradient id="h-ring" x1="44" y1="28" x2="245" y2="276" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#24D0EF"/>
+      <stop offset="1" stop-color="#1557E8"/>
+    </linearGradient>
+    <linearGradient id="h-face" x1="98" y1="92" x2="236" y2="204" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#23C6F1"/>
+      <stop offset="1" stop-color="#1A5DE8"/>
+    </linearGradient>
+    <linearGradient id="h-ear" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#25D2F0"/>
+      <stop offset="1" stop-color="#1557E8"/>
+    </linearGradient>
+    <linearGradient id="h-en" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#24C9EE"/>
+      <stop offset="1" stop-color="#1557E8"/>
+    </linearGradient>
+    <linearGradient id="h-zh" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#9AA8BC"/>
+      <stop offset="1" stop-color="#6E7D93"/>
+    </linearGradient>
+    <filter id="h-soft" x="26" y="20" width="266" height="270" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#2A77FF" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#h-soft)">
+    <path d="M44 156C44 95.2 93.2 46 154 46C214.8 46 264 95.2 264 156V194C264 220.5 242.5 242 216 242" stroke="url(#h-ring)" stroke-width="16" stroke-linecap="round"/>
+    <rect x="24" y="136" width="44" height="96" rx="16" fill="url(#h-ear)"/>
+    <rect x="240" y="136" width="44" height="96" rx="16" fill="url(#h-ear)"/>
+    <rect x="84" y="92" width="140" height="118" rx="34" fill="url(#h-face)"/>
+    <rect x="114" y="126" width="20" height="48" rx="10" fill="#EFFFFF"/>
+    <rect x="174" y="126" width="20" height="48" rx="10" fill="#EFFFFF"/>
+    <rect x="138" y="168" width="46" height="10" rx="5" fill="#EFFFFF" fill-opacity="0.95"/>
+    <path d="M104 252H172" stroke="#1A63EA" stroke-width="16" stroke-linecap="round"/>
+    <circle cx="184" cy="252" r="11" fill="#27CFF0"/>
+  </g>
+
+  <text x="338" y="156" font-size="132" font-weight="700" fill="url(#h-en)" font-family="Avenir Next, PingFang SC, Microsoft YaHei, sans-serif">CarePilot AI</text>
+  <text x="342" y="272" font-size="98" font-weight="500" fill="url(#h-zh)" font-family="PingFang SC, Microsoft YaHei, Noto Sans SC, sans-serif">智能客服助手</text>
+</svg>
