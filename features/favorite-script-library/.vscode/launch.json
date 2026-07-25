@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "java",
+      "name": "Run AI Customer Service",
+      "request": "launch",
+      "mainClass": "com.example.aics.AiCustomerServiceApplication",
+      "projectName": "ai-customer-service",
+      "vmArgs": "-Dserver.port=8088"
+    }
+  ]
+}
