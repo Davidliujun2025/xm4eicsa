@@ -5,3 +5,13 @@ dist/
 .env.local
 coverage/
 *.log
+# Java / Maven
+target/
+**/target/
+
+# IDE
+.vscode/
+.idea/
+
+# Java class files
+*.class
