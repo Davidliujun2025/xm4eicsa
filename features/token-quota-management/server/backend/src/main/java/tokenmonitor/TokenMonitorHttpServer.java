@@ -9,6 +9,8 @@ import java.math.BigDecimal;
 import java.net.InetSocketAddress;
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -28,12 +30,16 @@ public final class TokenMonitorHttpServer implements AutoCloseable {
     private final TokenUsageService usage;
     private final ProviderQuotaService quotas;
     private final String internalApiKey;
+    private final Path uiRoot;
 
     public TokenMonitorHttpServer(String host, int port, TokenUsageService usage,
-                                  ProviderQuotaService quotas, String internalApiKey) throws IOException {
+                                  ProviderQuotaService quotas, String internalApiKey,
+                                  String uiDirPath) throws IOException {
         this.usage = usage;
         this.quotas = quotas;
         this.internalApiKey = internalApiKey == null ? "" : internalApiKey;
+        this.uiRoot = Path.of(uiDirPath == null || uiDirPath.isBlank() ? "../token-usage-view/ui" : uiDirPath)
+                .toAbsolutePath().normalize();
         this.server = HttpServer.create(new InetSocketAddress(host, port), 0);
         server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
         server.createContext("/", this::dispatchSafely);
@@ -94,6 +100,8 @@ public final class TokenMonitorHttpServer implements AutoCloseable {
             Provider provider = Provider.parse(providerText);
             if (provider == Provider.OTHER) throw new ApiException(404, "UNKNOWN_PROVIDER", "unknown provider");
             send(exchange, 200, ApiJson.quota(quotas.fetch(provider)));
+        } else if (method.equals("GET")) {
+            serveStatic(exchange, path);
         } else {
             throw new ApiException(404, "NOT_FOUND", "route not found");
         }
@@ -238,6 +246,38 @@ public final class TokenMonitorHttpServer implements AutoCloseable {
                 internalApiKey.getBytes(StandardCharsets.UTF_8), supplied.getBytes(StandardCharsets.UTF_8))) {
             throw new ApiException(401, "INVALID_SERVICE_CREDENTIAL", "invalid internal service credential");
         }
+    }
+
+    private void serveStatic(HttpExchange exchange, String path) throws IOException {
+        if (path == null || path.isBlank() || path.equals("/")) {
+            path = "/index.html";
+        }
+        Path target = uiRoot.resolve(path.startsWith("/") ? path.substring(1) : path).normalize();
+        if (!target.startsWith(uiRoot) || !Files.exists(target) || Files.isDirectory(target)) {
+            throw new ApiException(404, "NOT_FOUND", "route not found");
+        }
+        String contentType = guessContentType(target);
+        byte[] bytes = Files.readAllBytes(target);
+        exchange.getResponseHeaders().set("Content-Type", contentType);
+        exchange.sendResponseHeaders(200, bytes.length);
+        try (OutputStream output = exchange.getResponseBody()) {
+            output.write(bytes);
+        }
+    }
+
+    private static String guessContentType(Path path) {
+        String name = path.getFileName().toString().toLowerCase();
+        if (name.endsWith(".html")) return "text/html; charset=utf-8";
+        if (name.endsWith(".js")) return "application/javascript; charset=utf-8";
+        if (name.endsWith(".css")) return "text/css; charset=utf-8";
+        if (name.endsWith(".json")) return "application/json; charset=utf-8";
+        if (name.endsWith(".svg")) return "image/svg+xml";
+        if (name.endsWith(".png")) return "image/png";
+        if (name.endsWith(".jpg") || name.endsWith(".jpeg")) return "image/jpeg";
+        if (name.endsWith(".gif")) return "image/gif";
+        if (name.endsWith(".woff")) return "font/woff";
+        if (name.endsWith(".woff2")) return "font/woff2";
+        return "application/octet-stream";
     }
 
     private static void validateRange(Instant from, Instant to) {

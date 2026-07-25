@@ -35,7 +35,8 @@ public final class TokenMonitorApplication {
         TokenUsageService usage = new TokenUsageService(repository, zone, clock,
                 quotaResolver, highUsageThreshold, failureRateThreshold);
         ProviderQuotaService quotas = new ProviderQuotaService(env, clock);
-        TokenMonitorHttpServer server = new TokenMonitorHttpServer(host, port, usage, quotas, internalKey);
+        String uiRoot = env.getOrDefault("TOKEN_MONITOR_UI_ROOT", "../../token-usage-view/ui");
+        TokenMonitorHttpServer server = new TokenMonitorHttpServer(host, port, usage, quotas, internalKey, uiRoot);
         Runtime.getRuntime().addShutdownHook(new Thread(server::close));
         server.start();
         System.out.printf("Personal Token Monitor listening on http://%s:%d%n", host, server.port());
