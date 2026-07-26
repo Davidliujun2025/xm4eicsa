@@ -1,3 +1,5 @@
+// src/mock/data.ts
+
 export type Platform = {
   id: string;
   name: string;

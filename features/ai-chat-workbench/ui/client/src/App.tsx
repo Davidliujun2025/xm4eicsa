@@ -6,15 +6,39 @@ import ConversationList from "./components/ConversationList";
 import ChatPanel from "./components/ChatPanel";
 import AssistantPanel from "./components/AssistantPanel";
 
+type Conv = {
+  t: string;
+  time: string;
+  tag: string;
+  platform?: string;
+  messages?: { role: "user" | "assistant"; content: string; time?: string }[];
+};
+
+console.log("🔥🔥🔥 App.tsx 被加载了");
+
 export default function App() {
   const [platform, setPlatform] = useState("tm");
   const [regen, setRegen] = useState(false);
+  const [selectedConversation, setSelectedConversation] = useState<Conv | null>(null);
   const cur = PLATFORMS.find((p) => p.id === platform)!;
 
   const doRegen = () => {
     setRegen(true);
     setTimeout(() => setRegen(false), 1200);
   };
+
+  // 处理对话列表点击
+  const handleSelectConversation = (conv: Conv) => {
+    console.log("📌 App 收到选中对话:", conv);
+    setSelectedConversation(conv);
+  };
+
+  // 新建对话：清空选中状态
+  const handleNewConversation = () => {
+    setSelectedConversation(null);
+  };
+
+  console.log("🔥🔥🔥 App.tsx 渲染中，当前组件：App 主布局");
 
   return (
     <div
@@ -38,8 +62,20 @@ export default function App() {
         <Topbar />
 
         <main className="grid min-h-0 flex-1 grid-cols-[300px_minmax(0,1fr)_372px] gap-5 overflow-hidden p-5">
-          <ConversationList platformName={cur.name} />
-          <ChatPanel platformId={platform} onPlatformChange={setPlatform} regen={regen} onRegen={doRegen} />
+          {/* ✅ 传递 onSelectConversation */}
+          <ConversationList
+            platformName={cur.name}
+            onSelectConversation={handleSelectConversation}
+          />
+          {/* ✅ 传递 selectedConversation 和 onNewConversation */}
+          <ChatPanel
+            platformId={platform}
+            onPlatformChange={setPlatform}
+            regen={regen}
+            onRegen={doRegen}
+            selectedConversation={selectedConversation}
+            onNewConversation={handleNewConversation}
+          />
           <AssistantPanel platformName={cur.name} regen={regen} />
         </main>
       </div>

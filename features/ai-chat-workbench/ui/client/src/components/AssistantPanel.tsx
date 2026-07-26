@@ -1,13 +1,72 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { STEPS } from "../mock/data";
 import { useCountUp } from "../hooks/useCountUp";
 import { Spark, Check, Flag, Arrow } from "./icons";
+
+// 收藏项类型
+type FavoriteItem = {
+  id: string;
+  step: string;
+  content: string;
+  platform: string;
+  questionType: string;
+  time: string;
+};
 
 export default function AssistantPanel({ platformName, regen }: { platformName: string; regen: boolean }) {
   const [step, setStep] = useState(3);
   const [done, setDone] = useState(false);
   const tok = useCountUp(3600);
+  const contentRef = useRef<HTMLDivElement>(null);
 
+  // 收藏列表状态（从 localStorage 初始化）
+  const [favorites, setFavorites] = useState<FavoriteItem[]>(() => {
+    const stored = localStorage.getItem("favorites");
+    return stored ? JSON.parse(stored) : [];
+  });
+
+  // 当收藏变化时保存到 localStorage
+  useEffect(() => {
+    localStorage.setItem("favorites", JSON.stringify(favorites));
+  }, [favorites]);
+
+  // 判断当前步骤是否已收藏
+  const isFavorite = () => {
+    const currentStepName = STEPS[step - 1];
+    return favorites.some((f) => f.step === currentStepName && f.platform === platformName);
+  };
+
+  // 获取当前话术内容（编辑后的内容）
+  const getCurrentContent = () => {
+    return contentRef.current?.innerText || "";
+  };
+
+  // 切换收藏 / 取消收藏
+  const toggleFavorite = () => {
+    const currentStepName = STEPS[step - 1];
+    const content = getCurrentContent();
+    if (!content.trim()) return;
+
+    if (isFavorite()) {
+      // 取消收藏：移除匹配项（按步骤+平台）
+      setFavorites((prev) =>
+        prev.filter((f) => !(f.step === currentStepName && f.platform === platformName))
+      );
+    } else {
+      // 添加收藏
+      const newItem: FavoriteItem = {
+        id: `${currentStepName}-${platformName}-${Date.now()}`,
+        step: currentStepName,
+        content,
+        platform: platformName,
+        questionType: `${platformName}咨询`, // 可根据实际情况从上下文传入 tag
+        time: new Date().toISOString(),
+      };
+      setFavorites((prev) => [...prev, newItem]);
+    }
+  };
+
+  // 跳转步骤
   const goToStep = (target: number) => {
     if (target >= 1 && target <= 5) {
       setStep(target);
@@ -28,13 +87,9 @@ export default function AssistantPanel({ platformName, regen }: { platformName: 
     alert("查看明细功能开发中");
   };
 
-  const handleCollect = () => {
-    alert("已收藏到话术库！");
-  };
-
   return (
     <section className="flex min-h-0 flex-col gap-4">
-      {/* Token 卡 - 紧凑单行 */}
+      {/* Token 卡 */}
       <div className="flex items-center gap-1.5 rounded-2xl border border-slate-200/80 bg-white px-3 py-2 shadow-sm">
         <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-blue-50 text-blue-600">
           <Spark className="h-3.5 w-3.5" />
@@ -58,7 +113,7 @@ export default function AssistantPanel({ platformName, regen }: { platformName: 
         </button>
       </div>
 
-      {/* AI 助手主体 - 其余部分保持不变 */}
+      {/* AI 助手主体 */}
       <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-slate-200/80 bg-white shadow-sm">
         <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4">
           <div>
@@ -68,7 +123,7 @@ export default function AssistantPanel({ platformName, regen }: { platformName: 
           <Spark className="h-6 w-6 text-blue-500" />
         </div>
 
-        {/* 进度条 - 可点击步骤 */}
+        {/* 进度条 */}
         <div className="px-5 py-5">
           <div className="flex items-center">
             {STEPS.map((s, i) => {
@@ -135,6 +190,7 @@ export default function AssistantPanel({ platformName, regen }: { platformName: 
 
             <div className="mt-4 text-[12.5px] text-slate-400">推荐话术</div>
             <div
+              ref={contentRef}
               contentEditable
               suppressContentEditableWarning
               className="mt-2 rounded-xl border border-slate-200 bg-white p-3.5 text-[13px] leading-relaxed text-slate-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
@@ -149,12 +205,17 @@ export default function AssistantPanel({ platformName, regen }: { platformName: 
 
             <div className="mt-3 flex items-center justify-between">
               <span className="text-[12.5px] text-slate-400">话术已生成，可直接用于客服回复</span>
+              {/* 收藏按钮 */}
               <button
-                onClick={handleCollect}
-                className="flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-blue-200 px-4 py-2 text-[12.5px] font-medium text-blue-600 transition-colors hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                onClick={toggleFavorite}
+                className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-4 py-2 text-[12.5px] font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-300 ${
+                  isFavorite()
+                    ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                    : "border-blue-200 text-blue-600 hover:bg-blue-50"
+                }`}
               >
                 <Flag className="h-4 w-4" />
-                收藏到话术库
+                {isFavorite() ? "已收藏" : "收藏到话术库"}
               </button>
             </div>
           </div>

@@ -12,6 +12,8 @@ export default function ConversationList({ platformName, onSelectConversation }:
   const [active, setActive] = useState(0);
   const [searchTerm, setSearchTerm] = useState<string>("");
 
+  console.log("✅ ConversationList 已渲染，onSelectConversation 类型:", typeof onSelectConversation);
+
   const filteredByTag = CONVS.filter((c) => filter === "全部" || c.tag === filter);
   const filtered = filteredByTag.filter((c) => {
     if (!searchTerm.trim()) return true;
@@ -22,11 +24,16 @@ export default function ConversationList({ platformName, onSelectConversation }:
   });
 
   const handleSelect = (conv: Conv, index: number) => {
+    console.log("🖱️ 点击对话:", conv.t);
     setActive(index);
-    onSelectConversation({
-      ...conv,
-      platform: conv.platform || platformName,
-    });
+    if (typeof onSelectConversation === "function") {
+      onSelectConversation({
+        ...conv,
+        platform: conv.platform || platformName,
+      });
+    } else {
+      console.error("❌ onSelectConversation 不是函数！");
+    }
   };
 
   return (

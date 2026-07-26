@@ -19,20 +19,19 @@ type Props = {
   onRegen: () => void;
 };
 
-export default function ChatPanel({ 
-  selectedConversation, 
+export default function ChatPanel({
+  selectedConversation,
   onNewConversation,
-  platformId: initialPlatformId, 
-  onPlatformChange, 
-  regen, 
-  onRegen 
+  platformId: _platformId, // 重命名为 _platformId 避免警告
+  onPlatformChange,
+  regen: _regen, // 重命名为 _regen
+  onRegen,
 }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
 
-  // 调试：监听选中对话变化
   useEffect(() => {
     console.log("💬 ChatPanel 收到 selectedConversation:", selectedConversation);
   }, [selectedConversation]);
@@ -48,7 +47,7 @@ export default function ChatPanel({
   };
 
   const handleGenerate = () => {
-    if (!text.trim() || isGenerating) return;
+    if (!cur || !text.trim() || isGenerating) return;
     setIsGenerating(true);
     if (onRegen) {
       onRegen();
@@ -59,8 +58,7 @@ export default function ChatPanel({
   };
 
   const renderMessages = () => {
-    // 如果存在选中的对话且有消息，则显示
-    if (selectedConversation && selectedConversation.messages && selectedConversation.messages.length > 0) {
+    if (selectedConversation?.messages?.length) {
       return selectedConversation.messages.map((msg, idx) => (
         <div
           key={idx}
@@ -76,7 +74,6 @@ export default function ChatPanel({
       ));
     }
 
-    // 否则显示默认示例
     return (
       <div className="ml-auto max-w-[78%] rounded-2xl rounded-tr-md bg-blue-50 px-4 py-3 text-[13.5px] leading-relaxed text-slate-700">
         您好，请问你们的这款蓝牙耳机支持七天无理由退货吗？我刚刚收到，还没拆封，想确认一下是否支持无理由退货，谢谢！
@@ -167,12 +164,16 @@ export default function ChatPanel({
 
         <button
           onClick={handleGenerate}
-          disabled={!text.trim() || isGenerating}
+          disabled={!cur || !text.trim() || isGenerating}
           className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-500 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-blue-500/25 transition-all hover:bg-blue-600 active:scale-[.99] disabled:opacity-60 disabled:cursor-not-allowed"
         >
           <Spark className={`h-5 w-5 ${isGenerating ? "spin" : ""}`} />
           {isGenerating ? "AI正在生成中..." : "生成AI回复"}
         </button>
+
+        {!cur && text.trim() && (
+          <p className="mt-2 text-center text-[12px] text-orange-500">请先选择服务平台</p>
+        )}
 
         <div className="mt-3 space-y-2 rounded-xl bg-blue-50/60 p-3.5 text-[12.5px] text-blue-700/90">
           {NOTES.map((s) => (
