@@ -8,32 +8,57 @@ export default function AssistantPanel({ platformName, regen }: { platformName: 
   const [done, setDone] = useState(false);
   const tok = useCountUp(3600);
 
+  const goToStep = (target: number) => {
+    if (target >= 1 && target <= 5) {
+      setStep(target);
+      if (target >= 5) setDone(true);
+      else setDone(false);
+    }
+  };
+
   const advance = () => {
-    if (step < 5) setStep((s) => s + 1);
-    if (step + 1 >= 5) setDone(true);
+    if (step < 5) {
+      const next = step + 1;
+      setStep(next);
+      if (next >= 5) setDone(true);
+    }
+  };
+
+  const handleViewDetail = () => {
+    alert("查看明细功能开发中");
+  };
+
+  const handleCollect = () => {
+    alert("已收藏到话术库！");
   };
 
   return (
     <section className="flex min-h-0 flex-col gap-4">
-      {/* Token 卡 */}
-      <div className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-sm">
-        <span className="grid h-7 w-7 place-items-center rounded-full bg-blue-50 text-blue-600">
-          <Spark className="h-4 w-4" />
+      {/* Token 卡 - 紧凑单行 */}
+      <div className="flex items-center gap-1.5 rounded-2xl border border-slate-200/80 bg-white px-3 py-2 shadow-sm">
+        <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-blue-50 text-blue-600">
+          <Spark className="h-3.5 w-3.5" />
         </span>
-        <span className="whitespace-nowrap text-[13px] font-medium text-slate-600">今日 Token 消耗</span>
-        <span className="text-[15px] font-bold text-slate-900">{tok.toLocaleString()}</span>
-        <span className="text-[12px] text-slate-400">/ 10,000</span>
-        <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100">
-          <div className="h-full rounded-full bg-blue-500 transition-all duration-1000" style={{ width: ` $ {(tok / 10000) * 100}%` }} />
+        <span className="whitespace-nowrap text-[11px] font-medium text-slate-600">今日Token消耗</span>
+        <span className="text-[13px] font-bold text-slate-900">{tok.toLocaleString()}</span>
+        <span className="text-[11px] text-slate-400">/ 10,000</span>
+        <div className="h-1 w-12 overflow-hidden rounded-full bg-slate-100">
+          <div
+            className="h-full rounded-full bg-blue-500 transition-all duration-1000"
+            style={{ width: `${(tok / 10000) * 100}%` }}
+          />
         </div>
-        <span className="text-[12.5px] font-semibold text-blue-600">36%</span>
-        <button className="ml-auto flex items-center gap-0.5 whitespace-nowrap text-[12.5px] font-medium text-blue-600 hover:opacity-70">
+        <span className="text-[11px] font-semibold text-blue-600">36%</span>
+        <button
+          onClick={handleViewDetail}
+          className="ml-auto flex items-center gap-0.5 whitespace-nowrap text-[11px] font-medium text-blue-600 hover:opacity-70"
+        >
           查看明细
-          <Arrow className="h-3.5 w-3.5" />
+          <Arrow className="h-3 w-3" />
         </button>
       </div>
 
-      {/* AI 助手主体 */}
+      {/* AI 助手主体 - 其余部分保持不变 */}
       <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-slate-200/80 bg-white shadow-sm">
         <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4">
           <div>
@@ -43,7 +68,7 @@ export default function AssistantPanel({ platformName, regen }: { platformName: 
           <Spark className="h-6 w-6 text-blue-500" />
         </div>
 
-        {/* 进度条 */}
+        {/* 进度条 - 可点击步骤 */}
         <div className="px-5 py-5">
           <div className="flex items-center">
             {STEPS.map((s, i) => {
@@ -53,18 +78,31 @@ export default function AssistantPanel({ platformName, regen }: { platformName: 
               return (
                 <div key={s} className="flex flex-1 flex-col items-center last:flex-none">
                   <div className="flex w-full items-center">
-                    <div
-                      className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-bold transition-all duration-300  $ {
-                        isDone ? "bg-blue-600 text-white" : isCur ? "bg-blue-600 text-white ring-4 ring-blue-100" : "bg-white text-slate-400 ring-1 ring-slate-200"
+                    <button
+                      onClick={() => goToStep(n)}
+                      className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-bold transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-blue-300 ${
+                        isDone
+                          ? "bg-blue-600 text-white"
+                          : isCur
+                          ? "bg-blue-600 text-white ring-4 ring-blue-100"
+                          : "bg-white text-slate-400 ring-1 ring-slate-200 hover:ring-blue-400"
                       }`}
                     >
                       {isDone ? <Check className="h-4 w-4" /> : n}
-                    </div>
+                    </button>
                     {i < STEPS.length - 1 && (
-                      <div className={`mx-1 h-[3px] flex-1 rounded-full transition-colors duration-300  $ {n < step ? "bg-blue-600" : "bg-slate-200"}`} />
+                      <div
+                        className={`mx-1 h-[3px] flex-1 rounded-full transition-colors duration-300 ${
+                          n < step ? "bg-blue-600" : "bg-slate-200"
+                        }`}
+                      />
                     )}
                   </div>
-                  <span className={`mt-2 whitespace-nowrap text-[11.5px]  $ {isCur ? "font-semibold text-blue-600" : isDone ? "text-blue-600" : "text-slate-400"}`}>
+                  <span
+                    className={`mt-2 whitespace-nowrap text-[11.5px] ${
+                      isCur ? "font-semibold text-blue-600" : isDone ? "text-blue-600" : "text-slate-400"
+                    }`}
+                  >
                     {s}
                   </span>
                 </div>
@@ -75,20 +113,32 @@ export default function AssistantPanel({ platformName, regen }: { platformName: 
 
         {/* 话术卡 */}
         <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-4">
-          <div className={`rounded-2xl border border-slate-100 bg-slate-50/50 p-4  $ {regen ? "shimmer" : ""}`}>
+          <div className={`rounded-2xl border border-slate-100 bg-slate-50/50 p-4 ${regen ? "shimmer" : ""}`}>
             <div className="flex items-center justify-between">
-              <span className="text-[16px] font-bold text-slate-800">第{step}步 – {STEPS[step - 1]}</span>
-              <span className="rounded-md bg-blue-50 px-2.5 py-1 text-[11.5px] font-medium text-blue-600">适用平台：{platformName}</span>
+              <span className="text-[16px] font-bold text-slate-800">
+                第{step}步 – {STEPS[step - 1]}
+              </span>
+              <span className="rounded-md bg-blue-50 px-2.5 py-1 text-[11.5px] font-medium text-blue-600">
+                适用平台：{platformName}
+              </span>
             </div>
 
             <div className="mt-3 text-[12.5px] text-slate-400">适用场景与语气</div>
             <div className="mt-2 flex gap-2">
-              <span className="rounded-lg bg-blue-100 px-3 py-1.5 text-[12.5px] font-medium text-blue-700">{platformName}售后</span>
-              <span className="rounded-lg bg-emerald-100 px-3 py-1.5 text-[12.5px] font-medium text-emerald-700">专业友好</span>
+              <span className="rounded-lg bg-blue-100 px-3 py-1.5 text-[12.5px] font-medium text-blue-700">
+                {platformName}售后
+              </span>
+              <span className="rounded-lg bg-emerald-100 px-3 py-1.5 text-[12.5px] font-medium text-emerald-700">
+                专业友好
+              </span>
             </div>
 
             <div className="mt-4 text-[12.5px] text-slate-400">推荐话术</div>
-            <div className="mt-2 rounded-xl border border-slate-200 bg-white p-3.5 text-[13px] leading-relaxed text-slate-700">
+            <div
+              contentEditable
+              suppressContentEditableWarning
+              className="mt-2 rounded-xl border border-slate-200 bg-white p-3.5 text-[13px] leading-relaxed text-slate-700 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
+            >
               您好，感谢您关注我们的商品！若订单页面标注支持七天无理由退货，且商品未拆封、包装及配件完整，可在签收后 7 天内通过“我的订单—申请售后”提交申请。具体条件和非质量问题的运费承担方式，请以{platformName}最新规则及订单页面提示为准。
             </div>
 
@@ -99,7 +149,10 @@ export default function AssistantPanel({ platformName, regen }: { platformName: 
 
             <div className="mt-3 flex items-center justify-between">
               <span className="text-[12.5px] text-slate-400">话术已生成，可直接用于客服回复</span>
-              <button className="flex items-center gap-1.5 rounded-lg border border-blue-200 px-3 py-1.5 text-[12.5px] font-medium text-blue-600 transition-colors hover:bg-blue-50">
+              <button
+                onClick={handleCollect}
+                className="flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-blue-200 px-4 py-2 text-[12.5px] font-medium text-blue-600 transition-colors hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-300"
+              >
                 <Flag className="h-4 w-4" />
                 收藏到话术库
               </button>
@@ -112,7 +165,7 @@ export default function AssistantPanel({ platformName, regen }: { platformName: 
           <button
             onClick={advance}
             disabled={done}
-            className={`w-full rounded-xl py-3.5 text-[15px] font-semibold text-white shadow-lg transition-all active:scale-[.99]  $ {
+            className={`w-full rounded-xl py-3.5 text-[15px] font-semibold text-white shadow-lg transition-all active:scale-[.99] ${
               done ? "bg-emerald-500 shadow-emerald-500/25" : "bg-blue-600 shadow-blue-600/25 hover:bg-blue-700"
             }`}
           >
