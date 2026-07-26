@@ -1,122 +1,252 @@
-# 个人 Token 消耗查看后端
+# CarePilot AI Token 额度管理后端骨架
 
-面向 AI 客服工作台的 Java 21 后端。负责接收工作台上报的真实模型 `usage`、按客服隔离存储、统计并提供查询接口。本模块不估算 Token，也不调用模型生成原始消耗数据。
+这是一个与“找回密码”项目相互独立的 Spring Boot 后端程序，用于后台管理员管理客服账号每日 Token 使用额度。
 
-## 已实现功能
+项目提供两种运行模式：
 
-- 今日 Input、Output、Cached Input、Total Token 统计。
-- 今日、本周、本月、历史累计四张汇总卡片。
-- 最近 7 天、最近 30 天、自定义时间范围趋势；按天自动补零。
-- 使用记录分页查询，默认每页 20 条；支持时间、厂商、模型筛选。
-- 单次调用详情：输入/输出文本长度、Input/Output/Cached/Total Token、模型、厂商、响应时间、状态。
-- 使用率、剩余额度、`NORMAL/HIGH/EXHAUSTED/UNCONFIGURED` 状态；默认 80% 为高使用率。
-- 空数据标记：汇总、趋势、记录接口均返回 `empty`，前端可隐藏图表和表格。
-- 幂等上报、客服数据隔离、统一异常响应、SSE 实时汇总。
-- PostgreSQL 建表 SQL；开发和测试可使用线程安全内存仓库。
-- Kimi、DeepSeek、Claude、GPT 等厂商 Token 上报模型；厂商余额能力单独列出，不把余额误认为本地消耗。
+- `memory`：默认模式，使用内存演示数据，适合没有数据库时本地演示
+- `mysql`：连接 MySQL，复用 `customer_service_user`、`token_usage_event`、`customer_token_quota`，并写入 `token_quota_adjustment_log`
 
-## 数据边界
+当前能力包括：
 
-1. AI 工作台完成一次模型调用后，从厂商响应读取 Token 使用量。
-2. 工作台调用 `POST /api/v1/internal/token-usage/events` 上报。
-3. 相同 `idempotencyKey` 可安全重试，不重复计数。
-4. 额度管理模块通过 `TokenQuotaResolver` 提供每个客服的每日额度；当前启动配置提供全局额度作为默认实现。
-5. 查询接口每次读取最新仓库数据；刷新页面后能看到最新上报记录。
+- 独立 Spring Boot 程序，默认端口 `8081`
+- 推荐仓库接口前缀：`/api/token-quota`
+- 兼容旧前端接口前缀：`/api/admin/token-quotas`
+- 管理员查看客服 Token 配额列表
+- 修改客服每日 Token 配额
+- Token 使用量记录接口
+- 80% 使用率标记：`Token 使用率较高`
+- 达到或超过每日额度标记：`已超出建议额度`
+- 额度调整日志查询
+- MySQL 仓储实现，前端接口路径保持不变
 
-## API
+## 本地启动
 
-| 方法 | 路径 | 功能 |
-|---|---|---|
-| `POST` | `/api/v1/internal/token-usage/events` | 工作台上报一次模型调用 |
-| `GET` | `/api/v1/token-usage/me/today` | 今日统计、额度和使用率 |
-| `GET` | `/api/v1/token-usage/me/summary` | 今日/本周/本月/历史汇总 |
-| `GET` | `/api/v1/token-usage/me/summary?from&to` | 自定义时间区间汇总 |
-| `GET` | `/api/v1/token-usage/me/trend?range=LAST_7_DAYS` | 最近 7 天趋势 |
-| `GET` | `/api/v1/token-usage/me/trend?range=LAST_30_DAYS` | 最近 30 天趋势 |
-| `GET` | `/api/v1/token-usage/me/trend?range=CUSTOM&from&to` | 自定义趋势 |
-| `GET` | `/api/v1/token-usage/me/records?page=1&size=20` | 分页记录，页码从 1 开始 |
-| `GET` | `/api/v1/token-usage/me/records/{requestId}` | 单次调用详情 |
-| `GET` | `/api/v1/token-usage/me/status` | 使用率、高使用率及失败异常状态 |
-| `GET` | `/api/v1/token-usage/me/stream` | SSE 实时今日汇总 |
-| `GET` | `/health` | 健康检查 |
-
-客服接口示例使用 `X-User-Id`，必须由可信网关注入。生产环境应替换为已验证的 JWT/Session Principal。内部上报使用 `X-Internal-Api-Key`。
-
-完整请求字段和错误码见 [docs/API.md](docs/API.md)，机器契约见 [docs/openapi.yaml](docs/openapi.yaml)，验证结果见 [docs/TEST_REPORT.md](docs/TEST_REPORT.md)。
-
-## 构建与测试
-
-要求：JDK 21、支持 C++20 的 `g++`。
-
-```powershell
-./scripts/build.ps1
-./scripts/test.ps1
+```bash
+mvn spring-boot:run
 ```
 
-测试使用内存假数据，不需要数据库或真实厂商密钥。当前覆盖 70 项断言，包括：
+默认启动的是 `memory` 模式。
 
-- 汇总、趋势、分页、详情、空状态。
-- 使用率和 80% 高使用率判断。
-- 每客服独立额度解析。
-- 幂等、用户隔离、无认证、非法范围。
-- 写入后再次查询得到最新数据。
-- Java 和 C++ 上报字段契约。
+默认演示账号：
 
-## 运行
+| 客服账号 | 客服名称 | 每日配额 | 已使用 Token |
+| --- | --- | ---: | ---: |
+| CS1001 | 客服一号 | 120000 | 32000 |
+| CS1002 | 客服二号 | 100000 | 82000 |
+| CS1003 | 客服三号 | 80000 | 91000 |
 
-内存模式：
+## MySQL 启动
 
-```powershell
-$env:TOKEN_MONITOR_INTERNAL_API_KEY='replace-me'
-$env:TOKEN_MONITOR_DAILY_TOKEN_LIMIT='50000'
-./scripts/build.ps1
-java --add-modules jdk.httpserver -cp build/classes tokenmonitor.TokenMonitorApplication
-```
-
-PostgreSQL 模式：
-
-1. 执行 `backend/db/V1__create_token_usage_event.sql`。
-2. 将 PostgreSQL JDBC Driver 放入运行时 classpath。
-3. 配置：
+先在 `ai_customer_service` 数据库执行：
 
 ```text
-TOKEN_MONITOR_JDBC_URL=jdbc:postgresql://127.0.0.1:5432/token_monitor
-TOKEN_MONITOR_JDBC_USER=token_monitor
-TOKEN_MONITOR_JDBC_PASSWORD=replace-me
+src/main/resources/db/mysql/token_quota_schema.sql
 ```
 
-## 配置
+然后启动 MySQL 模式：
 
-| 环境变量 | 默认值 | 说明 |
-|---|---:|---|
-| `TOKEN_MONITOR_HOST` | `127.0.0.1` | 监听地址 |
-| `TOKEN_MONITOR_PORT` | `8080` | 监听端口 |
-| `TOKEN_MONITOR_ZONE` | `Asia/Shanghai` | 业务时区 |
-| `TOKEN_MONITOR_INTERNAL_API_KEY` | 无 | 必填；内部上报凭证 |
-| `TOKEN_MONITOR_DAILY_TOKEN_LIMIT` | `0` | 默认每日额度；0 表示未配置 |
-| `TOKEN_MONITOR_HIGH_USAGE_THRESHOLD` | `0.80` | 高使用率阈值 |
-| `TOKEN_MONITOR_FAILURE_RATE_THRESHOLD` | `0.20` | 失败异常阈值 |
-
-真实密钥只放环境变量，不提交仓库。示例见 `.env.example`。
-
-## 目录
-
-```text
-backend/
-├─ db/V1__create_token_usage_event.sql
-└─ src/
-   ├─ main/java/tokenmonitor/   # 单层 Java 包
-   └─ test/java/tokenmonitor/   # 假数据测试
-cpp-client/
-├─ include/token_monitor_client.hpp
-├─ src/token_monitor_client.cpp
-└─ tests/token_monitor_client_test.cpp
-docs/
-scripts/
+```bash
+mvn spring-boot:run -Dspring-boot.run.profiles=mysql
 ```
 
-## 生产接入待办
+也可以通过环境变量覆盖数据库连接：
 
-- 将示例 `X-User-Id` 替换为项目统一登录身份。
-- 将默认额度解析器替换为额度管理模块实现。
-- 在部署环境执行 PostgreSQL 集成测试和压测。
+```bash
+set TOKEN_QUOTA_DB_URL=jdbc:mysql://127.0.0.1:3307/xm4?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+set TOKEN_QUOTA_DB_USERNAME=root
+set TOKEN_QUOTA_DB_PASSWORD=your_password
+mvn spring-boot:run -Dspring-boot.run.profiles=mysql
+```
+
+MySQL 模式下：
+
+- 客服账号列表来自 `customer_service_user`
+- 每日额度来自 `customer_token_quota`
+- 已用 Token、AI 调用次数、业务数从 `token_usage_event` 按当天 UTC 时间统计
+- 修改额度会写入 `customer_token_quota`，同时新增 `token_quota_adjustment_log`
+
+## 接口 1：查看 Token 配额列表
+
+`GET /api/token-quota/accounts?page=1&pageSize=20`
+
+可选查询参数：
+
+- `accountNo`：客服账号，支持模糊筛选
+- `statusCode`：状态筛选，可选 `NORMAL`、`HIGH_USAGE`、`EXCEEDED_RECOMMENDED`
+- `page`：页码，默认 1
+- `pageSize`：每页条数，默认 20，最大 100
+
+成功响应示例：
+
+```json
+{
+  "success": true,
+  "code": "OK",
+  "message": "success",
+  "data": {
+    "records": [
+      {
+        "accountNo": "CS1002",
+        "accountName": "客服二号",
+        "dailyQuota": 100000,
+        "usedTokens": 82000,
+        "remainingTokens": 18000,
+        "overageTokens": 0,
+        "usageRatePercent": 82.0,
+        "aiCallCount": 37,
+        "businessCount": 16,
+        "statusCode": "HIGH_USAGE",
+        "statusLabel": "Token 使用率较高",
+        "enabled": true
+      }
+    ],
+    "total": 3,
+    "page": 1,
+    "pageSize": 20,
+    "totalPages": 1
+  }
+}
+```
+
+## 接口 2：查看单个客服账号额度详情
+
+`GET /api/token-quota/accounts/{accountNo}`
+
+示例：
+
+`GET /api/token-quota/accounts/CS1001`
+
+## 接口 3：查看统计汇总
+
+`GET /api/token-quota/summary`
+
+用于前端统计卡片，返回账号总数、每日配额总量、今日已使用、总体使用率、高使用率账号数和超额账号数。
+
+## 接口 4：修改每日 Token 配额
+
+`PUT /api/token-quota/accounts/{accountNo}/daily-quota`
+
+请求：
+
+```json
+{
+  "dailyQuota": 150000,
+  "reason": "根据近期 AI 调用量上调额度",
+  "operatorId": "admin-001",
+  "operatorName": "后台管理员"
+}
+```
+
+成功响应：
+
+```json
+{
+  "success": true,
+  "code": "OK",
+  "message": "额度设置成功",
+  "data": {
+    "accountNo": "CS1001",
+    "beforeQuota": 120000,
+    "afterQuota": 150000,
+    "adjustedAt": "2026-07-20T10:30:00"
+  }
+}
+```
+
+校验规则：
+
+- `dailyQuota` 不能为空
+- 只允许正整数
+- 不得超过系统允许的最大额度，默认 `10000000`
+- `reason`、`operatorId`、`operatorName` 不能为空
+
+## 接口 5：批量修改每日 Token 配额
+
+`PUT /api/token-quota/accounts/daily-quota/batch`
+
+请求：
+
+```json
+{
+  "accountNos": ["CS1001", "CS1002"],
+  "dailyQuota": 150000,
+  "reason": "统一调整额度",
+  "operatorId": "admin-001",
+  "operatorName": "后台管理员"
+}
+```
+
+## 接口 6：记录 Token 消耗
+
+这个接口一般由 AI 对话模块或后端调用，不一定直接暴露给前端。
+
+`POST /api/token-quota/usage-records`
+
+请求：
+
+```json
+{
+  "accountNo": "CS1001",
+  "consumedTokens": 2500,
+  "aiCallCount": 1,
+  "businessCount": 1
+}
+```
+
+说明：
+
+- 即使 Token 使用量达到或超过每日额度，也继续累计消耗数据
+- 达到 80% 后返回 `HIGH_USAGE`
+- 达到或超过每日额度后返回 `EXCEEDED_RECOMMENDED`
+
+## 接口 7：查看额度调整记录
+
+`GET /api/token-quota/adjustment-logs?page=1&pageSize=20`
+
+可选查询参数：
+
+- `accountNo`：客服账号
+- `startTime`：调整开始时间，格式如 `2026-07-20T00:00:00`
+- `endTime`：调整结束时间，格式如 `2026-07-20T23:59:59`
+- `page`：页码
+- `pageSize`：每页条数
+
+返回字段包含：
+
+- 客服账号
+- 调整时间
+- 调整前额度
+- 调整后额度
+- 操作人
+- 调整原因
+
+## MySQL 表
+
+本模块主要使用这些表：
+
+- `customer_service_user`：复用登录模块客服账号表
+- `token_usage_event`：复用个人 Token 消耗查看模块的大模型调用事件表
+- `customer_token_quota`：保存客服每日 Token 额度
+- `token_quota_adjustment_log`：保存管理员额度调整记录
+
+## 后续接前端时优先确认
+
+- 页面列表字段是否与 `TokenQuotaItemResponse` 一致
+- 状态码是否使用 `NORMAL`、`HIGH_USAGE`、`EXCEEDED_RECOMMENDED`
+- “修改额度”弹窗是否需要传调整原因
+- 操作人信息由前端传，还是从登录态/Token 中解析
+- 是否需要将 Token 使用进度条颜色规则也由后端返回
+
+## 测试
+
+```bash
+mvn test
+```
+
+已包含基础测试：
+
+- 80% 阈值状态判断
+- 达到/超过额度状态判断
+- 修改额度并生成调整日志
+- 超额后继续累计 Token 消耗
