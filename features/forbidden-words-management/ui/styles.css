@@ -33,7 +33,7 @@ body {
   font-size: 14px;
   line-height: 1.5;
   color: var(--text);
-  background: radial-gradient(circle at 15% 10%, #e8f1ff, transparent 50%), var(--bg);
+  background: #f4f6fa;
 }
 
 button,
