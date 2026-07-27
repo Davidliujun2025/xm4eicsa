@@ -92,6 +92,7 @@ button,input,select,textarea{font:inherit}
 .sidebar .menu-item.child-item{padding-left:50px;background:transparent}
 .sidebar .menu-item.child-item.active{background:#eff6ff;color:#2563eb;font-weight:600}
 .sidebar .menu-item.child-item.active .icon svg{stroke:#2563eb;fill:none}
+.sidebar .menu-item.section-title.active{background:transparent;color:#364659;font-weight:500}
 .sidebar .menu-item svg{opacity:1;stroke:currentColor}
 
 /* push page content to the right */
