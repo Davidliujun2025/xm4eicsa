@@ -1043,9 +1043,23 @@ function bindEvents() {
     }
 
     // sidebar menu item activation
+    const customerNavMap = {
+        '智能对话': 'http://localhost:5174/',
+        '个人话术库': 'http://localhost:5176/',
+        'Token统计': 'http://localhost:5600/'
+    };
+
     document.querySelectorAll('.sidebar .menu-item').forEach(item => {
         item.addEventListener('click', function() {
             if (this.id === 'dashboardSectionToggle') return;
+
+            const label = this.querySelector('.label')?.textContent?.trim();
+            const target = label ? customerNavMap[label] : '';
+            if (target) {
+                window.location.href = target;
+                return;
+            }
+
             document.querySelectorAll('.sidebar .menu-item').forEach(i => i.classList.remove('active'));
             if (dashboardToggle) {
                 dashboardToggle.classList.add('active');

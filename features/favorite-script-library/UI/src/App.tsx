@@ -68,6 +68,12 @@ const navItems = [
   { Icon: Clip, label: '我的评估' },
 ];
 
+const appLinks: Record<string, string> = {
+  '智能对话': 'http://localhost:5174/',
+  '个人话术库': 'http://localhost:5176/',
+  'Token统计': 'http://localhost:5600/'
+};
+
 const App: React.FC = () => {
   const [dashboardOpen, setDashboardOpen] = useState(true);
 
@@ -81,7 +87,15 @@ const App: React.FC = () => {
           {navItems.map(({ Icon, label }, index) => {
             const active = index === 2;
             return (
-              <button key={label} className={`script-nav-item${active ? ' active' : ''}`} type="button">
+              <button
+                key={label}
+                className={`script-nav-item${active ? ' active' : ''}`}
+                type="button"
+                onClick={() => {
+                  const target = appLinks[label];
+                  if (target) window.location.href = target;
+                }}
+              >
                 <Icon className="script-nav-icon" />
                 <span>{label}</span>
               </button>
@@ -97,6 +111,9 @@ const App: React.FC = () => {
           <button
             className={`script-nav-item script-nav-child-item${dashboardOpen ? '' : ' hidden'}`}
             type="button"
+            onClick={() => {
+              window.location.href = appLinks['Token统计'];
+            }}
           >
             <span>Token统计</span>
           </button>

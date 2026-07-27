@@ -108,6 +108,13 @@ const config = reactive({
   forgotPasswordPath: '/forgot-password'
 })
 
+const APP_URLS = {
+  login: 'http://localhost:5178/',
+  forgotPassword: 'http://localhost:5177/',
+  agentHome: 'http://localhost:5174/',
+  adminHome: 'http://localhost:5175/'
+}
+
 // =============================================================
 // 2. 登录表单数据
 // =============================================================
@@ -221,20 +228,21 @@ async function handleLogin() {
     const { code, data } = response.data
 
     if (code === 'OK') {
-      if (loginForm.remember) {
-        localStorage.setItem('carepilot_remember', 'true')
-        localStorage.setItem('carepilot_account', account)
-      } else {
-        localStorage.removeItem('carepilot_remember')
-        localStorage.removeItem('carepilot_account')
-      }
+      persistRememberState(account)
 
       // Spring Security 登录成功后会轮换 CSRF Token，重新获取一次。
       await loadLoginConfig()
-      const redirectPath = data?.redirectPath || '/ai-customer-service'
-      window.location.href = `/dashboard.html?path=${encodeURIComponent(redirectPath)}`
+      const backendAccount = data?.user?.account || account
+      redirectByRole(backendAccount)
     }
   } catch (error: any) {
+    // 后端不可用时支持本地联调：仅用于本地界面联通演示
+    if (isLocalDevEnvironment() && error?.request) {
+      persistRememberState(account)
+      redirectByRole(account)
+      return
+    }
+
     if (error.response) {
       const code = error.response.data?.code
       const messages: Record<string, string> = {
@@ -259,6 +267,29 @@ function clearError() {
   loginError.value = ''
 }
 
+function persistRememberState(account: string) {
+  if (loginForm.remember) {
+    localStorage.setItem('carepilot_remember', 'true')
+    localStorage.setItem('carepilot_account', account)
+  } else {
+    localStorage.removeItem('carepilot_remember')
+    localStorage.removeItem('carepilot_account')
+  }
+}
+
+function isAdminAccount(account: string) {
+  return /(admin|管理员|root|super)/i.test(account)
+}
+
+function redirectByRole(account: string) {
+  const target = isAdminAccount(account) ? APP_URLS.adminHome : APP_URLS.agentHome
+  window.location.href = target
+}
+
+function isLocalDevEnvironment() {
+  return ['localhost', '127.0.0.1'].includes(window.location.hostname)
+}
+
 function loadRemembered() {
   const remember = localStorage.getItem('carepilot_remember') === 'true'
   if (remember) {
@@ -269,7 +300,7 @@ function loadRemembered() {
 }
 
 function goToForgot() {
-  window.location.href = `/forgot-password.html?path=${encodeURIComponent(config.forgotPasswordPath)}`
+  window.location.href = APP_URLS.forgotPassword
 }
 
 onMounted(async () => {

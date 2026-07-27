@@ -18,11 +18,21 @@ export default function Sidebar({ activeIndex = 0, onSelect }: Props) {
   const [activeIdx, setActiveIdx] = useState(activeIndex);
   const [dashboardOpen, setDashboardOpen] = useState(true);
 
+  const appLinks: Record<number, string> = {
+    0: "http://localhost:5174/",
+    2: "http://localhost:5176/",
+    4: "http://localhost:5600/",
+  };
+
   useEffect(() => {
     setActiveIdx(activeIndex);
   }, [activeIndex]);
 
   const handleSelect = (idx: number) => {
+    if (!onSelect && appLinks[idx]) {
+      window.location.href = appLinks[idx];
+      return;
+    }
     setActiveIdx(idx);
     if (onSelect) onSelect(idx);
   };

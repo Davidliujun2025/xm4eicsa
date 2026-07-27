@@ -133,7 +133,7 @@
         <!-- 底部链接 -->
         <div class="form-footer">
           <span>已有账号？</span>
-          <a href="/login">返回登录</a>
+          <a href="http://localhost:5178/">返回登录</a>
         </div>
       </div>
     </div>
@@ -310,7 +310,7 @@ async function submit() {
 }
 function backToLogin() {
   showSuccessDialog.value = false
-  window.location.href = '/login'
+  window.location.href = 'http://localhost:5178/'
 }
 // =============================================================
 // 生命周期

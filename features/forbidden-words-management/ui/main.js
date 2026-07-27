@@ -567,6 +567,24 @@ function bindFilters() {
   });
 }
 
+function bindSidebarNavigation() {
+  const navMap = {
+    "用户管理": "http://localhost:5175/",
+    "Token 管理": "http://localhost:5173/",
+    "违禁词管理": "http://localhost:5500/"
+  };
+
+  document.querySelectorAll(".nav-menu .nav-item").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const label = btn.querySelector("span")?.textContent?.trim();
+      const target = label ? navMap[label] : "";
+      if (target) {
+        window.location.href = target;
+      }
+    });
+  });
+}
+
 async function bootstrap() {
   renderStats();
   createPlatformOptions(qs("platformSelect"));
@@ -577,6 +595,7 @@ async function bootstrap() {
   bindTabs();
   bindDialogs();
   bindFilters();
+  bindSidebarNavigation();
 
   await loadWords();
 }

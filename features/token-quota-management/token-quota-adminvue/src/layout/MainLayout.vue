@@ -6,21 +6,21 @@
       </div>
 
       <nav class="sidebar-menu">
-        <button class="menu-item" type="button">
+        <button class="menu-item" type="button" @click="goAdminPage('dashboard')">
           <svg viewBox="0 0 24 24" aria-hidden="true" class="menu-icon-svg"><path d="m12 14 4-4"></path><path d="M3.34 19a10 10 0 1 1 17.32 0"></path></svg>
           <span>管理看板</span>
         </button>
-        <button class="menu-item" type="button">
+        <button class="menu-item" type="button" @click="goAdminPage('users')">
           <svg viewBox="0 0 24 24" aria-hidden="true" class="menu-icon-svg"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><path d="M16 3.128a4 4 0 0 1 0 7.744"></path><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><circle cx="9" cy="7" r="4"></circle></svg>
           <span>用户管理</span>
         </button>
 
-        <button class="menu-item active" type="button" aria-current="page">
+        <button class="menu-item active" type="button" aria-current="page" @click="goAdminPage('token')">
           <svg viewBox="0 0 24 24" aria-hidden="true" class="menu-icon-svg"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"></path><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"></circle></svg>
           <span>Token 管理</span>
         </button>
 
-        <button class="menu-item" type="button">
+        <button class="menu-item" type="button" @click="goAdminPage('forbidden')">
           <svg viewBox="0 0 24 24" aria-hidden="true" class="menu-icon-svg"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg>
           <span>违禁词管理</span>
         </button>
@@ -63,6 +63,18 @@
 </template>
 
 <script setup lang="ts">
+const adminLinks: Record<string, string> = {
+  users: 'http://localhost:5175/',
+  token: 'http://localhost:5173/',
+  forbidden: 'http://localhost:5500/'
+}
+
+function goAdminPage(key: string) {
+  const target = adminLinks[key]
+  if (target) {
+    window.location.href = target
+  }
+}
 </script>
 
 <style scoped>
