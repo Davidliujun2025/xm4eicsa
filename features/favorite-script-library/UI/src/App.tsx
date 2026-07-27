@@ -54,12 +54,19 @@ const Chev = (props: IconProps) => (
   </svg>
 );
 
+const Settings = (props: IconProps) => (
+  <svg viewBox="0 0 24 24" fill="none" className={props.className}>
+    <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 const navItems = [
   { Icon: Chat, label: '智能对话' },
   { Icon: Clock, label: '对话记录' },
   { Icon: Book, label: '个人话术库' },
   { Icon: Clip, label: '我的评估' },
-  { Icon: Chart, label: '个人看板' },
+  { Icon: Chart, label: '数据看板' },
 ];
 
 const App: React.FC = () => {
@@ -79,6 +86,10 @@ const App: React.FC = () => {
               </button>
             );
           })}
+          <button className="script-nav-item settings-item" type="button">
+            <Settings className="script-nav-icon" />
+            <span>设置</span>
+          </button>
         </nav>
       </aside>
 
