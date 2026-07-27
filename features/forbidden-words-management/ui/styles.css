@@ -89,7 +89,7 @@ textarea {
   gap: 12px;
   padding: 12px 16px;
   border-radius: 12px;
-  color: var(--text-primary);
+  color: #64748b;
   cursor: pointer;
   font-size: 15px;
   font-weight: 500;
@@ -99,6 +99,7 @@ textarea {
 
 .nav-item:hover {
   background: #f5f8fc;
+  color: #1e293b;
 }
 
 .nav-item svg {
@@ -114,7 +115,7 @@ textarea {
 
 .nav-item.active {
   background: var(--selected-background);
-  color: var(--brand-blue);
+  color: #2563eb;
   font-weight: 600;
 }
 
