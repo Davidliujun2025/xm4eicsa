@@ -3,10 +3,10 @@
 :root{font-family:"PingFang SC","Microsoft YaHei","Noto Sans SC",Arial,sans-serif;font-synthesis:none;text-rendering:optimizeLegibility}
 body{margin:0;background:linear-gradient(180deg,#f7fbff 0%, #f2f7ff 100%);color:#123654;font-size:14px;line-height:1.5}
 button,input,select,textarea{font:inherit}
-.page{font-family:inherit;margin:0;padding:0 18px 18px 250px}
+.page{font-family:inherit;margin:0;padding:0 0 18px 232px}
 .mock-banner{position:fixed;top:18px;right:18px;background:linear-gradient(180deg,#fff4d9,#fff0c4);color:#7a4700;border:1px solid #ffd27a;padding:8px 12px;border-radius:10px;font-weight:700;box-shadow:0 6px 18px rgba(15,40,90,0.06);z-index:2000}
 .mock-banner small{display:block;font-weight:600;font-size:12px;color:#7a4700;margin-top:2px}
-.container{max-width:1200px;margin:0 auto}
+.container{max-width:none;margin:0;padding:0 18px}
 .header-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 .header-row > div:first-child{flex:1}
 .header-row h1{margin:0;color:#0b3b8a}
@@ -95,4 +95,4 @@ button,input,select,textarea{font:inherit}
 .sidebar .menu-item svg{opacity:1;stroke:currentColor}
 
 /* push page content to the right */
-@media (max-width:1100px){.container{padding:0 12px}}
+@media (max-width:1100px){.container{padding:0 18px}}
