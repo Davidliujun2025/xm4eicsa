@@ -1,11 +1,16 @@
-server:
-  port: 8080
-
 spring:
   application:
     name: create-agent-account-backend
+
   datasource:
-    url: ${XM4_MYSQL_URL:jdbc:mysql://REPLACE_WITH_XM4_HOST:3306/xm4?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=true&requireSSL=true&enabledTLSProtocols=TLSv1.3&verifyServerCertificate=true}
-    username: ${XM4_MYSQL_USERNAME:REPLACE_WITH_XM4_USERNAME}
-    password: ${XM4_MYSQL_PASSWORD:REPLACE_WITH_XM4_PASSWORD}
+    url: "${XM4_MYSQL_URL:${DB_URL:jdbc:mysql://localhost:3306/carepilot?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}}"
+    username: "${XM4_MYSQL_USERNAME:${DB_USERNAME:root}}"
+    password: "${XM4_MYSQL_PASSWORD:${DB_PASSWORD:}}"
     driver-class-name: com.mysql.cj.jdbc.Driver
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  port: 8080

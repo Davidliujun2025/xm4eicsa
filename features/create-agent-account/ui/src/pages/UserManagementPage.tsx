@@ -98,7 +98,8 @@ export default function UserManagementPage() {
         status: statusFilter,
       });
       setUsers(response.data.list);
-      setTotalUsers(response.data.total);
+      
+      setUsers(response.data.list);
     } catch (error: unknown) {
       handleError(error, "用户列表加载失败");
     } finally {
@@ -191,6 +192,7 @@ export default function UserManagementPage() {
     showSuccess("客服人员账号创建成功");
     setCurrentPage(1);
     void loadUsers();
+    void loadStatistics();
   }
 
   function handleRefresh() {
@@ -409,12 +411,35 @@ export default function UserManagementPage() {
             </div>
           </header>
 
+
           <section className="statistic-grid">
-            <StatisticCard title="总用户数" value={totalUsers} trend={12} />
-            <StatisticCard title="本页客服人员" value={customerServiceCount} trend={10} />
-            <StatisticCard title="本页系统管理员" value={administratorCount} trend={2} trendType="warning" />
-            <StatisticCard title="本页禁用账号" value={disabledCount} trend={1} trendType="warning" />
+
+            <StatisticCard
+              title="总用户数"
+              value={totalUsers}
+              trend={totalUsers}
+            />
+
+            <StatisticCard
+              title="本页客服人员"
+              value={customerServiceCount}
+              trend={customerServiceCount}
+            />
+
+            <StatisticCard
+              title="本页系统管理员"
+              value={administratorCount}
+              trend={administratorCount}
+            />
+
+            <StatisticCard
+              title="本页禁用账号"
+              value={disabledCount}
+              trend={disabledCount}
+            />
+
           </section>
+
 
           <section className="user-card">
             <div className="user-toolbar">

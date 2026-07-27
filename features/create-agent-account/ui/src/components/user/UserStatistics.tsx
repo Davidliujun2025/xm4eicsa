@@ -79,50 +79,33 @@ export default function UserStatistics(){
     const cards = [
 
         {
-
             title:"总用户数",
-
-            value:
-            statistics.totalUsers
-
-
+            value: statistics.totalUsers,
+            change:"+0"
         },
-
-
+    
+    
         {
-
-            title:"本页客服人员",
-
-            value:
-            statistics.customerServiceCount
-
-
+            title:"客服人员数",
+            value: statistics.customerServiceCount,
+            change:"+0"
         },
-
-
+    
+    
         {
-
-            title:"本页系统管理员",
-
-            value:
-            statistics.adminCount
-
-
+            title:"系统管理员数",
+            value: statistics.adminCount,
+            change:"+0"
         },
-
-
+    
+    
         {
-
-            title:"本页禁用账号",
-
-            value:
-            statistics.disabledCount
-
-
+            title:"禁用账号数",
+            value: statistics.disabledCount,
+            change:"+0"
         }
-
+    
     ];
-
 
 
 
@@ -154,7 +137,7 @@ export default function UserStatistics(){
 
 
                             <p>
-                                较上月 0
+                                较上月 {card.change}
                             </p>
 
 
