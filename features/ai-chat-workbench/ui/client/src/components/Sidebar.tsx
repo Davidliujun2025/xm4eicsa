@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { Chat, Clock, Book, Clip, Chart } from "./icons";
+import { RiSettings3Line as GearIcon } from "react-icons/ri";
 
 const NAV = [
   { Icon: Chat, t: "智能对话" },
   { Icon: Clock, t: "对话记录" },
   { Icon: Book, t: "个人话术库" },
   { Icon: Clip, t: "我的评估" },
-  { Icon: Chart, t: "个人看板" },
+  { Icon: Chart, t: "数据看板" },
+  { Icon: GearIcon, t: "设置" },
 ];
 
 type Props = {
