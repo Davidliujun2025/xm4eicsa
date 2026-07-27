@@ -179,17 +179,26 @@ function updateAll() {
 
 function parseMockDate(value) {
     if (!value) return null;
-    if (value.includes('-')) {
-        return new Date(value.replace(/-/g, '/'));
+    if (value instanceof Date) {
+        return Number.isNaN(value.getTime()) ? null : value;
     }
-    const parts = value.split('/').map(Number);
+    const text = String(value);
+    let date;
+    if (text.includes('-')) {
+        date = new Date(text.replace(/-/g, '/'));
+        return Number.isNaN(date.getTime()) ? null : date;
+    }
+    const parts = text.split('/').map(Number);
     if (parts.length >= 2) {
-        return new Date(2026, parts[0] - 1, parts[1]);
+        date = new Date(2026, parts[0] - 1, parts[1]);
+        return Number.isNaN(date.getTime()) ? null : date;
     }
-    return new Date(value);
+    date = new Date(text);
+    return Number.isNaN(date.getTime()) ? null : date;
 }
 
 function normalizeDate(date) {
+    if (!date) return null;
     return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
@@ -222,6 +231,7 @@ function getFilteredRecords() {
     const { start, end } = getRangeDates();
     return (tokenData?.records || []).filter(record => {
         const recordDate = normalizeDate(parseMockDate(record.callTime));
+        if (!recordDate) return false;
         return recordDate >= start && recordDate <= end;
     });
 }
@@ -231,6 +241,7 @@ function normalizeRecord(r) {
     if (!r) return r;
     const record = {};
     record.id = r.requestId || r.idempotencyKey || r.id || r.request_id || r.requestIdRaw || '';
+    record.callTime = r.callTime || r.call_time || r.createdAt || r.created_at || r.timestamp || '';
     // model and provider
     record.modelName = r.model || r.modelName || r.model_name || '';
     record.provider = r.provider || r.vendor || '';
@@ -288,6 +299,7 @@ function getDashboardStats() {
 
     (tokenData?.records || []).forEach(record => {
         const recordDate = normalizeDate(parseMockDate(record.callTime));
+        if (!recordDate) return;
         const value = record.totalToken || (record.inputToken + record.outputToken);
         stats.history += value;
         if (recordDate.getTime() === today.getTime()) {
@@ -319,8 +331,11 @@ async function initApp() {
         renderChart();
         renderTable();
         bindEvents();
-        // start SSE for realtime updates (will reconnect on error)
-        startStream();
+        // Start SSE only when records came from the backend. In local mock mode,
+        // the static server has no /api/v1 stream endpoint.
+        if (tokenData?.fromServer) {
+            startStream();
+        }
     } catch (error) {
         showErrorState();
         console.error('Failed to initialize app:', error);
@@ -421,6 +436,7 @@ function buildTrendByPeriod(records, period) {
     const groups = {};
     records.forEach(record => {
         const recordDate = normalizeDate(parseMockDate(record.callTime));
+        if (!recordDate) return;
         let key;
         let label;
         if (period === 'week') {
@@ -445,6 +461,13 @@ function buildTrendByPeriod(records, period) {
 }
 
 function renderChart() {
+    if (typeof Chart === 'undefined') {
+        const chartCard = document.querySelector('.chart-card');
+        if (chartCard) {
+            chartCard.innerHTML = '<div class="empty-table">趋势图资源加载失败，统计卡片和记录表仍可正常查看。</div>';
+        }
+        return;
+    }
     const ctx = document.getElementById('trendChart').getContext('2d');
     let data = [];
     // Prefer server-provided trend data if available and period is day
@@ -909,6 +932,42 @@ function closeModal() {
 }
 
 function bindEvents() {
+    const dashboardToggle = document.getElementById('dashboardSectionToggle');
+    const tokenStatsMenuItem = document.getElementById('tokenStatsMenuItem');
+    const dashboardFoldStateKey = 'tokenDashboardFoldCollapsed';
+    let dashboardCollapsed = false;
+
+    const applyDashboardFoldState = () => {
+        if (!dashboardToggle || !tokenStatsMenuItem) return;
+        dashboardToggle.classList.toggle('collapsed', dashboardCollapsed);
+        tokenStatsMenuItem.classList.toggle('hidden', dashboardCollapsed);
+        dashboardToggle.classList.add('active');
+        if (dashboardCollapsed) {
+            tokenStatsMenuItem.classList.remove('active');
+        } else {
+            tokenStatsMenuItem.classList.add('active');
+        }
+    };
+
+    if (dashboardToggle && tokenStatsMenuItem) {
+        try {
+            dashboardCollapsed = window.localStorage.getItem(dashboardFoldStateKey) === '1';
+        } catch (e) {
+            dashboardCollapsed = false;
+        }
+        applyDashboardFoldState();
+
+        dashboardToggle.addEventListener('click', function() {
+            dashboardCollapsed = !dashboardCollapsed;
+            applyDashboardFoldState();
+            try {
+                window.localStorage.setItem(dashboardFoldStateKey, dashboardCollapsed ? '1' : '0');
+            } catch (e) {
+                // ignore localStorage write errors
+            }
+        });
+    }
+
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -984,10 +1043,32 @@ function bindEvents() {
     }
 
     // sidebar menu item activation
+    const customerNavMap = {
+        '智能对话': 'http://localhost:5174/',
+        '个人话术库': 'http://localhost:5176/',
+        'Token统计': 'http://localhost:5600/'
+    };
+
     document.querySelectorAll('.sidebar .menu-item').forEach(item => {
         item.addEventListener('click', function() {
+            if (this.id === 'dashboardSectionToggle') return;
+
+            const label = this.querySelector('.label')?.textContent?.trim();
+            const target = label ? customerNavMap[label] : '';
+            if (target) {
+                window.location.href = target;
+                return;
+            }
+
             document.querySelectorAll('.sidebar .menu-item').forEach(i => i.classList.remove('active'));
+            if (dashboardToggle) {
+                dashboardToggle.classList.add('active');
+            }
             this.classList.add('active');
+            if (this.id === 'tokenStatsMenuItem') {
+                dashboardCollapsed = false;
+                applyDashboardFoldState();
+            }
         });
     });
 }

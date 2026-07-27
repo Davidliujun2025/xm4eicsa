@@ -21,34 +21,33 @@ cd features/forbidden-words-management/server
 $HOME/.local/tools/apache-maven-3.9.9/bin/mvn spring-boot:run
 ```
 
-默认地址：`http://localhost:8080`
+默认地址：`http://localhost:8081`
 
-### MySQL 预留说明（当前可不启用）
+### MySQL（xm4）配置
 
-后端已预留 MySQL 连接配置（`mysql` profile），并加入驱动依赖。
+后端默认使用 `mysql` profile，并连接 xm4 数据库。
 
-- 默认运行：`local` profile，不依赖数据库
-- 启用 MySQL：
+推荐启动命令：
 
 ```bash
 cd features/forbidden-words-management/server
-MYSQL_URL='jdbc:mysql://localhost:3306/forbidden_words?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai' \
-MYSQL_USERNAME='root' \
-MYSQL_PASSWORD='your_password' \
-mvn spring-boot:run -Dspring-boot.run.profiles=mysql
+XM4_MYSQL_URL='jdbc:mysql://127.0.0.1:3307/xm4?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai' \
+XM4_MYSQL_USERNAME='root' \
+XM4_MYSQL_PASSWORD='123456' \
+mvn spring-boot:run
 ```
 
 如果没有全局 `mvn`，可改为：
 
 ```bash
 cd features/forbidden-words-management/server
-MYSQL_URL='jdbc:mysql://localhost:3306/forbidden_words?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai' \
-MYSQL_USERNAME='root' \
-MYSQL_PASSWORD='your_password' \
-$HOME/.local/tools/apache-maven-3.9.9/bin/mvn spring-boot:run -Dspring-boot.run.profiles=mysql
+XM4_MYSQL_URL='jdbc:mysql://127.0.0.1:3307/xm4?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai' \
+XM4_MYSQL_USERNAME='root' \
+XM4_MYSQL_PASSWORD='123456' \
+$HOME/.local/tools/apache-maven-3.9.9/bin/mvn spring-boot:run
 ```
 
-说明：当前业务数据仍以内存实现为主，MySQL 配置先行预留，待你后续建库后可平滑切换到持久化实现。
+说明：服务启动时会自动执行 `schema-mysql.sql`，在 xm4 中创建 `forbidden_word`、`operation_audit_log`、`hit_audit_log` 三张表（若不存在）。
 
 ## 运行前端
 
@@ -60,6 +59,8 @@ python3 -m http.server 5500
 ```
 
 访问：`http://localhost:5500`
+
+前端默认请求：`http://127.0.0.1:8081/api`
 
 ## 关键接口
 

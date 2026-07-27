@@ -1,0 +1,274 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  color: #0f172a;
+  background: #f5f7fa;
+  font-family: "PingFang SC", "Microsoft YaHei", "Noto Sans SC", Arial, sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.script-app-shell {
+  display: flex;
+  min-height: 100vh;
+  background: #f5f7fa;
+}
+
+.script-sidebar {
+  width: 232px;
+  flex: 0 0 232px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid rgba(226, 232, 240, 0.8);
+  background: #fff;
+}
+
+.script-brand {
+  padding: 24px 20px;
+}
+
+.script-logo {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.script-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 12px;
+  flex: 1 1 auto;
+}
+
+.script-nav-item {
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.5;
+  text-align: left;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.script-nav-item:hover {
+  background: #f8fafc;
+  color: #1e293b;
+}
+
+.script-nav-item.active {
+  background: #eff6ff;
+  color: #2563eb;
+}
+
+.script-nav-item.settings-item {
+  color: #64748b;
+}
+
+.script-nav-item.settings-item:hover {
+  background: #f8fafc;
+  color: #1e293b;
+}
+
+.script-nav-item-fold {
+  justify-content: space-between;
+}
+
+.script-nav-item-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.script-fold-arrow {
+  font-size: 12px;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+
+.script-fold-arrow.collapsed {
+  transform: rotate(-90deg);
+}
+
+.script-nav-child-item {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  padding-left: 62px;
+  font-size: 13px;
+}
+
+.script-nav-child-item.hidden {
+  display: none;
+}
+
+.script-nav-icon {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+}
+
+.script-main-shell {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.script-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8);
+  background: #fff;
+  padding: 16px 32px;
+}
+
+.script-title-block {
+  min-width: 0;
+}
+
+.script-title-block h1 {
+  margin: 0;
+  color: #0f172a;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 32px;
+  letter-spacing: 0;
+}
+
+.script-title-block p {
+  margin: 2px 0 0;
+  color: #94a3b8;
+  font-size: 13px;
+  line-height: 20px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.script-top-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.script-top-link,
+.script-bell-button,
+.script-account-button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.script-top-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  line-height: 21px;
+  white-space: nowrap;
+  transition: color 0.2s ease;
+}
+
+.script-top-link:hover,
+.script-bell-button:hover {
+  color: #2563eb;
+}
+
+.script-help-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.script-bell-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.script-bell-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.script-bell-button span {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.script-account-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.script-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #e879f9, #a855f7);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.script-account-name {
+  color: #334155;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 21px;
+  white-space: nowrap;
+}
+
+.script-chev-icon {
+  width: 16px;
+  height: 16px;
+  color: #94a3b8;
+}
+
+.script-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: #f5f7fa;
+}
+
+@media (max-width: 760px) {
+  .script-topbar {
+    padding: 16px 24px;
+  }
+}

@@ -144,10 +144,10 @@ public class ForbiddenWordService {
         if (!store.listWords().isEmpty()) {
             return;
         }
-        addWord("假一赔十", Platform.TAOBAO, "张管理员", "127.0.0.1");
-        addWord("绝对正品", Platform.JD, "李管理员", "127.0.0.1");
-        addWord("全网最低价", Platform.PINDUODUO, "张管理员", "127.0.0.1");
-        addWord("永久保修", Platform.DOUYIN, "王管理员", "127.0.0.1");
-        addWord("刷单奖励", Platform.KUAISHOU, "李管理员", "127.0.0.1");
+        addWord("假一赔十", Platform.TAOBAO, "张管理员", "shared-xm4");
+        addWord("绝对正品", Platform.JD, "李管理员", "shared-xm4");
+        addWord("全网最低价", Platform.PINDUODUO, "张管理员", "shared-xm4");
+        addWord("永久保修", Platform.DOUYIN, "王管理员", "shared-xm4");
+        addWord("刷单奖励", Platform.KUAISHOU, "李管理员", "shared-xm4");
     }
 }

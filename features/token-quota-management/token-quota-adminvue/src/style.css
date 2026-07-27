@@ -1,0 +1,59 @@
+/* 全局重置 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  font-family:
+    'PingFang SC',
+    'Microsoft YaHei',
+    'Noto Sans SC',
+    Arial,
+    sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+
+  --color-primary: #4767e2;
+  --color-primary-light: rgba(71, 103, 226, 0.1);
+  --color-primary-hover: #3c59cd;
+  --text-normal: #333;
+  --text-secondary: #666;
+  --border-color: #e5e7eb;
+  --bg-white: #ffffff;
+}
+
+body {
+  font-family: inherit;
+  background-color: #f7f8fa;
+  color: #1f2937;
+}
+ul {
+  list-style: none;
+}
+a {
+  text-decoration: none;
+  color: inherit;
+}
+button {
+  font: inherit;
+  cursor: pointer;
+  border: none;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.danger-text {
+  color: #e53e3e;
+}
+.success-text {
+  color: #38a169;
+}
+.warn-text {
+  color: #dd6b20;
+}

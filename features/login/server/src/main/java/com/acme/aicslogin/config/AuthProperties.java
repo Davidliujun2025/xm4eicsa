@@ -13,6 +13,7 @@ public record AuthProperties(
         Duration sessionRefreshTtl,
         Duration rememberedRefreshTtl,
         boolean secureCookies,
-        List<String> allowedOrigins
+        List<String> allowedOrigins,
+        boolean allowPlainPasswordDebug
 ) {
 }

@@ -13,7 +13,7 @@ public final class TokenMonitorApplication {
 
     public static void main(String[] args) throws Exception {
         Map<String, String> env = System.getenv();
-        String host = env.getOrDefault("TOKEN_MONITOR_HOST", "127.0.0.1");
+        String host = env.getOrDefault("TOKEN_MONITOR_HOST", "0.0.0.0");
         int port = Integer.parseInt(env.getOrDefault("TOKEN_MONITOR_PORT", "8080"));
         ZoneId zone = ZoneId.of(env.getOrDefault("TOKEN_MONITOR_ZONE", "Asia/Shanghai"));
         String internalKey = env.getOrDefault("TOKEN_MONITOR_INTERNAL_API_KEY", "");

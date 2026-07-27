@@ -49,6 +49,12 @@ const NAVIGATION_ITEMS = [
   { label: "系统设置", icon: Settings },
 ];
 
+const NAV_LINKS: Record<string, string> = {
+  "用户管理": "http://localhost:5175/",
+  "Token 管理": "http://localhost:5173/",
+  "违禁词管理": "http://localhost:5500/",
+};
+
 export default function UserManagementPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
@@ -374,8 +380,9 @@ export default function UserManagementPage() {
                 type="button"
                 className={`sidebar-nav__item ${isActive ? "is-active" : ""}`}
                 onClick={() => {
-                  if (!isActive) {
-                    window.alert(`${item.label}由其他前端模块负责，当前页面暂未接入。`);
+                  const target = NAV_LINKS[item.label];
+                  if (target) {
+                    window.location.href = target;
                   }
                 }}
               >

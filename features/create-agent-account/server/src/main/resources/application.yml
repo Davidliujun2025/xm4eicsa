@@ -1,8 +1,11 @@
 spring:
+  application:
+    name: create-agent-account-backend
+
   datasource:
-    url: ${DB_URL:jdbc:mysql://localhost:3306/carepilot}
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:}
+    url: "${XM4_MYSQL_URL:${DB_URL:jdbc:mysql://localhost:3306/carepilot?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}}"
+    username: "${XM4_MYSQL_USERNAME:${DB_USERNAME:root}}"
+    password: "${XM4_MYSQL_PASSWORD:${DB_PASSWORD:}}"
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   flyway:
