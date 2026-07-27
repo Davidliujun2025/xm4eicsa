@@ -1,0 +1,15 @@
+CREATE TABLE agent_accounts (
+    user_id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(20) NOT NULL,
+    phone VARCHAR(11) NOT NULL,
+    email VARCHAR(255) NULL,
+    password_hash VARCHAR(100) NOT NULL,
+    role VARCHAR(30) NOT NULL DEFAULT 'CUSTOMER_SERVICE',
+    status VARCHAR(20) NOT NULL DEFAULT 'ENABLED',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    CONSTRAINT uk_agent_accounts_phone UNIQUE (phone),
+    CONSTRAINT uk_agent_accounts_email UNIQUE (email)
+);

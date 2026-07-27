@@ -1,7 +1,21 @@
+# Frontend
 node_modules/
 dist/
-.DS_Store
-.env
-.env.local
 coverage/
+
+# Backend
+target/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+!**/.env.example
+
+# IDE
+.vscode/
+.idea/
+
+# System and logs
+.DS_Store
 *.log
