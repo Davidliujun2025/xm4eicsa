@@ -1,4 +1,7 @@
-const API_BASE = "http://localhost:8080/api";
+const API_BASE =
+  new URLSearchParams(window.location.search).get("apiBase") ||
+  window.localStorage.getItem("forbiddenWordsApiBase") ||
+  "http://127.0.0.1:8081/api";
 const PAGE_SIZE = 20;
 const DEFAULT_OPERATOR = "admin";
 
@@ -13,15 +16,34 @@ const state = {
   csvFileName: ""
 };
 
-const platforms = ["ALL", "TAOBAO", "JD", "PINDUODUO", "DOUYIN", "KUAISHOU"];
+const platforms = [
+  "ALL",
+  "TAOBAO",
+  "TMALL",
+  "JD",
+  "PINDUODUO",
+  "DOUYIN",
+  "XIAOHONGSHU",
+  "KUAISHOU",
+  "SHIPINHAO",
+  "WECHAT_SHOP",
+  "OTHER"
+];
 const platformLabels = {
   ALL: "全部平台",
   TAOBAO: "淘宝",
+  TMALL: "天猫",
   JD: "京东",
   PINDUODUO: "拼多多",
   DOUYIN: "抖音",
-  KUAISHOU: "快手"
+  XIAOHONGSHU: "小红书",
+  KUAISHOU: "快手",
+  SHIPINHAO: "视频号",
+  WECHAT_SHOP: "微信小店",
+  OTHER: "其他平台"
 };
+
+const SUPPORTED_PLATFORM_COUNT = platforms.filter((p) => p !== "ALL").length;
 
 function qs(id) {
   return document.getElementById(id);
@@ -64,7 +86,7 @@ function renderStats(totalWords, totalTriggerCount) {
   const triggerCount = Number.isFinite(totalTriggerCount) ? totalTriggerCount.toLocaleString("zh-CN") : "-";
   qs("stats").innerHTML = `
     <div class="card"><h5>总违禁词数</h5><strong>${words}</strong></div>
-    <div class="card"><h5>覆盖平台数</h5><strong>-</strong></div>
+    <div class="card"><h5>覆盖平台数</h5><strong>${SUPPORTED_PLATFORM_COUNT}</strong></div>
     <div class="card"><h5>今日触发次数</h5><strong>${triggerCount}</strong></div>
   `;
 }

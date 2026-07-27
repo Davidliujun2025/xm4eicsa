@@ -156,10 +156,13 @@ textarea {
   display: inline-flex;
   align-items: center;
   color: inherit;
+  cursor: pointer;
+  line-height: 1;
 }
 
 .notify-btn {
   position: relative;
+  justify-content: center;
 }
 
 .top-link {
@@ -183,6 +186,7 @@ textarea {
 }
 
 .icon-svg {
+  display: block;
   stroke: currentColor;
   fill: none;
   stroke-linecap: round;
@@ -204,7 +208,7 @@ textarea {
 .notify-dot {
   position: absolute;
   top: -4px;
-  right: -6px;
+  right: -4px;
   min-width: 18px;
   height: 18px;
   padding: 0 4px;
