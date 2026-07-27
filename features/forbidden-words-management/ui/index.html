@@ -4,15 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CarePilot AI - 违禁词库管理</title>
-  <link rel="stylesheet" href="./styles.css?v=20260726-nav2" />
+  <link rel="stylesheet" href="./styles.css?v=20260727-workbench-chrome" />
 </head>
 <body>
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand-area">
         <img
-          src="../../create-agent-account/ui/src/assets/carepilot-logo.svg"
-          alt="CarePilot AI 智能客服助手"
+          src="../../ai-chat-workbench/ui/client/public/logo.png"
+          alt="CarePilot AI"
           class="brand-logo-image"
         />
       </div>
@@ -56,32 +56,25 @@
         </div>
         <div class="header-actions" aria-label="用户工具栏">
           <button class="top-link" type="button" aria-label="帮助中心">
-            <span class="icon-circle" aria-hidden="true">
-              <svg viewBox="0 0 24 24" class="icon-svg">
-                <circle cx="12" cy="12" r="9"></circle>
-                <path d="M9.8 9.4a2.4 2.4 0 0 1 4.7.7c0 1.2-.7 1.9-1.6 2.4-.9.5-1.4 1-1.4 1.9"></path>
-                <circle cx="12" cy="16.9" r=".7" class="icon-fill"></circle>
-              </svg>
-            </span>
+            <svg viewBox="0 0 24 24" class="icon-svg help" aria-hidden="true">
+              <circle cx="12" cy="12" r="8.5"></circle>
+              <path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1 .9-1 1.7M12 16.5h.01"></path>
+            </svg>
             <span>帮助中心</span>
           </button>
 
           <button class="notify-btn" type="button" aria-label="通知消息">
             <svg viewBox="0 0 24 24" class="icon-svg bell" aria-hidden="true">
-              <path d="M6.8 16.4h10.4l-1.4-2V10a3.8 3.8 0 0 0-7.6 0v4.4l-1.4 2Z"></path>
-              <path d="M10.2 18.2a1.8 1.8 0 0 0 3.6 0"></path>
+              <path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6ZM10 19a2 2 0 0 0 4 0"></path>
             </svg>
-            <span class="notify-dot" aria-hidden="true"></span>
+            <span class="notify-dot" aria-hidden="true">2</span>
           </button>
 
           <button class="account-btn" type="button" aria-label="账号菜单">
-            <span class="avatar-dot" aria-hidden="true">
-              <span class="avatar-head"></span>
-              <span class="avatar-body"></span>
-            </span>
+            <span class="avatar-dot" aria-hidden="true">倩</span>
             <span class="account-name">张小倩</span>
             <svg viewBox="0 0 24 24" class="icon-svg caret" aria-hidden="true">
-              <path d="m7 10 5 5 5-5"></path>
+              <path d="m6 9 6 6 6-6"></path>
             </svg>
           </button>
         </div>

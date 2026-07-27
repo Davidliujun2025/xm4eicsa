@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Token 使用看板（本地预览）</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=20260727-workbench-chrome">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     // 默认后端地址与当前页面同源，避免 127.0.0.1 与 localhost 的 CORS 问题。
@@ -36,29 +36,27 @@
           <div class="dashboard-actions">
             <button class="top-link help-link" type="button" aria-label="帮助中心">
               <span class="top-icon" aria-hidden="true">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-                  <path d="M9.8 9.2a2.4 2.4 0 1 1 3.5 2.2c-.9.45-1.3.93-1.3 1.85" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                  <circle cx="12" cy="16.9" r="1" fill="currentColor"/>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.6"/>
+                  <path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1 .9-1 1.7M12 16.5h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
                 </svg>
               </span>
               <span class="top-text">帮助中心</span>
             </button>
             <button class="top-link notice-link" type="button" aria-label="消息">
               <span class="top-icon" aria-hidden="true">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 4a5 5 0 0 0-5 5v3.6l-1.4 2.4a1 1 0 0 0 .87 1.5h11.06a1 1 0 0 0 .87-1.5L17 12.6V9a5 5 0 0 0-5-5z" stroke="currentColor" stroke-width="1.8"/>
-                  <path d="M10.2 18a1.8 1.8 0 0 0 3.6 0" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6ZM10 19a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
                 </svg>
               </span>
               <span class="message-badge">2</span>
             </button>
             <button class="user-profile" type="button" aria-label="用户菜单">
-              <div class="avatar">小</div>
-              <span class="user-name">张小情</span>
+              <div class="avatar">倩</div>
+              <span class="user-name">张小倩</span>
               <span class="open-key" aria-hidden="true">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M7 10l5 5 5-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
               </span>
             </button>
@@ -146,8 +144,7 @@
       <div class="sidebar-inner">
         <div class="brand">
           <div class="brand-logo">
-            <img class="brand-logo-horizontal" src="assets/logos/carepilot-logo-horizontal.svg" alt="CarePilot AI 智能客服助手" />
-            <img class="brand-logo-icon" src="assets/logos/carepilot-icon.svg" alt="CarePilot AI" />
+            <img class="brand-logo-horizontal" src="../../ai-chat-workbench/ui/client/public/logo.png" alt="CarePilot AI" />
           </div>
         </div>
 
