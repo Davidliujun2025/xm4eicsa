@@ -7,40 +7,44 @@
         <img src="@/assets/logo.jpg" alt="CarePilot AI" class="logo-icon" />
       </div>
 
-      <!-- 导航菜单 -->
+      <!-- 导航菜单 严格复刻图二顺序与图标 -->
       <nav class="sidebar-menu">
         <div class="menu-item">
-          <span class="menu-icon">🗨</span>
-          <span>智能对话</span>
+          <span class="menu-icon">▦</span>
+          <span>管理看板</span>
         </div>
         <div class="menu-item">
-          <span class="menu-icon">🕒</span>
-          <span>对话记录</span>
-        </div>
-        <div class="menu-item">
-          <span class="menu-icon">🗔</span>
-          <span>个人话术库</span>
-        </div>
-        <div class="menu-item">
-          <span class="menu-icon">📋</span>
-          <span>我的评估</span>
+          <span class="menu-icon">👥</span>
+          <span>用户管理</span>
         </div>
 
-        <!-- 可折叠数据看板 -->
-        <div class="menu-item fold-menu" @click="toggleDataBoard">
+        <!-- 可折叠 Token管理 -->
+        <div class="menu-item fold-menu" @click="toggleTokenMenu">
           <div class="menu-item-inner">
-            <span class="menu-icon">📊</span>
-            <span>数据看板</span>
+            <span class="menu-icon">ⓞ</span>
+            <span>Token 管理</span>
           </div>
-          <span class="arrow">{{ foldOpen ? '▼' : '▶' }}</span>
+          <span class="arrow">{{ tokenOpen ? '▼' : '▶' }}</span>
         </div>
-        <div class="sub-menu" v-if="foldOpen">
+        <div class="sub-menu" v-if="tokenOpen">
           <div class="sub-menu-item active">Token额度管理</div>
         </div>
 
         <div class="menu-item">
+          <span class="menu-icon">🛡</span>
+          <span>违禁词管理</span>
+        </div>
+        <div class="menu-item">
+          <span class="menu-icon">📄</span>
+          <span>评估报告</span>
+        </div>
+        <div class="menu-item">
+          <span class="menu-icon">🕒</span>
+          <span>操作日志</span>
+        </div>
+        <div class="menu-item">
           <span class="menu-icon">⚙</span>
-          <span>设置</span>
+          <span>系统设置</span>
         </div>
       </nav>
     </aside>
@@ -67,7 +71,7 @@
         </div>
       </header>
 
-      <!-- 页面内容区域 -->
+      <!-- 页面内容插槽 -->
       <main class="page-content">
         <slot></slot>
       </main>
@@ -77,10 +81,10 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-// 控制数据看板子菜单展开收起
-const foldOpen = ref(true)
-const toggleDataBoard = () => {
-  foldOpen.value = !foldOpen.value
+// Token管理折叠状态
+const tokenOpen = ref(true)
+const toggleTokenMenu = () => {
+  tokenOpen.value = !tokenOpen.value
 }
 </script>
 
@@ -91,7 +95,7 @@ const toggleDataBoard = () => {
   overflow: hidden;
 }
 
-/* 侧边栏 */
+/* 侧边栏容器 */
 .sidebar {
   width: 240px;
   background: var(--bg-white);
@@ -141,8 +145,8 @@ const toggleDataBoard = () => {
   background: #f3f4f6;
 }
 .fold-menu .arrow {
-  font-size:12px;
-  color:#888;
+  font-size: 12px;
+  color: #888;
 }
 .sub-menu {
   padding-left: 16px;
@@ -161,7 +165,7 @@ const toggleDataBoard = () => {
   font-weight: 500;
 }
 
-/* 右侧主体 */
+/* 右侧布局 */
 .main-wrap {
   flex: 1;
   display: flex;
@@ -192,7 +196,7 @@ const toggleDataBoard = () => {
 }
 .header-icon {
   font-size: 18px;
-  color:#666;
+  color: #666;
 }
 .bell-wrap {
   position: relative;
@@ -229,8 +233,8 @@ const toggleDataBoard = () => {
   flex-shrink: 0;
 }
 .dropdown-arrow {
-  font-size:14px;
-  color:#666;
+  font-size: 14px;
+  color: #666;
 }
 
 .page-content {
