@@ -2,6 +2,16 @@ import type {
   ApiErrorResponse,
   CreateAgentRequest,
   CreateAgentResponse,
+  OperationLogResponse,
+  ResetPasswordRequest,
+  ResetPasswordResponse,
+  UpdateAgentRequest,
+  UpdateAgentResponse,
+  UpdateStatusRequest,
+  UpdateStatusResponse,
+  UserListResponse,
+  UserRole,
+  UserStatus,
 } from "../types/user";
 
 const API_BASE_URL =
@@ -23,52 +33,47 @@ export class ApiError extends Error {
   }
 }
 
-export async function createCustomerServiceUser(
-  request: CreateAgentRequest,
-): Promise<CreateAgentResponse> {
+async function apiRequest<T>(
+  path: string,
+  options: RequestInit = {},
+): Promise<T> {
   const token =
     localStorage.getItem(
       "accessToken",
     );
 
-  const response = await fetch(
-    `${API_BASE_URL}/api/admin/customer-service-users`,
-    {
-      method: "POST",
-
-      headers: {
-        "Content-Type":
-          "application/json",
-
-        ...(token
-          ? {
-              Authorization:
-                `Bearer ${token}`,
-            }
-          : {}),
-      },
-
-      body: JSON.stringify({
-        name: request.name.trim(),
-        phone: request.phone.trim(),
-        email:
-          request.email?.trim() ||
-          null,
-        initialPassword:
-          request.initialPassword,
-      }),
-    },
-  );
-
-  let result:
-    | CreateAgentResponse
-    | ApiErrorResponse;
+  let response: Response;
 
   try {
-    result =
-      (await response.json()) as
-        | CreateAgentResponse
-        | ApiErrorResponse;
+    response = await fetch(
+      `${API_BASE_URL}${path}`,
+      {
+        ...options,
+        headers: {
+          "Content-Type":
+            "application/json",
+
+          ...(token
+            ? {
+                Authorization:
+                  `Bearer ${token}`,
+              }
+            : {}),
+
+          ...options.headers,
+        },
+      },
+    );
+  } catch {
+    throw new Error(
+      "无法连接后端，请确认 Spring Boot 已启动",
+    );
+  }
+
+  let result: unknown;
+
+  try {
+    result = await response.json();
   } catch {
     throw new Error(
       "后端返回的数据不是有效的 JSON",
@@ -82,5 +87,153 @@ export async function createCustomerServiceUser(
     );
   }
 
-  return result as CreateAgentResponse;
+  return result as T;
+}
+
+export async function createCustomerServiceUser(
+  request: CreateAgentRequest,
+): Promise<CreateAgentResponse> {
+  return apiRequest<CreateAgentResponse>(
+    "/api/admin/customer-service-users",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        name: request.name.trim(),
+        phone: request.phone.trim(),
+        email:
+          request.email?.trim() ||
+          null,
+        initialPassword:
+          request.initialPassword,
+      }),
+    },
+  );
+}
+
+interface GetUsersParams {
+  page?: number;
+  pageSize?: number;
+  keyword?: string;
+  role?: UserRole | "ALL";
+  status?: UserStatus | "ALL";
+}
+
+export async function getCustomerServiceUsers(
+  params: GetUsersParams = {},
+): Promise<UserListResponse> {
+  const searchParams =
+    new URLSearchParams();
+
+  searchParams.set(
+    "page",
+    String(params.page ?? 1),
+  );
+
+  searchParams.set(
+    "pageSize",
+    String(params.pageSize ?? 10),
+  );
+
+  if (params.keyword?.trim()) {
+    searchParams.set(
+      "keyword",
+      params.keyword.trim(),
+    );
+  }
+
+  if (
+    params.role &&
+    params.role !== "ALL"
+  ) {
+    searchParams.set(
+      "role",
+      params.role,
+    );
+  }
+
+  if (
+    params.status &&
+    params.status !== "ALL"
+  ) {
+    searchParams.set(
+      "status",
+      params.status,
+    );
+  }
+
+  return apiRequest<UserListResponse>(
+    `/api/admin/customer-service-users?${searchParams.toString()}`,
+  );
+}
+
+export async function updateCustomerServiceUser(
+  userId: number,
+  request: UpdateAgentRequest,
+): Promise<UpdateAgentResponse> {
+  return apiRequest<UpdateAgentResponse>(
+    `/api/admin/customer-service-users/${userId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({
+        name: request.name.trim(),
+        email:
+          request.email?.trim() ||
+          null,
+      }),
+    },
+  );
+}
+
+export async function updateCustomerServiceUserStatus(
+  userId: number,
+  request: UpdateStatusRequest,
+): Promise<UpdateStatusResponse> {
+  return apiRequest<UpdateStatusResponse>(
+    `/api/admin/customer-service-users/${userId}/status`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(request),
+    },
+  );
+}
+
+export async function resetCustomerServiceUserPassword(
+  userId: number,
+  request: ResetPasswordRequest,
+): Promise<ResetPasswordResponse> {
+  return apiRequest<ResetPasswordResponse>(
+    `/api/admin/customer-service-users/${userId}/reset-password`,
+    {
+      method: "POST",
+      body: JSON.stringify(request),
+    },
+  );
+}
+
+export async function getCustomerServiceUserOperationLogs(
+  userId: number,
+): Promise<OperationLogResponse> {
+  return apiRequest<OperationLogResponse>(
+    `/api/admin/customer-service-users/${userId}/operation-logs`,
+  );
+}
+
+export interface UserStatisticsResponse {
+  code: string;
+  message: string;
+  data: {
+    totalUsers: number;
+    customerServiceCount: number;
+    adminCount: number;
+    disabledCount: number;
+  };
+}
+
+
+export async function getUserStatistics(): Promise<UserStatisticsResponse> {
+
+  return apiRequest<UserStatisticsResponse>(
+    "/api/admin/customer-service-users/statistics",
+  );
+
 }
