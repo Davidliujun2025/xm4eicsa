@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Token统计（本地预览）</title>
-  <link rel="stylesheet" href="styles.css?v=20260727-dashboard-active1">
+  <link rel="stylesheet" href="styles.css?v=20260728-dashboard-fold1">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     // 默认后端地址与当前页面同源，避免 127.0.0.1 与 localhost 的 CORS 问题。
@@ -144,7 +144,7 @@
       <div class="sidebar-inner">
         <div class="brand">
           <div class="brand-logo">
-            <img class="brand-logo-horizontal" src="../../ai-chat-workbench/ui/client/public/logo.png" alt="CarePilot AI" />
+            <img class="brand-logo-horizontal" src="./logo.png" alt="CarePilot AI" />
           </div>
         </div>
 
@@ -166,13 +166,19 @@
                   <!-- clipboard/checklist -->
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="4" width="14" height="17" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M9 4h6v2.5H9zM9 12l2 2 4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 </span><span class="label">我的评估</span></li>
-              <li class="menu-item section-title"><span class="icon">
-                  <!-- personal dashboard icon -->
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M4 20V4M4 20h16M8 16v-4M12 16V8M16 16v-6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
-                  </svg>
-                </span><span class="label">数据看板</span></li>
-              <li class="menu-item active child-item"><span class="label">Token统计</span></li>
+              <li class="menu-item section-title fold-menu" id="dashboardSectionToggle">
+                <span class="menu-item-main">
+                  <span class="icon">
+                    <!-- personal dashboard icon -->
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M4 20V4M4 20h16M8 16v-4M12 16V8M16 16v-6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                    </svg>
+                  </span>
+                  <span class="label">数据看板</span>
+                </span>
+                <span class="fold-arrow" id="dashboardFoldArrow">▼</span>
+              </li>
+              <li class="menu-item active child-item" id="tokenStatsMenuItem"><span class="label">Token统计</span></li>
               <li class="menu-item settings-item"><span class="icon">
                   <!-- settings gear outline -->
                   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -188,6 +194,6 @@
 
   <script src="mockData.js?v=20260726-fix2"></script>
   <script src="tokenApi.js?v=20260726-fix2"></script>
-  <script src="app.js?v=20260726-fix2"></script>
+  <script src="app.js?v=20260728-dashboard-fold1"></script>
 </body>
 </html>

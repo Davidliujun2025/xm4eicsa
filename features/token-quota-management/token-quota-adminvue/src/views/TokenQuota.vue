@@ -1,10 +1,6 @@
 <template>
   <div class="token-quota-page">
     <div class="page-top">
-      <div class="page-title-wrap">
-        <h1 class="page-title">Token额度管理</h1>
-        <p class="page-desc">管理所有客服账号的每日 Token 配额</p>
-      </div>
       <button class="btn-primary">操作日志</button>
     </div>
 
@@ -191,17 +187,9 @@ function getRateClass(item: QuotaItem) {
 }
 .page-top {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
+  justify-content: flex-end;
+  align-items: center;
   margin-bottom: 24px;
-}
-.page-title {
-  font-size: 30px;
-  font-weight: 700;
-  margin-bottom: 6px;
-}
-.page-desc {
-  color: var(--text-secondary);
 }
 .btn-primary {
   background-color: var(--color-primary);

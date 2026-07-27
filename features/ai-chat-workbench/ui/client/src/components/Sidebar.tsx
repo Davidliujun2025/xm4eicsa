@@ -7,8 +7,6 @@ const NAV = [
   { Icon: Clock, t: "对话记录" },
   { Icon: Book, t: "个人话术库" },
   { Icon: Clip, t: "我的评估" },
-  { Icon: Chart, t: "数据看板" },
-  { Icon: GearIcon, t: "设置" },
 ];
 
 type Props = {
@@ -18,6 +16,7 @@ type Props = {
 
 export default function Sidebar({ activeIndex = 0, onSelect }: Props) {
   const [activeIdx, setActiveIdx] = useState(activeIndex);
+  const [dashboardOpen, setDashboardOpen] = useState(true);
 
   useEffect(() => {
     setActiveIdx(activeIndex);
@@ -51,6 +50,51 @@ export default function Sidebar({ activeIndex = 0, onSelect }: Props) {
             </button>
           );
         })}
+
+        <button
+          type="button"
+          onClick={() => setDashboardOpen((v) => !v)}
+          className="group flex items-center justify-between rounded-xl px-4 py-3 text-[15px] font-medium text-slate-500 transition-all duration-200 hover:bg-slate-50 hover:text-slate-800"
+        >
+          <span className="flex items-center gap-3">
+            <Chart className="h-[22px] w-[22px] group-hover:scale-110" />
+            数据看板
+          </span>
+          <span
+            className={`text-[12px] leading-none transition-transform duration-200 ${
+              dashboardOpen ? "rotate-0" : "-rotate-90"
+            }`}
+          >
+            ▼
+          </span>
+        </button>
+
+        {dashboardOpen && (
+          <button
+            type="button"
+            onClick={() => handleSelect(4)}
+            className={`rounded-xl px-4 py-2.5 pl-[62px] text-left text-[13px] font-medium transition-all duration-200 ${
+              activeIdx === 4
+                ? "bg-blue-50 text-blue-600"
+                : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+            }`}
+          >
+            Token统计
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={() => handleSelect(5)}
+          className={`group flex items-center gap-3 rounded-xl px-4 py-3 text-[15px] font-medium transition-all duration-200 ${
+            activeIdx === 5
+              ? "bg-blue-50 text-blue-600"
+              : "text-slate-500 hover:bg-slate-50 hover:text-slate-800"
+          }`}
+        >
+          <GearIcon className={`h-[22px] w-[22px] ${activeIdx === 5 ? "" : "group-hover:scale-110"}`} />
+          设置
+        </button>
       </nav>
     </aside>
   );

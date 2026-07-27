@@ -1,77 +1,60 @@
 <template>
   <div class="layout-wrap">
-    <!-- 左侧侧边栏 -->
     <aside class="sidebar">
-      <!-- 左上角仅Logo图片，无文字 -->
       <div class="sidebar-logo">
-        <img src="@/assets/logo.jpg" alt="CarePilot AI" class="logo-icon" />
+        <img src="@/assets/logo.png" alt="CarePilot AI" class="logo-icon" />
       </div>
 
-      <!-- 导航菜单 严格复刻图二顺序与图标 -->
       <nav class="sidebar-menu">
-        <div class="menu-item">
-          <span class="menu-icon">▦</span>
+        <button class="menu-item" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true" class="menu-icon-svg"><path d="m12 14 4-4"></path><path d="M3.34 19a10 10 0 1 1 17.32 0"></path></svg>
           <span>管理看板</span>
-        </div>
-        <div class="menu-item">
-          <span class="menu-icon">👥</span>
+        </button>
+        <button class="menu-item" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true" class="menu-icon-svg"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><path d="M16 3.128a4 4 0 0 1 0 7.744"></path><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><circle cx="9" cy="7" r="4"></circle></svg>
           <span>用户管理</span>
-        </div>
+        </button>
 
-        <!-- 可折叠 Token管理 -->
-        <div class="menu-item fold-menu" @click="toggleTokenMenu">
-          <div class="menu-item-inner">
-            <span class="menu-icon">ⓞ</span>
-            <span>Token 管理</span>
-          </div>
-          <span class="arrow">{{ tokenOpen ? '▼' : '▶' }}</span>
-        </div>
-        <div class="sub-menu" v-if="tokenOpen">
-          <div class="sub-menu-item active">Token额度管理</div>
-        </div>
+        <button class="menu-item active" type="button" aria-current="page">
+          <svg viewBox="0 0 24 24" aria-hidden="true" class="menu-icon-svg"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"></path><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"></circle></svg>
+          <span>Token 管理</span>
+        </button>
 
-        <div class="menu-item">
-          <span class="menu-icon">🛡</span>
+        <button class="menu-item" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true" class="menu-icon-svg"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg>
           <span>违禁词管理</span>
-        </div>
-        <div class="menu-item">
-          <span class="menu-icon">📄</span>
+        </button>
+        <button class="menu-item" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true" class="menu-icon-svg"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="m9 14 2 2 4-4"></path></svg>
           <span>评估报告</span>
-        </div>
-        <div class="menu-item">
-          <span class="menu-icon">🕒</span>
+        </button>
+        <button class="menu-item" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true" class="menu-icon-svg"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l4 2"></path></svg>
           <span>操作日志</span>
-        </div>
-        <div class="menu-item">
-          <span class="menu-icon">⚙</span>
+        </button>
+        <button class="menu-item" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true" class="menu-icon-svg"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"></path><circle cx="12" cy="12" r="3"></circle></svg>
           <span>系统设置</span>
-        </div>
+        </button>
       </nav>
     </aside>
 
-    <!-- 右侧主区域 -->
     <div class="main-wrap">
-      <!-- 顶部导航栏 -->
       <header class="page-header">
-        <div></div>
-        <div class="header-right">
-          <span class="header-item">
-            <span class="header-icon">❓</span>
-            帮助中心
-          </span>
-          <span class="header-item bell-wrap">
-            🔔
-            <sup>2</sup>
-          </span>
-          <div class="user-header">
-            <span class="avatar">倩</span>
-            <span>张小倩</span>
-            <span class="dropdown-arrow">▼</span>
+        <div>
+          <h1>Token额度管理</h1>
+          <p>管理所有客服账号的每日 Token 配额</p>
+        </div>
+        <div class="page-header-right">
+          <div class="service-status"><span></span>AI服务正常</div>
+          <div class="current-user">
+            <div class="current-user-avatar">陈</div>
+            <span>陈一冉</span>
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
           </div>
         </div>
       </header>
 
-      <!-- 页面内容插槽 -->
       <main class="page-content">
         <slot></slot>
       </main>
@@ -80,161 +63,160 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-// Token管理折叠状态
-const tokenOpen = ref(true)
-const toggleTokenMenu = () => {
-  tokenOpen.value = !tokenOpen.value
-}
 </script>
 
 <style scoped>
 .layout-wrap {
   display: flex;
-  height: 100vh;
+  min-height: 100vh;
   overflow: hidden;
 }
 
-/* 侧边栏容器 */
 .sidebar {
-  width: 240px;
-  background: var(--bg-white);
-  border-right: 1px solid var(--border-color);
+  width: 232px;
+  background: #fff;
+  border-right: 1px solid #e8edf4;
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
 }
 .sidebar-logo {
-  padding: 18px 16px;
-  border-bottom: 1px solid var(--border-color);
+  padding: 24px 20px;
+  display: flex;
+  align-items: center;
 }
 .logo-icon {
+  display: block;
   width: 100%;
-  max-width: 180px;
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
 }
 
 .sidebar-menu {
   flex: 1;
-  padding: 16px 12px;
+  padding: 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 .menu-item {
-  padding: 10px 12px;
-  border-radius: 8px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 12px 16px;
+  border-radius: 12px;
   cursor: pointer;
-  margin-bottom: 4px;
   font-size: 15px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.fold-menu {
-  justify-content: space-between;
-}
-.menu-item-inner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.menu-icon {
-  font-size: 20px;
-  color: #666;
-  width: 24px;
-  text-align: center;
-  flex-shrink: 0;
-}
-.menu-item:hover:not(.active) {
-  background: #f3f4f6;
-}
-.fold-menu .arrow {
-  font-size: 12px;
-  color: #888;
-}
-.sub-menu {
-  padding-left: 16px;
-  margin-top: 4px;
-}
-.sub-menu-item {
-  padding: 8px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  margin-bottom: 2px;
-}
-.sub-menu-item.active {
-  background: var(--color-primary-light);
-  color: var(--color-primary);
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #64748b;
+  line-height: 1.5;
+  letter-spacing: normal;
+  word-spacing: normal;
+  text-align: left;
 }
 
-/* 右侧布局 */
+.menu-item:hover {
+  background: #f8fafc;
+  color: #1e293b;
+}
+
+.menu-item.active {
+  background: #eff6ff;
+  color: #2563eb;
+  font-weight: 500;
+}
+.menu-icon-svg {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 .main-wrap {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  min-width: 0;
 }
 .page-header {
-  height: 64px;
-  border-bottom: 1px solid var(--border-color);
+  min-height: 88px;
+  border-bottom: 1px solid #e8edf4;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 24px;
+  padding: 16px 32px;
   background: #fff;
 }
-.header-right {
+.page-header h1 {
+  margin: 0;
+  color: #0f1f3d;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.page-header p {
+  margin: 4px 0 0;
+  color: #667085;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.page-header-right {
   display: flex;
   align-items: center;
-  gap: 26px;
+  gap: 20px;
 }
-.header-item {
-  cursor: pointer;
-  font-size: 15px;
-  color: var(--text-normal);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.header-icon {
-  font-size: 18px;
-  color: #666;
-}
-.bell-wrap {
-  position: relative;
-}
-.bell-wrap sup {
-  position: absolute;
-  top: -4px;
-  right: -6px;
-  background: #ef4444;
-  color: white;
-  font-size: 10px;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.user-header {
+
+.service-status {
+  min-height: 40px;
+  padding: 0 13px;
   display: flex;
   align-items: center;
   gap: 8px;
-  cursor: pointer;
+  border: 1px solid #dde5f0;
+  border-radius: 8px;
+  color: #22b573;
+  font-size: 13px;
+  font-weight: 600;
 }
-.avatar {
-  width: 34px;
-  height: 34px;
+.service-status > span {
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: var(--color-primary);
-  color: #fff;
+  background: #22b573;
+}
+.current-user {
   display: flex;
   align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.dropdown-arrow {
+  gap: 8px;
+  color: #0f1f3d;
   font-size: 14px;
-  color: #666;
+  font-weight: 600;
+}
+
+.current-user-avatar {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  border-radius: 50%;
+  background: #eaf2ff;
+  color: #1769f6;
+  justify-content: center;
+}
+
+.current-user svg {
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .page-content {

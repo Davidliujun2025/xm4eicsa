@@ -932,6 +932,42 @@ function closeModal() {
 }
 
 function bindEvents() {
+    const dashboardToggle = document.getElementById('dashboardSectionToggle');
+    const tokenStatsMenuItem = document.getElementById('tokenStatsMenuItem');
+    const dashboardFoldStateKey = 'tokenDashboardFoldCollapsed';
+    let dashboardCollapsed = false;
+
+    const applyDashboardFoldState = () => {
+        if (!dashboardToggle || !tokenStatsMenuItem) return;
+        dashboardToggle.classList.toggle('collapsed', dashboardCollapsed);
+        tokenStatsMenuItem.classList.toggle('hidden', dashboardCollapsed);
+        dashboardToggle.classList.add('active');
+        if (dashboardCollapsed) {
+            tokenStatsMenuItem.classList.remove('active');
+        } else {
+            tokenStatsMenuItem.classList.add('active');
+        }
+    };
+
+    if (dashboardToggle && tokenStatsMenuItem) {
+        try {
+            dashboardCollapsed = window.localStorage.getItem(dashboardFoldStateKey) === '1';
+        } catch (e) {
+            dashboardCollapsed = false;
+        }
+        applyDashboardFoldState();
+
+        dashboardToggle.addEventListener('click', function() {
+            dashboardCollapsed = !dashboardCollapsed;
+            applyDashboardFoldState();
+            try {
+                window.localStorage.setItem(dashboardFoldStateKey, dashboardCollapsed ? '1' : '0');
+            } catch (e) {
+                // ignore localStorage write errors
+            }
+        });
+    }
+
     document.querySelectorAll('.filter-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -1009,8 +1045,16 @@ function bindEvents() {
     // sidebar menu item activation
     document.querySelectorAll('.sidebar .menu-item').forEach(item => {
         item.addEventListener('click', function() {
+            if (this.id === 'dashboardSectionToggle') return;
             document.querySelectorAll('.sidebar .menu-item').forEach(i => i.classList.remove('active'));
+            if (dashboardToggle) {
+                dashboardToggle.classList.add('active');
+            }
             this.classList.add('active');
+            if (this.id === 'tokenStatsMenuItem') {
+                dashboardCollapsed = false;
+                applyDashboardFoldState();
+            }
         });
     });
 }

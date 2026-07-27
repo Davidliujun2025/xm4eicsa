@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import AiCustomer from './views/aiCustomer';
 
 type IconProps = { className?: string };
@@ -66,10 +66,11 @@ const navItems = [
   { Icon: Clock, label: '对话记录' },
   { Icon: Book, label: '个人话术库' },
   { Icon: Clip, label: '我的评估' },
-  { Icon: Chart, label: '数据看板' },
 ];
 
 const App: React.FC = () => {
+  const [dashboardOpen, setDashboardOpen] = useState(true);
+
   return (
     <div className="script-app-shell">
       <aside className="script-sidebar">
@@ -86,6 +87,19 @@ const App: React.FC = () => {
               </button>
             );
           })}
+          <button className="script-nav-item script-nav-item-fold" type="button" onClick={() => setDashboardOpen((v) => !v)}>
+            <span className="script-nav-item-main">
+              <Chart className="script-nav-icon" />
+              <span>数据看板</span>
+            </span>
+            <span className={`script-fold-arrow${dashboardOpen ? '' : ' collapsed'}`}>▼</span>
+          </button>
+          <button
+            className={`script-nav-item script-nav-child-item${dashboardOpen ? '' : ' hidden'}`}
+            type="button"
+          >
+            <span>Token统计</span>
+          </button>
           <button className="script-nav-item settings-item" type="button">
             <Settings className="script-nav-icon" />
             <span>设置</span>

@@ -87,6 +87,37 @@ textarea {
   color: #1e293b;
 }
 
+.script-nav-item-fold {
+  justify-content: space-between;
+}
+
+.script-nav-item-main {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.script-fold-arrow {
+  font-size: 12px;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+
+.script-fold-arrow.collapsed {
+  transform: rotate(-90deg);
+}
+
+.script-nav-child-item {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  padding-left: 62px;
+  font-size: 13px;
+}
+
+.script-nav-child-item.hidden {
+  display: none;
+}
+
 .script-nav-icon {
   width: 22px;
   height: 22px;
