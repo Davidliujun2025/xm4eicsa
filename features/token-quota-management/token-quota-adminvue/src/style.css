@@ -1,0 +1,43 @@
+/* 全局重置 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: #f7f8fa;
+  color: #1f2937;
+}
+ul {
+  list-style: none;
+}
+a {
+  text-decoration: none;
+  color: inherit;
+}
+button {
+  cursor: pointer;
+  border: none;
+}
+
+/* 全局主题变量 */
+:root {
+  --color-primary: #4767e2;
+  --color-primary-light: rgba(71, 103, 226, 0.1);
+  --color-primary-hover: #3c59cd;
+  --text-normal: #333;
+  --text-secondary: #666;
+  --border-color: #e5e7eb;
+  --bg-white: #ffffff;
+}
+
+.danger-text {
+  color: #e53e3e;
+}
+.success-text {
+  color: #38a169;
+}
+.warn-text {
+  color: #dd6b20;
+}
