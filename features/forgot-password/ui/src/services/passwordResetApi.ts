@@ -1,5 +1,5 @@
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '');
-const PASSWORD_RESET_BASE_PATH = '/api/password';
+const PASSWORD_RESET_BASE_PATH = '/api/auth/password-reset';
 
 export interface VerifyAccountResponse {
   resetToken: string;
