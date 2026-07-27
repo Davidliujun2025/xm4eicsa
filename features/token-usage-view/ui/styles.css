@@ -89,7 +89,8 @@ button,input,select,textarea{font:inherit}
 .sidebar .menu-item .label{font-size:15px}
 .sidebar .menu-item.active{background:#eff6ff;color:#2563eb;font-weight:600}
 .sidebar .menu-item.section-title{background:transparent;color:#64748b;cursor:default;padding:12px 16px;margin-bottom:4px;letter-spacing:0;font-size:15px;font-weight:500}
-.sidebar .menu-item.child-item{padding-left:50px;background:transparent}
+.sidebar .menu-item.child-item{padding-left:62px;background:transparent}
+.sidebar .menu-item.child-item .label{font-size:13px}
 .sidebar .menu-item.child-item.active{background:#eff6ff;color:#2563eb;font-weight:600}
 .sidebar .menu-item.child-item.active .icon svg{stroke:#2563eb;fill:none}
 .sidebar .menu-item.section-title.active{background:transparent;color:#364659;font-weight:500}
