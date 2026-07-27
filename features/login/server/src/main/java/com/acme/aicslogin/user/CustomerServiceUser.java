@@ -1,9 +1,8 @@
 package com.acme.aicslogin.user;
 
 import jakarta.persistence.Column;
+import jakarta.persistence.Convert;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -22,14 +21,20 @@ public class CustomerServiceUser {
     @Column(nullable = false, unique = true, length = 32)
     private String account;
 
+    @Column(name = "phone", length = 20)
+    private String phone;
+
     @Column(name = "password_hash", nullable = false, length = 100)
     private String passwordHash;
+
+    @Column(name = "password", length = 255)
+    private String legacyPassword;
 
     @Column(name = "display_name", nullable = false, length = 64)
     private String displayName;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 16)
+    @Convert(converter = UserStatusConverter.class)
+    @Column(nullable = false, length = 32)
     private UserStatus status;
 
     @Column(name = "last_login_at")
@@ -68,6 +73,14 @@ public class CustomerServiceUser {
 
     public String getPasswordHash() {
         return passwordHash;
+    }
+
+    public String getLegacyPassword() {
+        return legacyPassword;
+    }
+
+    public String getPhone() {
+        return phone;
     }
 
     public String getDisplayName() {

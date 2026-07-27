@@ -5,14 +5,10 @@ spring:
   application:
     name: ai-customer-service
   datasource:
-    url: jdbc:h2:mem:script_library;MODE=MySQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
-    username: sa
-    password:
-    driver-class-name: org.h2.Driver
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
+    url: ${XM4_MYSQL_URL:jdbc:mysql://REPLACE_WITH_XM4_HOST:3306/xm4?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=true&requireSSL=true&enabledTLSProtocols=TLSv1.3&verifyServerCertificate=true}
+    username: ${XM4_MYSQL_USERNAME:REPLACE_WITH_XM4_USERNAME}
+    password: ${XM4_MYSQL_PASSWORD:REPLACE_WITH_XM4_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
       ddl-auto: update

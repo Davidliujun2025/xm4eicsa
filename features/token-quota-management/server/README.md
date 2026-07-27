@@ -53,7 +53,7 @@ mvn spring-boot:run -Dspring-boot.run.profiles=mysql
 也可以通过环境变量覆盖数据库连接：
 
 ```bash
-set TOKEN_QUOTA_DB_URL=jdbc:mysql://127.0.0.1:3307/xm4?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai
+set TOKEN_QUOTA_DB_URL=jdbc:mysql://REPLACE_WITH_XM4_HOST:3306/xm4?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=true&requireSSL=true&enabledTLSProtocols=TLSv1.3&verifyServerCertificate=true
 set TOKEN_QUOTA_DB_USERNAME=root
 set TOKEN_QUOTA_DB_PASSWORD=your_password
 mvn spring-boot:run -Dspring-boot.run.profiles=mysql

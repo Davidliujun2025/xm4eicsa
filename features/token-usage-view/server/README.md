@@ -77,7 +77,7 @@ $env:TOKEN_MONITOR_ZONE="Asia/Shanghai"
 $env:TOKEN_MONITOR_INTERNAL_API_KEY="local-dev-key"
 $env:TOKEN_MONITOR_DAILY_TOKEN_LIMIT="50000"
 
-$env:TOKEN_MONITOR_JDBC_URL="jdbc:mysql://127.0.0.1:3306/ai_customer_service?useUnicode=true&characterEncoding=utf8&connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true"
+$env:TOKEN_MONITOR_JDBC_URL="jdbc:mysql://REPLACE_WITH_XM4_HOST:3306/xm4?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=true&requireSSL=true&enabledTLSProtocols=TLSv1.3&verifyServerCertificate=true"
 $env:TOKEN_MONITOR_JDBC_USER="token_monitor"
 $env:TOKEN_MONITOR_JDBC_PASSWORD="replace-me"
 ```
@@ -392,7 +392,7 @@ MySQL 8 模式：
 3. 配置：
 
 ```text
-TOKEN_MONITOR_JDBC_URL=jdbc:mysql://127.0.0.1:3306/ai_customer_service?useUnicode=true&characterEncoding=utf8&connectionTimeZone=UTC&forceConnectionTimeZoneToSession=true
+TOKEN_MONITOR_JDBC_URL=jdbc:mysql://REPLACE_WITH_XM4_HOST:3306/xm4?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=true&requireSSL=true&enabledTLSProtocols=TLSv1.3&verifyServerCertificate=true
 TOKEN_MONITOR_JDBC_USER=token_monitor
 TOKEN_MONITOR_JDBC_PASSWORD=replace-me
 ```
