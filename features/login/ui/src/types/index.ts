@@ -17,14 +17,10 @@ export interface PwdChecks {
 
 // 登录响应（根据实际后端调整）
 export interface LoginResponse {
-  code: string
+  code: number
   message: string
   data?: {
-    user?: {
-      id: number
-      account: string
-      displayName: string
-    }
-    redirectPath?: string
+    token?: string
+    user?: any
   }
 }
