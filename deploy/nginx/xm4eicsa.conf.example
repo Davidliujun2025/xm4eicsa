@@ -1,43 +1,192 @@
 # Example Nginx virtual host for Tencent Cloud deployment.
-# Copy to /etc/nginx/sites-available/xm4eicsa or /etc/nginx/conf.d/xm4eicsa.conf on the server,
-# then replace server_name and paths with real deployment values.
+# Copy to /etc/nginx/sites-available/xm4eicsa or /etc/nginx/conf.d/xm4eicsa.conf.
+
+upstream xm4_login_backend {
+    server 127.0.0.1:8080;
+}
+
+upstream xm4_forgot_password_backend {
+    server 127.0.0.1:8082;
+}
+
+upstream xm4_create_agent_backend {
+    server 127.0.0.1:8083;
+}
+
+upstream xm4_forbidden_words_backend {
+    server 127.0.0.1:8084;
+}
+
+upstream xm4_ai_chat_backend {
+    server 127.0.0.1:8085;
+}
 
 server {
     listen 80;
     server_name example.com 42.193.201.236;
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name example.com 42.193.201.236;
+
+    # Replace with your real cert paths.
+    ssl_certificate /etc/letsencrypt/live/example.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
 
     root /var/www/xm4eicsa;
     index index.html;
-
     client_max_body_size 50m;
 
+    # For static files, do not fall back to index.html when file is missing.
+    # This prevents image requests (for example /login-bg.png) from returning HTML.
+    location ~* \.(?:css|js|mjs|map|png|jpg|jpeg|gif|svg|ico|webp|woff2?|ttf)$ {
+        try_files $uri =404;
+        access_log off;
+        expires 7d;
+        add_header Cache-Control "public, max-age=604800, immutable";
+    }
+
+    # Login service APIs
+    location /api/v1/auth/ {
+        proxy_pass http://xm4_login_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /api/v1/public/ {
+        proxy_pass http://xm4_login_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Forgot-password APIs
+    location /api/password/ {
+        proxy_pass http://xm4_forgot_password_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /api/auth/password-reset/ {
+        proxy_pass http://xm4_forgot_password_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Create-agent-account APIs
+    location /api/admin/customer-service-users/ {
+        proxy_pass http://xm4_create_agent_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Forbidden words APIs
+    location /api/forbidden-words/ {
+        proxy_pass http://xm4_forbidden_words_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /api/chat-audit/ {
+        proxy_pass http://xm4_forbidden_words_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # AI chat workbench APIs
+    location /api/v1/conversations/ {
+        proxy_pass http://xm4_ai_chat_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /api/v1/favorites/ {
+        proxy_pass http://xm4_ai_chat_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /api/v1/tokens/ {
+        proxy_pass http://xm4_ai_chat_backend;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Forgot-password app (Vite build with base /forgot-password/)
+    location /forgot-password/ {
+        alias /var/www/xm4eicsa/forgot-password/;
+        try_files $uri $uri/ /forgot-password/index.html;
+    }
+
+    # Admin user-management app (Vite build with base /admin/users/)
+    location /admin/users/ {
+        alias /var/www/xm4eicsa/admin-users/;
+        try_files $uri $uri/ /admin/users/index.html;
+    }
+
+    # Admin token-quota app (Vite build with base /admin/tokens/)
+    location /admin/tokens/ {
+        alias /var/www/xm4eicsa/admin-tokens/;
+        try_files $uri $uri/ /admin/tokens/index.html;
+    }
+
+    # Forbidden-words static app
+    location /admin/forbidden-words/ {
+        alias /var/www/xm4eicsa/admin-forbidden-words/;
+        try_files $uri $uri/ /admin/forbidden-words/index.html;
+    }
+
+    # AI chat workbench app (Vite build with base /workbench/)
+    location /workbench/ {
+        alias /var/www/xm4eicsa/workbench/;
+        try_files $uri $uri/ /workbench/index.html;
+    }
+
+    # Token usage static app
+    location /token-usage/ {
+        alias /var/www/xm4eicsa/token-usage/;
+        try_files $uri $uri/ /token-usage/index.html;
+    }
+
+    # Favorite script library app (if deployed)
+    location /favorite-script-library/ {
+        alias /var/www/xm4eicsa/favorite-script-library/;
+        try_files $uri $uri/ /favorite-script-library/index.html;
+    }
+
+    # Root login app
     location / {
         try_files $uri $uri/ /index.html;
     }
-
-    location /api/chat/ {
-        proxy_pass http://127.0.0.1:8081/api/chat/;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location /api/forbidden-words/ {
-        proxy_pass http://127.0.0.1:8080/api/forbidden-words/;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # TODO: Add these reverse proxies after feature owners confirm ports.
-    # location /api/auth/ { proxy_pass http://127.0.0.1:<port>/api/auth/; }
-    # location /api/password/ { proxy_pass http://127.0.0.1:<port>/api/password/; }
-    # location /api/agents/ { proxy_pass http://127.0.0.1:<port>/api/agents/; }
-    # location /api/scripts/ { proxy_pass http://127.0.0.1:<port>/api/scripts/; }
-    # location /api/token-quota/ { proxy_pass http://127.0.0.1:<port>/api/token-quota/; }
-    # location /api/token-usage/ { proxy_pass http://127.0.0.1:<port>/api/token-usage/; }
 }

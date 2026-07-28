@@ -6,6 +6,7 @@ import com.carepilot.chatworkbench.service.TokenService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 
 @Slf4j
@@ -18,7 +19,10 @@ public class TokenController {
 
     @GetMapping("/usage")
     public ResponseEntity<ApiResponse<TokenInfo>> getTokenUsage(
-            @RequestHeader("X-Customer-Id") String customerId) {
+            @RequestHeader(value = "X-Customer-Id", required = false) String customerIdHeader,
+            @RequestParam(value = "customerId", required = false) String customerIdParam,
+            @RequestParam(value = "userId", required = false) String userIdParam) {
+        String customerId = resolveCustomerId(customerIdHeader, customerIdParam, userIdParam);
         log.info("Get token usage: customerId={}", customerId);
         Integer usedToday = tokenService.getTodayUsedTokens(customerId);
         Integer dailyLimit = tokenService.getDailyLimit();
@@ -36,9 +40,25 @@ public class TokenController {
 
     @GetMapping("/quota-check")
     public ResponseEntity<ApiResponse<Boolean>> checkQuota(
-            @RequestHeader("X-Customer-Id") String customerId) {
+            @RequestHeader(value = "X-Customer-Id", required = false) String customerIdHeader,
+            @RequestParam(value = "customerId", required = false) String customerIdParam,
+            @RequestParam(value = "userId", required = false) String userIdParam) {
+        String customerId = resolveCustomerId(customerIdHeader, customerIdParam, userIdParam);
         log.info("Check token quota: customerId={}", customerId);
         boolean exceeded = tokenService.isTokenQuotaExceeded(customerId);
         return ResponseEntity.ok(ApiResponse.success(!exceeded));
+    }
+
+    private String resolveCustomerId(String customerIdHeader, String customerIdParam, String userIdParam) {
+        if (StringUtils.hasText(customerIdHeader)) {
+            return customerIdHeader.trim();
+        }
+        if (StringUtils.hasText(customerIdParam)) {
+            return customerIdParam.trim();
+        }
+        if (StringUtils.hasText(userIdParam)) {
+            return userIdParam.trim();
+        }
+        throw new IllegalArgumentException("缺少客户标识，请传 X-Customer-Id 或 customerId");
     }
 }

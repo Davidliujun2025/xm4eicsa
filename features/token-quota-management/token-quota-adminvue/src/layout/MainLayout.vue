@@ -64,9 +64,9 @@
 
 <script setup lang="ts">
 const adminLinks: Record<string, string> = {
-  users: 'http://localhost:5175/',
-  token: 'http://localhost:5173/',
-  forbidden: 'http://localhost:5500/'
+  users: `${window.location.origin}/admin/users/`,
+  token: `${window.location.origin}/admin/tokens/`,
+  forbidden: `${window.location.origin}/admin/forbidden-words/`
 }
 
 function goAdminPage(key: string) {

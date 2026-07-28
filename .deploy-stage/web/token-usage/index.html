@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Token统计（本地预览）</title>
+  <link rel="stylesheet" href="styles.css?v=20260728-dashboard-fold1">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // 默认后端地址与当前页面同源，避免 127.0.0.1 与 localhost 的 CORS 问题。
+    (function(){
+      try {
+        if (!window.TOKEN_API_BASE_URL) {
+          var origin = window.location.protocol + '//' + window.location.hostname;
+          if (window.location.port) {
+            origin += ':' + window.location.port;
+          }
+          window.TOKEN_API_BASE_URL = origin + '/api/v1';
+        }
+      } catch (e) {
+        window.TOKEN_API_BASE_URL = '/api/v1';
+      }
+    })();
+  </script>
+</head>
+<body>
+  <div class="page">
+    <div id="mockBanner" class="mock-banner" style="display:none;">正在使用本地模拟数据 — 非真实数据，仅用于开发调试</div>
+    <div class="page-content">
+      <div class="container">
+        <div class="dashboard-header">
+          <div class="dashboard-title">
+            <h1>Token统计</h1>
+            <div class="data-note" id="dataSourceNote">当前为本地模拟数据，可切换为后端接口。</div>
+          </div>
+          <div class="dashboard-actions">
+            <button class="top-link help-link" type="button" aria-label="帮助中心">
+              <span class="top-icon" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.6"/>
+                  <path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.8.4-1 .9-1 1.7M12 16.5h.01" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+                </svg>
+              </span>
+              <span class="top-text">帮助中心</span>
+            </button>
+            <button class="top-link notice-link" type="button" aria-label="消息">
+              <span class="top-icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6ZM10 19a2 2 0 0 0 4 0" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+                </svg>
+              </span>
+              <span class="message-badge">2</span>
+            </button>
+            <button class="user-profile" type="button" aria-label="用户菜单">
+              <div class="avatar">倩</div>
+              <span class="user-name">张小倩</span>
+              <span class="open-key" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </span>
+            </button>
+          </div>
+        </div>
+        <div class="header-row">
+          <div></div>
+          <div class="time-filters">
+            <button class="filter-btn active" data-range="7">最近7天</button>
+            <button class="filter-btn" data-range="30">最近30天</button>
+            <button class="filter-btn" data-range="0">自定义</button>
+          </div>
+        </div>
+        <div class="custom-range-panel" id="customRangePanel" style="display:none;">
+          <label>开始：<input type="date" id="customStart" /></label>
+          <label>结束：<input type="date" id="customEnd" /></label>
+          <button id="applyCustomRange" class="filter-btn">确定</button>
+        </div>
+
+        <div class="stats-cards"></div>
+
+        <div class="chart-panel">
+          <div class="chart-header">
+            <div class="chart-title">Token消耗趋势</div>
+            <div class="chart-tabs">
+              <button class="tab-btn active" data-period="day">按日</button>
+              <button class="tab-btn" data-period="week">按周</button>
+              <button class="tab-btn" data-period="month">按月</button>
+            </div>
+          </div>
+          <div class="chart-card">
+            <canvas id="trendChart"></canvas>
+          </div>
+        </div>
+
+        <div id="emptyState" class="empty-state" style="display:none;">
+          <div class="empty-content">
+            <div class="empty-icon">📭</div>
+            <div class="empty-title">暂无 Token 使用数据</div>
+            <div class="empty-desc">当你开始使用 AI 服务后，消耗数据将在这里展示。</div>
+          </div>
+        </div>
+
+        <div class="table-card">
+          <div class="table-header">
+            <div class="title">Token使用记录</div>
+            <div class="meta">显示 1 到 5 条，共 24 条记录</div>
+          </div>
+          <table class="record-table">
+            <thead>
+              <tr>
+                <th>调用时间</th>
+                <th>模型名称</th>
+                <th>输入TOKEN</th>
+                <th>输出TOKEN</th>
+                <th>总消耗</th>
+                <th>状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="recordTableBody"></tbody>
+          </table>
+          <div id="pagination" class="pagination"></div>
+        </div>
+
+      </div>
+    </div>
+
+    <div id="detailModal" class="modal">
+      <div class="modal-inner">
+        <div class="modal-header">
+          <strong>记录详情</strong>
+          <button id="closeModal" class="btn-link">关闭</button>
+        </div>
+        <div id="modalBody" class="modal-body"></div>
+      </div>
+    </div>
+
+    <div id="errorState" class="error-state" style="display:none">
+      <p>初始化失败。</p>
+      <button id="retryBtn">重试</button>
+    </div>
+
+    <aside class="sidebar" id="mainSidebar">
+      <div class="sidebar-inner">
+        <div class="brand">
+          <div class="brand-logo">
+            <img class="brand-logo-horizontal" src="./logo.png" alt="CarePilot AI" />
+          </div>
+        </div>
+
+        <nav class="menu">
+            <ul class="sub-menu">
+              <li class="menu-item"><span class="icon"> 
+                  <!-- chat bubble outline -->
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 5h16v11H8l-4 3V5Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+                </span><span class="label">智能对话</span></li>
+              <li class="menu-item"><span class="icon">
+                  <!-- clock outline -->
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="12" cy="12" r="8.5" stroke="currentColor" stroke-width="1.7"/><path d="M12 7.5V12l3 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+                </span><span class="label">对话记录</span></li>
+              <li class="menu-item"><span class="icon">
+                  <!-- book outline -->
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H12v16H6.5A2.5 2.5 0 0 0 4 21.5V5.5ZM20 5.5A2.5 2.5 0 0 0 17.5 3H12v16h5.5a2.5 2.5 0 0 1 2.5 2.5V5.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+                </span><span class="label">个人话术库</span></li>
+              <li class="menu-item"><span class="icon">
+                  <!-- clipboard/checklist -->
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="4" width="14" height="17" rx="2.5" stroke="currentColor" stroke-width="1.7"/><path d="M9 4h6v2.5H9zM9 12l2 2 4-4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </span><span class="label">我的评估</span></li>
+              <li class="menu-item section-title fold-menu" id="dashboardSectionToggle">
+                <span class="menu-item-main">
+                  <span class="icon">
+                    <!-- personal dashboard icon -->
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M4 20V4M4 20h16M8 16v-4M12 16V8M16 16v-6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                    </svg>
+                  </span>
+                  <span class="label">数据看板</span>
+                </span>
+                <span class="fold-arrow" id="dashboardFoldArrow">▼</span>
+              </li>
+              <li class="menu-item active child-item" id="tokenStatsMenuItem"><span class="label">Token统计</span></li>
+              <li class="menu-item settings-item"><span class="icon">
+                  <!-- settings gear outline -->
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span><span class="label">设置</span></li>
+            </ul>
+          </nav>
+      </div>
+    </aside>
+  </div>
+
+  <script src="mockData.js?v=20260726-fix2"></script>
+  <script src="tokenApi.js?v=20260726-fix2"></script>
+  <script src="app.js?v=20260728-dashboard-fold2"></script>
+</body>
+</html>

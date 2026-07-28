@@ -1,7 +1,9 @@
 import axios from 'axios'
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? '/api/v1').replace(/\/$/, '')
+
 export const apiClient = axios.create({
-  baseURL: 'http://localhost:3000/api', // 请根据实际后端地址修改
+  baseURL: API_BASE_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

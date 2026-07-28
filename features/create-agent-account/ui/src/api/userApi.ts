@@ -15,7 +15,7 @@ import type {
 } from "../types/user";
 
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL;
+  (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 
 export class ApiError extends Error {
   status: number;
@@ -40,7 +40,7 @@ async function apiRequest<T>(
   const token =
     localStorage.getItem(
       "accessToken",
-    );
+    ) || localStorage.getItem("carepilot_token");
 
   let response: Response;
 

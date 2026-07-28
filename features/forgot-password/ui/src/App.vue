@@ -185,9 +185,11 @@ const showSuccessDialog = ref(false)
 let timer: number | null = null
 let messageTimer: number | null = null
 
+const DEFAULT_LOGIN_PAGE_URL = `${window.location.origin}/`
+
 const loginPageUrl =
   new URLSearchParams(window.location.search).get('loginUrl') ||
-  'http://localhost:5174/'
+  DEFAULT_LOGIN_PAGE_URL
 // =============================================================
 // 密码校验（与 LoginPage 一致）
 // =============================================================

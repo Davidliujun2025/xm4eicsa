@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CarePilot AI - 违禁词库管理</title>
+  <link rel="stylesheet" href="./styles.css?v=20260727-workbench-align2" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand-area">
+        <img
+          src="./logo.png"
+          alt="CarePilot AI"
+          class="brand-logo-image"
+        />
+      </div>
+      <nav class="nav-menu">
+        <button class="nav-item" type="button">
+          <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-gauge" aria-hidden="true"><path d="m12 14 4-4"></path><path d="M3.34 19a10 10 0 1 1 17.32 0"></path></svg>
+          <span>管理看板</span>
+        </button>
+        <button class="nav-item" type="button">
+          <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-users" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><path d="M16 3.128a4 4 0 0 1 0 7.744"></path><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><circle cx="9" cy="7" r="4"></circle></svg>
+          <span>用户管理</span>
+        </button>
+        <button class="nav-item" type="button">
+          <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-key-round" aria-hidden="true"><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"></path><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"></circle></svg>
+          <span>Token 管理</span>
+        </button>
+        <button class="nav-item active" type="button" aria-current="page">
+          <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shield-alert" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg>
+          <span>违禁词管理</span>
+        </button>
+        <button class="nav-item" type="button">
+          <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clipboard-check" aria-hidden="true"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="m9 14 2 2 4-4"></path></svg>
+          <span>评估报告</span>
+        </button>
+        <button class="nav-item" type="button">
+          <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-history" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l4 2"></path></svg>
+          <span>操作日志</span>
+        </button>
+        <button class="nav-item" type="button">
+          <svg xmlns="http://www.w3.org/2000/svg" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings" aria-hidden="true"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"></path><circle cx="12" cy="12" r="3"></circle></svg>
+          <span>系统设置</span>
+        </button>
+      </nav>
+    </aside>
+
+    <main class="content">
+      <header class="page-header">
+        <div>
+          <h1>违禁词库管理</h1>
+          <p>动态维护违禁词库与平台风险规则，确保 AI 话术合规</p>
+        </div>
+        <div class="page-header__right">
+          <div class="service-status"><span></span>AI服务正常</div>
+          <div class="current-user">
+            <div class="current-user__avatar">陈</div>
+            <span>陈一冉</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+          </div>
+        </div>
+      </header>
+
+      <section class="stats" id="stats"></section>
+
+      <section class="panel">
+        <div class="tabs">
+          <button class="tab active" data-tab="word-library">违禁词库</button>
+          <button class="tab" data-tab="operation-log">变更历史</button>
+          <button class="tab" data-tab="hit-log">触发记录</button>
+        </div>
+
+        <div class="tab-content active" id="word-library">
+          <div class="toolbar">
+            <select id="platformSelect"></select>
+            <input id="searchInput" placeholder="搜索违禁词..." />
+            <button id="uploadCsvBtn" class="ghost">上传CSV</button>
+            <button id="addOpenBtn" class="primary">+ 添加违禁词</button>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>违禁词</th>
+                <th>生效平台</th>
+                <th>添加时间</th>
+                <th>添加人</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="wordTableBody"></tbody>
+          </table>
+          <div class="pager" id="wordPager"></div>
+        </div>
+
+        <div class="tab-content" id="operation-log">
+          <div class="toolbar">
+            <input id="opDateStart" type="date" />
+            <input id="opDateEnd" type="date" />
+            <input id="operatorFilter" placeholder="操作人" />
+            <select id="operationPlatformFilter"></select>
+            <select id="actionFilter">
+              <option value="">操作类型</option>
+              <option value="ADD">添加</option>
+              <option value="DELETE">移除</option>
+              <option value="BATCH_IMPORT">批量导入</option>
+            </select>
+            <input id="opKeyword" placeholder="关键词搜索" />
+            <button id="reloadOps" class="primary">查询</button>
+            <button id="exportOps" class="ghost">导出报表</button>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>操作时间</th>
+                <th>操作人</th>
+                <th>IP 地址</th>
+                <th>操作类型</th>
+                <th>生效平台</th>
+                <th>违禁词</th>
+              </tr>
+            </thead>
+            <tbody id="operationBody"></tbody>
+          </table>
+          <div class="pager" id="operationPager"></div>
+        </div>
+
+        <div class="tab-content" id="hit-log">
+          <div class="toolbar">
+            <input id="hitDateStart" type="date" />
+            <input id="hitDateEnd" type="date" />
+            <select id="hitPlatformFilter"></select>
+            <input id="actorFilter" placeholder="客服人员" />
+            <input id="hitKeyword" placeholder="对话 ID / 违禁词" />
+            <button id="reloadHits" class="primary">查询</button>
+            <button id="exportHits" class="ghost">导出报表</button>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>触发时间</th>
+                <th>客服人员</th>
+                <th>所属平台</th>
+                <th>触发违禁词</th>
+                <th>触发场景</th>
+                <th>对话 ID</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="hitBody"></tbody>
+          </table>
+          <div class="pager" id="hitPager"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="addDialog">
+    <h3>新增违禁词</h3>
+    <label>违禁词</label>
+    <input id="newWord" />
+    <label>生效平台</label>
+    <select id="newWordPlatform"></select>
+    <div class="dialog-actions">
+      <button id="cancelAdd">取消</button>
+      <button id="confirmAdd" class="primary">添加</button>
+    </div>
+  </dialog>
+
+  <dialog id="csvDialog">
+    <h3>CSV 批量导入（word,platform）</h3>
+    <div id="csvDropzone" class="csv-dropzone" role="button" tabindex="0" aria-label="CSV 文件上传区域">
+      <p class="csv-dropzone-title">点击选择文件或将 CSV 文件拖拽到此处</p>
+      <p class="csv-dropzone-sub">仅支持 .csv 文件，格式为 word,platform</p>
+      <button id="chooseCsvBtn" type="button" class="ghost">选择 CSV 文件</button>
+      <input id="csvFileInput" type="file" accept=".csv,text/csv" hidden />
+    </div>
+    <div id="csvFileMeta" class="csv-file-meta">尚未选择文件</div>
+    <div class="dialog-actions">
+      <button id="previewCsvBtn">预览</button>
+      <button id="confirmCsvBtn" class="primary">确认导入</button>
+      <button id="cancelCsv">关闭</button>
+    </div>
+    <div id="csvPreview"></div>
+  </dialog>
+
+  <script src="./main.js?v=20260727-platforms10"></script>
+</body>
+</html>

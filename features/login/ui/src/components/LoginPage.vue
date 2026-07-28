@@ -112,9 +112,12 @@ import { reactive, ref, computed, onMounted } from 'vue'
 import { apiClient } from '../utils/api'
 import type { LoginForm, PwdChecks } from '../types'
 
+const defaultForgotUrl =
+  import.meta.env.VITE_FORGOT_PASSWORD_URL || `${window.location.origin}/forgot-password/`
+
 const FORGOT_PASSWORD_URL =
   new URLSearchParams(window.location.search).get('forgotUrl') ||
-  'http://localhost:5179/'
+  defaultForgotUrl
 
 // =============================================================
 // 背景图片（可配置，此处使用在线示例图）
@@ -245,9 +248,11 @@ async function handleLogin() {
 
     const { code, message, data } = response.data
 
-    if (code === 0) {
+    if (code === 'OK') {
       if (data?.token) {
         localStorage.setItem('carepilot_token', data.token)
+        // Keep compatibility with admin modules that read accessToken.
+        localStorage.setItem('accessToken', data.token)
       }
       if (data?.user) {
         localStorage.setItem('carepilot_user', JSON.stringify(data.user))
@@ -263,7 +268,12 @@ async function handleLogin() {
         localStorage.removeItem('carepilot_password')
       }
 
-      window.location.href = '/dashboard'
+      const backendPath = typeof data?.redirectPath === 'string' ? data.redirectPath : ''
+      const normalizedPath = backendPath === '/ai-customer-service' ? '/workbench/' : backendPath
+      const redirectUrl = normalizedPath && normalizedPath.startsWith('/')
+        ? `${window.location.origin}${normalizedPath}`
+        : `${window.location.origin}/workbench/`
+      window.location.href = redirectUrl
     } else {
       if (message.includes('不存在')) {
         loginError.value = '账号不存在，请找管理员'
@@ -303,7 +313,8 @@ function loadRemembered() {
 }
 
 function goToForgot() {
-  const loginUrl = encodeURIComponent(`${window.location.origin}/`)
+  const loginReturnUrl = `${window.location.origin}/`
+  const loginUrl = encodeURIComponent(loginReturnUrl)
   const sep = FORGOT_PASSWORD_URL.includes('?') ? '&' : '?'
   window.location.href = `${FORGOT_PASSWORD_URL}${sep}loginUrl=${loginUrl}`
 }

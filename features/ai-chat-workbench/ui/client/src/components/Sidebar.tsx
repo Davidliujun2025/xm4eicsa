@@ -19,9 +19,9 @@ export default function Sidebar({ activeIndex = 0, onSelect }: Props) {
   const [dashboardOpen, setDashboardOpen] = useState(true);
 
   const appLinks: Record<number, string> = {
-    0: "http://localhost:5177/",
-    2: "http://localhost:5176/",
-    4: "http://localhost:5600/",
+    0: `${window.location.origin}/workbench/`,
+    2: `${window.location.origin}/favorite-script-library/`,
+    4: `${window.location.origin}/token-usage/`,
   };
 
   useEffect(() => {

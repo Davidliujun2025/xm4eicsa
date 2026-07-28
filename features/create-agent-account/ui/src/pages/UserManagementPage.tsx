@@ -50,9 +50,9 @@ const NAVIGATION_ITEMS = [
 ];
 
 const NAV_LINKS: Record<string, string> = {
-  "用户管理": "http://localhost:5175/",
-  "Token 管理": "http://localhost:5173/",
-  "违禁词管理": "http://localhost:5500/",
+  "用户管理": `${window.location.origin}/admin/users/`,
+  "Token 管理": `${window.location.origin}/admin/tokens/`,
+  "违禁词管理": `${window.location.origin}/admin/forbidden-words/`,
 };
 
 export default function UserManagementPage() {

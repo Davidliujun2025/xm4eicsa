@@ -163,7 +163,7 @@ public class AuthenticationService {
     private AuthSession createSession(CustomerServiceUser user, boolean remembered) {
         String accessToken = jwtService.createAccessToken(user);
         RefreshTokenService.IssuedRefreshToken refreshToken = refreshTokenService.issue(user.getId(), remembered);
-        LoginResult result = new LoginResult(UserSummary.from(user), REDIRECT_PATH);
+        LoginResult result = new LoginResult(UserSummary.from(user), accessToken, REDIRECT_PATH);
         return new AuthSession(result, accessToken, refreshToken);
     }
 

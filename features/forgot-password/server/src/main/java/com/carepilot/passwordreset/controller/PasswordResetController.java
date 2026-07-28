@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/password")
+@RequestMapping({"/api/password", "/api/auth/password-reset"})
 public class PasswordResetController {
     private final PasswordResetService passwordResetService;
 
@@ -23,7 +23,7 @@ public class PasswordResetController {
         this.passwordResetService = passwordResetService;
     }
 
-    @PostMapping("/account/verify")
+        @PostMapping({"/account/verify", "/verify-account"})
     public ApiResponse<VerifyAccountResponse> verifyAccount(
             @Valid @RequestBody VerifyAccountRequest request
     ) {

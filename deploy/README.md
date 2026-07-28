@@ -5,5 +5,6 @@ This directory contains deployment drafts for the final Tencent Cloud environmen
 Current assets:
 
 - `nginx/xm4eicsa.conf.example`: Nginx virtual host and reverse proxy draft.
+- `../docs/tencent-cloud-ubuntu-runbook.md`: End-to-end Ubuntu operations guide (ports, startup, Nginx, validation).
 
 Keep real server passwords and private environment files outside the repository.
