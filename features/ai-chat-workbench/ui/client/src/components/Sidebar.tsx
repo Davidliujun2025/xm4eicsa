@@ -19,7 +19,7 @@ export default function Sidebar({ activeIndex = 0, onSelect }: Props) {
   const [dashboardOpen, setDashboardOpen] = useState(true);
 
   const appLinks: Record<number, string> = {
-    0: "http://localhost:5174/",
+    0: "http://localhost:5177/",
     2: "http://localhost:5176/",
     4: "http://localhost:5600/",
   };

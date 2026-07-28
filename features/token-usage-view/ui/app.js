@@ -1044,7 +1044,7 @@ function bindEvents() {
 
     // sidebar menu item activation
     const customerNavMap = {
-        '智能对话': 'http://localhost:5174/',
+        '智能对话': 'http://localhost:5177/',
         '个人话术库': 'http://localhost:5176/',
         'Token统计': 'http://localhost:5600/'
     };

@@ -112,6 +112,10 @@ import { reactive, ref, computed, onMounted } from 'vue'
 import { apiClient } from '../utils/api'
 import type { LoginForm, PwdChecks } from '../types'
 
+const FORGOT_PASSWORD_URL =
+  new URLSearchParams(window.location.search).get('forgotUrl') ||
+  'http://localhost:5179/'
+
 // =============================================================
 // 背景图片（可配置，此处使用在线示例图）
 // =============================================================
@@ -299,7 +303,9 @@ function loadRemembered() {
 }
 
 function goToForgot() {
-  window.location.href = '/forgot-password'
+  const loginUrl = encodeURIComponent(`${window.location.origin}/`)
+  const sep = FORGOT_PASSWORD_URL.includes('?') ? '&' : '?'
+  window.location.href = `${FORGOT_PASSWORD_URL}${sep}loginUrl=${loginUrl}`
 }
 
 onMounted(() => {

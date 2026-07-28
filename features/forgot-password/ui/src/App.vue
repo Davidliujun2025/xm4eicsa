@@ -133,7 +133,7 @@
         <!-- 底部链接 -->
         <div class="form-footer">
           <span>已有账号？</span>
-          <a href="http://localhost:5178/">返回登录</a>
+          <a :href="loginPageUrl">返回登录</a>
         </div>
       </div>
     </div>
@@ -184,6 +184,10 @@ const isSubmitting = ref(false)
 const showSuccessDialog = ref(false)
 let timer: number | null = null
 let messageTimer: number | null = null
+
+const loginPageUrl =
+  new URLSearchParams(window.location.search).get('loginUrl') ||
+  'http://localhost:5174/'
 // =============================================================
 // 密码校验（与 LoginPage 一致）
 // =============================================================
@@ -310,7 +314,7 @@ async function submit() {
 }
 function backToLogin() {
   showSuccessDialog.value = false
-  window.location.href = 'http://localhost:5178/'
+  window.location.href = loginPageUrl
 }
 // =============================================================
 // 生命周期
