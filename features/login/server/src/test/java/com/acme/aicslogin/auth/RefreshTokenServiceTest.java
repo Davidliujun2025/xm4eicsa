@@ -34,7 +34,7 @@ class RefreshTokenServiceTest {
         when(redis.opsForSet()).thenReturn(sets);
         AuthProperties properties = new AuthProperties(
                 "test", "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
-                Duration.ofMinutes(15), Duration.ofHours(8), Duration.ofDays(30), false, List.of());
+            Duration.ofMinutes(15), Duration.ofHours(8), Duration.ofDays(30), false, List.of(), false);
         service = new RefreshTokenService(redis, properties);
     }
 

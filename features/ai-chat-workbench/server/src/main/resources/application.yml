@@ -4,6 +4,11 @@ server:
 spring:
   profiles:
     default: local
+  sql:
+    init:
+      mode: never
+  flyway:
+    enabled: true
   jackson:
     default-property-inclusion: non_null
   servlet:
@@ -31,7 +36,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: ${JPA_DDL_AUTO:none}
     show-sql: true
     database-platform: org.hibernate.dialect.MySQLDialect
     properties:
@@ -50,5 +55,5 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: ${JPA_DDL_AUTO:none}
     show-sql: false

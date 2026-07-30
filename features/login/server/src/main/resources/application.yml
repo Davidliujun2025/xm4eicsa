@@ -9,11 +9,14 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: none
+      ddl-auto: ${JPA_DDL_AUTO:none}
     properties:
       hibernate:
         jdbc:
           time_zone: UTC
+  sql:
+    init:
+      mode: never
   data:
     redis:
       host: ${REDIS_HOST:redis}

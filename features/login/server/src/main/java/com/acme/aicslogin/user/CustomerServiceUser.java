@@ -43,6 +43,9 @@ public class CustomerServiceUser {
     @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
     private Instant createdAt;
 
+    @Column(name = "updated_at", nullable = false, insertable = false, updatable = false)
+    private Instant updatedAt;
+
     protected CustomerServiceUser() {
     }
 
@@ -90,6 +93,14 @@ public class CustomerServiceUser {
 
     public Instant getLastLoginAt() {
         return lastLoginAt;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
     }
 
     public void markLoggedIn(Instant instant) {

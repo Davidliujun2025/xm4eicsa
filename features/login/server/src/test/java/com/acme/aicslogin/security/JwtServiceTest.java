@@ -23,7 +23,7 @@ class JwtServiceTest {
         Instant issuedAt = Instant.parse("2026-07-20T00:00:00Z");
         AuthProperties properties = new AuthProperties(
                 "test-issuer", SECRET, Duration.ofMinutes(15), Duration.ofHours(8), Duration.ofDays(30), false,
-                List.of());
+                List.of(), false);
         CustomerServiceUser user = CustomerServiceUser.create(
                 "demo.agent", "unused", "演示客服", UserStatus.ACTIVE);
         ReflectionTestUtils.setField(user, "id", 42L);

@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/public")
+@RequestMapping({"/api/v1/public", "/api/public"})
 public class LoginPageConfigController {
 
     private final LoginPageConfigService service;
@@ -19,7 +19,9 @@ public class LoginPageConfigController {
 
     @GetMapping("/login-config")
     public ApiResponse<LoginPageConfigResponse> getLoginConfig(CsrfToken csrfToken) {
-        csrfToken.getToken();
+        if (csrfToken != null) {
+            csrfToken.getToken();
+        }
         return ApiResponse.ok(service.getConfig());
     }
 }

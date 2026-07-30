@@ -4,6 +4,11 @@ server:
 spring:
   profiles:
     default: mysql
+  sql:
+    init:
+      mode: never
+  flyway:
+    enabled: true
   jackson:
     default-property-inclusion: non_null
 
@@ -21,7 +26,3 @@ spring:
     username: ${XM4_MYSQL_USERNAME:root}
     password: ${XM4_MYSQL_PASSWORD:123456}
     driver-class-name: com.mysql.cj.jdbc.Driver
-  sql:
-    init:
-      mode: always
-      schema-locations: classpath:schema-mysql.sql

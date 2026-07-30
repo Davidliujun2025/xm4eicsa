@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping({"/api/v1/auth", "/api/auth"})
 public class AuthController {
 
     private final AuthenticationService authenticationService;
@@ -61,7 +61,18 @@ public class AuthController {
 
     @GetMapping("/me")
     public ApiResponse<UserSummary> me(@AuthenticationPrincipal AuthenticatedUser principal) {
-        return ApiResponse.ok(new UserSummary(principal.id(), principal.account(), principal.displayName()));
+        return ApiResponse.ok(new UserSummary(
+                principal.id(),
+                principal.account(),
+                principal.displayName(),
+                com.acme.aicslogin.auth.dto.UserStatusType.ENABLED,
+                com.acme.aicslogin.auth.dto.RoleType.CUSTOMER_SERVICE,
+                null,
+                null,
+                principal.id(),
+                principal.account(),
+                principal.displayName()
+        ));
     }
 
     @PostMapping("/logout")

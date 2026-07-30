@@ -4,6 +4,11 @@ server:
 spring:
   application:
     name: ai-customer-service
+  sql:
+    init:
+      mode: never
+  flyway:
+    enabled: true
   datasource:
     url: ${XM4_MYSQL_URL:jdbc:mysql://REPLACE_WITH_XM4_HOST:3306/xm4?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=true&requireSSL=true&enabledTLSProtocols=TLSv1.3&verifyServerCertificate=true}
     username: ${XM4_MYSQL_USERNAME:REPLACE_WITH_XM4_USERNAME}
@@ -11,7 +16,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: ${JPA_DDL_AUTO:none}
     open-in-view: false
     properties:
       hibernate:

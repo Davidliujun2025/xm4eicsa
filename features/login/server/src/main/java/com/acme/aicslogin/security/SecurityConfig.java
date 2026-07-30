@@ -48,7 +48,7 @@ public class SecurityConfig {
         http
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf
-                        .ignoringRequestMatchers("/api/v1/auth/login")
+                        .ignoringRequestMatchers("/api/v1/auth/login", "/api/auth/login")
                         .csrfTokenRepository(csrfRepository)
                         .csrfTokenRequestHandler(csrfRequestHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -57,11 +57,17 @@ public class SecurityConfig {
                 .httpBasic(basic -> basic.disable())
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/public/login-config", "/actuator/health").permitAll()
+                        .requestMatchers(HttpMethod.GET,
+                                "/api/v1/public/login-config",
+                                "/api/public/login-config",
+                                "/actuator/health").permitAll()
                         .requestMatchers(HttpMethod.POST,
                                 "/api/v1/auth/login",
                                 "/api/v1/auth/refresh",
-                                "/api/v1/auth/logout").permitAll()
+                                "/api/v1/auth/logout",
+                                "/api/auth/login",
+                                "/api/auth/refresh",
+                                "/api/auth/logout").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(errors -> errors
                         .authenticationEntryPoint((request, response, exception) ->

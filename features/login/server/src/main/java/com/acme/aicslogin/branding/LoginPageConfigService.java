@@ -2,7 +2,10 @@ package com.acme.aicslogin.branding;
 
 import com.acme.aicslogin.api.BusinessException;
 import com.acme.aicslogin.auth.dto.LoginPageConfigResponse;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -10,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class LoginPageConfigService {
 
     private static final long SINGLETON_ID = 1L;
+    private static final Logger log = LoggerFactory.getLogger(LoginPageConfigService.class);
 
     private final LoginPageConfigRepository repository;
 
@@ -19,12 +23,29 @@ public class LoginPageConfigService {
 
     @Transactional(readOnly = true)
     public LoginPageConfigResponse getConfig() {
-        LoginPageConfig config = repository.findById(SINGLETON_ID)
-                .orElseThrow(() -> new BusinessException(
-                        HttpStatus.SERVICE_UNAVAILABLE,
-                        "LOGIN_CONFIG_UNAVAILABLE",
-                        "登录页配置暂不可用"
-                ));
-        return LoginPageConfigResponse.from(config);
+        try {
+            return repository.findById(SINGLETON_ID)
+                .map(LoginPageConfigResponse::from)
+                .orElseGet(this::defaultConfig);
+        } catch (DataAccessException ex) {
+            log.warn("Failed to load login page config from DB, fallback to default config", ex);
+            return defaultConfig();
+        }
+        }
+
+        private LoginPageConfigResponse defaultConfig() {
+        return new LoginPageConfigResponse(
+            "AI客服工作台",
+            "/assets/brand-logo.svg",
+            "AI智能客服，快速响应每一位买家",
+            "/forgot-password",
+            new LoginPageConfigResponse.PasswordPolicyResponse(
+                12,
+                20,
+                3,
+                java.util.List.of("uppercase", "lowercase", "digit", "special"),
+                "密码长度12-20位，必须包含大写字母、小写字母、数字、特殊符号中的三类以上"
+            )
+        );
     }
 }

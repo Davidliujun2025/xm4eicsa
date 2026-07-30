@@ -3,6 +3,7 @@ package com.acme.aicslogin.api;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -40,6 +41,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     ResponseEntity<ApiResponse<Void>> handleUnreadableBody(HttpMessageNotReadableException exception) {
         return ResponseEntity.badRequest().body(ApiResponse.error("INVALID_REQUEST", "请求参数不正确"));
+    }
+
+    @ExceptionHandler(DataAccessException.class)
+    ResponseEntity<ApiResponse<Void>> handleDataAccess(DataAccessException exception, HttpServletRequest request) {
+        log.error("Database access error while processing {} {}", request.getMethod(), request.getRequestURI(), exception);
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(ApiResponse.error("DATABASE_UNAVAILABLE", "服务暂不可用，请稍后重试"));
     }
 
     @ExceptionHandler(Exception.class)

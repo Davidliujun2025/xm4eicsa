@@ -1,6 +1,13 @@
 spring:
   application:
     name: create-agent-account-backend
+  sql:
+    init:
+      mode: never
+
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:none}
 
   datasource:
     url: "${XM4_MYSQL_URL:${DB_URL:jdbc:mysql://localhost:3306/carepilot?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}}"

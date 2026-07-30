@@ -2,6 +2,7 @@ package com.acme.aicslogin.auth;
 
 import com.acme.aicslogin.api.BusinessException;
 import com.acme.aicslogin.auth.dto.LoginRequest;
+import com.acme.aicslogin.config.AuthProperties;
 import com.acme.aicslogin.security.JwtService;
 import com.acme.aicslogin.user.CustomerServiceUser;
 import com.acme.aicslogin.user.CustomerServiceUserRepository;
@@ -12,6 +13,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -33,8 +35,18 @@ class AuthenticationServiceTest {
 
     @BeforeEach
     void setUp() {
+        AuthProperties properties = new AuthProperties(
+                "test",
+                "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
+                Duration.ofMinutes(15),
+                Duration.ofHours(8),
+                Duration.ofDays(30),
+                false,
+                List.of(),
+                false
+        );
         service = new AuthenticationService(
-                repository, passwordEncoder, jwtService, refreshTokenService, rateLimiter, auditLogger);
+                repository, passwordEncoder, jwtService, refreshTokenService, rateLimiter, auditLogger, properties);
     }
 
     @Test

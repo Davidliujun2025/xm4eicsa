@@ -13,7 +13,7 @@ class AuthCookieServiceTest {
 
     private final AuthProperties properties = new AuthProperties(
             "test", "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
-            Duration.ofMinutes(15), Duration.ofHours(8), Duration.ofDays(30), true, List.of());
+            Duration.ofMinutes(15), Duration.ofHours(8), Duration.ofDays(30), true, List.of(), false);
     private final AuthCookieService service = new AuthCookieService(properties);
 
     @Test
