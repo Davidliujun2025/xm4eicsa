@@ -14,10 +14,9 @@
 docker compose up --build
 ```
 
-`dev` profile 会创建仅供本地联调的账号：
-
-- 账号：`demo.agent`
-- 密码：`AiService2026!`
+系统不会创建或预设本地开发账号。登录时直接读取现有 MySQL `sys_user` 表，可使用
+`username`、`phone` 或 `email` 作为账号，并使用 `password_hash`（兼容旧数据的
+`password`）校验密码。用户状态和角色分别读取 `status`、`role_type`。
 
 生产环境必须启用 `prod` profile、不得启用 `dev` profile，并且必须修改 `JWT_SECRET_BASE64`、数据库密码、允许来源和 `SECURE_COOKIES=true`；不满足关键安全项时应用会拒绝启动。
 如果服务部署在受信任的反向代理后，再按基础设施配置 `FORWARD_HEADERS_STRATEGY=native`；默认不信任客户端伪造的转发头。
@@ -30,8 +29,8 @@ docker compose up --build
 
 ```json
 {
-  "account": "demo.agent",
-  "password": "AiService2026!",
+  "account": "<sys_user.username|phone|email>",
+  "password": "<该账号的密码>",
   "rememberMe": true
 }
 ```
@@ -67,7 +66,7 @@ WHERE id = 1;
 
 ```bash
 mvn clean test
-mvn spring-boot:run -Dspring-boot.run.profiles=dev
+mvn spring-boot:run -Dspring-boot.run.profiles=mysql
 ```
 
 Docker 可用时执行包含 MySQL、Redis 的完整集成测试：

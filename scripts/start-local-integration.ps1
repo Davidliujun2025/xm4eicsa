@@ -6,7 +6,6 @@ param(
 )
 
 $projectRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-$schemaPath = (Resolve-Path (Join-Path $projectRoot "application\src\test\resources\test-schema.sql")).Path.Replace("\", "/")
 
 function Resolve-CommandPath {
     param([string[]]$Names)
@@ -109,15 +108,25 @@ if (-not $npm) {
 $env:JAVA_HOME = Resolve-JavaHome
 $env:NPM_CONFIG_CACHE = Join-Path $env:LOCALAPPDATA "xm4eicsa-npm-cache"
 $env:SERVER_PORT = [string]$BackendPort
-$env:SPRING_PROFILES_ACTIVE = "dev"
-$env:SPRING_DATASOURCE_URL = "jdbc:h2:mem:xm4web;MODE=MySQL;DB_CLOSE_DELAY=-1;DATABASE_TO_LOWER=TRUE"
-$env:SPRING_DATASOURCE_DRIVER_CLASS_NAME = "org.h2.Driver"
-$env:SPRING_DATASOURCE_USERNAME = "sa"
-$env:SPRING_DATASOURCE_PASSWORD = ""
+$env:SPRING_PROFILES_ACTIVE = "mysql"
+
+$mysqlTunnelPort = if ($env:MYSQL_TUNNEL_LOCAL_PORT) { [int]$env:MYSQL_TUNNEL_LOCAL_PORT } else { 13306 }
+if (-not $env:DB_URL) {
+    $env:DB_URL = "jdbc:mysql://127.0.0.1:$mysqlTunnelPort/xm4?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai"
+}
+if (-not $env:DB_USERNAME) {
+    $env:DB_USERNAME = "root"
+}
+if (-not $env:DB_PASSWORD) {
+    throw "DB_PASSWORD is required. The integration environment does not create a local preset account."
+}
+if ($env:DB_URL -like "jdbc:mysql://127.0.0.1:$mysqlTunnelPort/*" -and -not (Test-PortInUse -Port $mysqlTunnelPort)) {
+    throw "MySQL tunnel port $mysqlTunnelPort is not listening. Start scripts/ssh_mysql_tunnel.py first."
+}
+
 $env:SPRING_FLYWAY_ENABLED = "false"
-$env:SPRING_SQL_INIT_MODE = "always"
-$env:SPRING_SQL_INIT_SCHEMA_LOCATIONS = "file:$schemaPath"
-$env:SPRING_JPA_HIBERNATE_DDL_AUTO = "create-drop"
+$env:SPRING_SQL_INIT_MODE = "never"
+$env:SPRING_JPA_HIBERNATE_DDL_AUTO = "validate"
 $env:SPRING_DATA_REDIS_REPOSITORIES_ENABLED = "false"
 $env:CORS_ALLOWED_ORIGINS = "http://127.0.0.1:$FrontendPort,http://127.0.0.1:$WorkbenchPort"
 

@@ -16,7 +16,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Component
-@Profile({"local", "dev"})
+@Profile("local")
 public class InMemoryStore implements DataStore {
     private final List<ForbiddenWord> words = new CopyOnWriteArrayList<>();
     private final List<OperationAuditLog> operationLogs = new CopyOnWriteArrayList<>();
