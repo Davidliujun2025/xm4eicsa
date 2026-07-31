@@ -13,8 +13,7 @@ const instance: AxiosInstance = axios.create({
 
 instance.interceptors.request.use(
   (config) => {
-    const staffId = localStorage.getItem('staffId') || 'demo-csr';
-    config.headers['X-Staff-Id'] = staffId;
+    config.withCredentials = true;
     return config;
   },
   (error) => Promise.reject(error)

@@ -10,7 +10,9 @@ import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -68,6 +70,29 @@ public class HitAuditService {
         List<HitAuditLog> filtered = store.listHitLogs().stream()
                 .filter(log -> actor == null || actor.isBlank() || log.getActor().toLowerCase().contains(actor.toLowerCase()))
                 .filter(log -> platform == null || platform == Platform.ALL || log.getPlatform() == platform)
+                .sorted(Comparator.comparing(HitAuditLog::getActionTime).reversed())
+                .collect(Collectors.toList());
+
+        int from = (safePage - 1) * safeSize;
+        if (from >= filtered.size()) {
+            return new PageResult<>(List.of(), filtered.size(), safePage, safeSize);
+        }
+        int to = Math.min(from + safeSize, filtered.size());
+        return new PageResult<>(filtered.subList(from, to), filtered.size(), safePage, safeSize);
+    }
+
+    public PageResult<HitAuditLog> listCurrentAgentHitLogs(Set<String> actorKeys, int page, int size) {
+        int safePage = Math.max(page, 1);
+        int safeSize = size <= 0 ? 20 : Math.min(size, 100);
+
+        Set<String> normalizedActorKeys = actorKeys.stream()
+                .filter(value -> value != null && !value.isBlank())
+                .map(value -> value.trim().toLowerCase(Locale.ROOT))
+                .collect(Collectors.toSet());
+
+        List<HitAuditLog> filtered = store.listHitLogs().stream()
+                .filter(log -> log.getActor() != null
+                        && normalizedActorKeys.contains(log.getActor().trim().toLowerCase(Locale.ROOT)))
                 .sorted(Comparator.comparing(HitAuditLog::getActionTime).reversed())
                 .collect(Collectors.toList());
 

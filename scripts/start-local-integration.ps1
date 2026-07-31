@@ -2,6 +2,8 @@ param(
     [int]$BackendPort = 18080,
     [int]$FrontendPort = 15173,
     [int]$WorkbenchPort = 15174,
+    [int]$FavoriteScriptPort = 15278,
+    [int]$TokenUsagePort = 15280,
     [switch]$ReuseExisting
 )
 
@@ -128,7 +130,7 @@ $env:SPRING_FLYWAY_ENABLED = "false"
 $env:SPRING_SQL_INIT_MODE = "never"
 $env:SPRING_JPA_HIBERNATE_DDL_AUTO = "validate"
 $env:SPRING_DATA_REDIS_REPOSITORIES_ENABLED = "false"
-$env:CORS_ALLOWED_ORIGINS = "http://127.0.0.1:$FrontendPort,http://127.0.0.1:$WorkbenchPort"
+$env:CORS_ALLOWED_ORIGINS = "http://127.0.0.1:$FrontendPort,http://127.0.0.1:$WorkbenchPort,http://127.0.0.1:$FavoriteScriptPort,http://127.0.0.1:$TokenUsagePort"
 
 if (Test-PortInUse -Port $BackendPort) {
     if (-not $ReuseExisting) {
@@ -178,6 +180,8 @@ if (Test-PortInUse -Port $FrontendPort) {
 }
 
 $env:VITE_API_PROXY_TARGET = "http://127.0.0.1:$BackendPort"
+$env:VITE_FAVORITE_SCRIPT_URL = "http://127.0.0.1:$FavoriteScriptPort/"
+$env:VITE_TOKEN_USAGE_URL = "http://127.0.0.1:$TokenUsagePort/"
 Install-FrontendDependencies -AppDirectory (Join-Path $projectRoot "features\ai-chat-workbench\ui\client")
 if (Test-PortInUse -Port $WorkbenchPort) {
     if (-not $ReuseExisting) {
@@ -198,6 +202,47 @@ if (Test-PortInUse -Port $WorkbenchPort) {
     Write-Output "WORKBENCH_PID=$($workbench.Id)"
 }
 
+Install-FrontendDependencies -AppDirectory (Join-Path $projectRoot "features\favorite-script-library\UI")
+if (Test-PortInUse -Port $FavoriteScriptPort) {
+    if (-not $ReuseExisting) {
+        throw "Favorite script port $FavoriteScriptPort is already in use. Stop the existing process, choose another port, or pass -ReuseExisting."
+    }
+    Write-Output "FAVORITE_SCRIPT_ALREADY_RUNNING=true"
+} else {
+    $favoriteOut = Join-Path $projectRoot "features\favorite-script-library\UI\local-integration.out.log"
+    $favoriteErr = Join-Path $projectRoot "features\favorite-script-library\UI\local-integration.err.log"
+    $favorite = Start-Process `
+        -FilePath $npm `
+        -ArgumentList @("run", "dev", "--", "--host", "127.0.0.1", "--port", [string]$FavoriteScriptPort, "--strictPort") `
+        -WorkingDirectory (Join-Path $projectRoot "features\favorite-script-library\UI") `
+        -RedirectStandardOutput $favoriteOut `
+        -RedirectStandardError $favoriteErr `
+        -WindowStyle Hidden `
+        -PassThru
+    Write-Output "FAVORITE_SCRIPT_PID=$($favorite.Id)"
+}
+
+if (Test-PortInUse -Port $TokenUsagePort) {
+    if (-not $ReuseExisting) {
+        throw "Token usage port $TokenUsagePort is already in use. Stop the existing process, choose another port, or pass -ReuseExisting."
+    }
+    Write-Output "TOKEN_USAGE_ALREADY_RUNNING=true"
+} else {
+    $tokenOut = Join-Path $projectRoot "features\token-usage-view\ui\local-integration.out.log"
+    $tokenErr = Join-Path $projectRoot "features\token-usage-view\ui\local-integration.err.log"
+    $tokenUsage = Start-Process `
+        -FilePath $npm `
+        -ArgumentList @("exec", "--", "vite", (Join-Path $projectRoot "features\token-usage-view\ui"), "--config", (Join-Path $projectRoot "features\ai-chat-workbench\ui\client\vite.config.ts"), "--host", "127.0.0.1", "--port", [string]$TokenUsagePort, "--strictPort") `
+        -WorkingDirectory (Join-Path $projectRoot "features\ai-chat-workbench\ui\client") `
+        -RedirectStandardOutput $tokenOut `
+        -RedirectStandardError $tokenErr `
+        -WindowStyle Hidden `
+        -PassThru
+    Write-Output "TOKEN_USAGE_PID=$($tokenUsage.Id)"
+}
+
 Write-Output "BACKEND_URL=http://127.0.0.1:$BackendPort"
 Write-Output "FRONTEND_URL=http://127.0.0.1:$FrontendPort"
 Write-Output "WORKBENCH_URL=http://127.0.0.1:$WorkbenchPort"
+Write-Output "FAVORITE_SCRIPT_URL=http://127.0.0.1:$FavoriteScriptPort"
+Write-Output "TOKEN_USAGE_URL=http://127.0.0.1:$TokenUsagePort"

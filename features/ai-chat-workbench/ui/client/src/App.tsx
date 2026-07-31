@@ -5,6 +5,16 @@ import Topbar from "./components/Topbar";
 import ConversationList from "./components/ConversationList";
 import ChatPanel from "./components/ChatPanel";
 import AssistantPanel from "./components/AssistantPanel";
+import ConversationHistoryPage from "./components/ConversationHistoryPage";
+import MyEvaluationPage from "./components/MyEvaluationPage";
+import type { SidebarItemId } from "./components/Sidebar";
+
+type WorkbenchView = "conversation" | "history" | "evaluation";
+
+function getWorkbenchView(): WorkbenchView {
+  const requestedView = new URLSearchParams(window.location.search).get("view");
+  return requestedView === "history" || requestedView === "evaluation" ? requestedView : "conversation";
+}
 
 function getLoginUrl() {
   const configuredUrl = import.meta.env.VITE_LOGIN_URL;
@@ -22,11 +32,14 @@ export default function App() {
   const [platform, setPlatform] = useState("tm");
   const [regen, setRegen] = useState(false);
   const [isAuthenticatedCustomerService, setIsAuthenticatedCustomerService] = useState(false);
+  const [displayName, setDisplayName] = useState("客服");
   const [viewport, setViewport] = useState(() => ({
     width: window.innerWidth,
     height: window.innerHeight,
   }));
   const cur = PLATFORMS.find((p) => p.id === platform)!;
+  const view = getWorkbenchView();
+  const activeItem: SidebarItemId = view;
   const desktopWidth = 1440;
   const layoutScale = Math.min(1, viewport.width / desktopWidth);
 
@@ -43,6 +56,7 @@ export default function App() {
         const roleType = payload?.data?.roleType;
 
         if (response.ok && payload?.code === "OK" && roleType === "CUSTOMER_SERVICE") {
+          setDisplayName(payload.data.username || payload.data.account || "客服");
           setIsAuthenticatedCustomerService(true);
           return;
         }
@@ -100,16 +114,32 @@ export default function App() {
         ::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-thumb{background:#d6dcea;border-radius:8px}::-webkit-scrollbar-thumb:hover{background:#c2cad8}
       `}</style>
 
-      <Sidebar />
+      <Sidebar activeItem={activeItem} />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar />
+        <Topbar
+          displayName={displayName}
+          title={view === "history" ? "对话记录" : view === "evaluation" ? "我的评估" : "智能对话工作台"}
+          subtitle={
+            view === "history"
+              ? "查看当前账号的历史会话与完整沟通记录"
+              : view === "evaluation"
+                ? "查看当前账号的风险命中与服务评估记录"
+                : "AI 生成高质量回复，助力客服高效服务"
+          }
+        />
 
-        <main className="workbench-grid grid min-h-0 flex-1 gap-5 overflow-hidden p-5">
-          <ConversationList platformName={cur.name} />
-          <ChatPanel platformId={platform} onPlatformChange={setPlatform} regen={regen} onRegen={doRegen} />
-          <AssistantPanel platformName={cur.name} regen={regen} />
-        </main>
+        {view === "history" ? (
+          <ConversationHistoryPage />
+        ) : view === "evaluation" ? (
+          <MyEvaluationPage />
+        ) : (
+          <main className="workbench-grid grid min-h-0 flex-1 gap-5 overflow-hidden p-5">
+            <ConversationList platformName={cur.name} />
+            <ChatPanel platformId={platform} onPlatformChange={setPlatform} regen={regen} onRegen={doRegen} />
+            <AssistantPanel platformName={cur.name} regen={regen} />
+          </main>
+        )}
       </div>
     </div>
     </div>

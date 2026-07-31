@@ -322,6 +322,7 @@ function getDashboardStats() {
 
 async function initApp() {
     try {
+        await loadCurrentUser();
         // Load today/summary/trend/records from backend when available
         tokenUsageInfo = await loadTokenUsageInfo();
         await loadSummary();
@@ -339,6 +340,21 @@ async function initApp() {
     } catch (error) {
         showErrorState();
         console.error('Failed to initialize app:', error);
+    }
+}
+
+async function loadCurrentUser() {
+    try {
+        if (!window.tokenApi?.getCurrentUser) return;
+        const payload = await window.tokenApi.getCurrentUser();
+        const user = payload?.data || payload;
+        const displayName = user?.username || user?.account || '客服';
+        const nameElement = document.querySelector('.user-name');
+        const avatarElement = document.querySelector('.avatar');
+        if (nameElement) nameElement.textContent = displayName;
+        if (avatarElement) avatarElement.textContent = displayName.trim().slice(0, 1) || '客';
+    } catch (error) {
+        // Keep the neutral page defaults if account details are unavailable.
     }
 }
 
@@ -1043,9 +1059,19 @@ function bindEvents() {
     }
 
     // sidebar menu item activation
-    const customerNavMap = {
+    const local = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
+    const localUrl = (port, path = '/') => `${window.location.protocol}//${window.location.hostname}:${port}${path}`;
+    const customerNavMap = local ? {
+        '智能对话': localUrl(15274),
+        '对话记录': localUrl(15274, '/?view=history'),
+        '个人话术库': localUrl(15278),
+        '我的评估': localUrl(15274, '/?view=evaluation'),
+        'Token统计': window.location.href
+    } : {
         '智能对话': `${window.location.origin}/workbench/`,
+        '对话记录': `${window.location.origin}/workbench/?view=history`,
         '个人话术库': `${window.location.origin}/favorite-script-library/`,
+        '我的评估': `${window.location.origin}/workbench/?view=evaluation`,
         'Token统计': `${window.location.origin}/token-usage/`
     };
 

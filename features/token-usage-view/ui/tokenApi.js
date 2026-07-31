@@ -4,9 +4,12 @@
 
 const _defaultBase = '/api/v1'; // adjust if you want a different default
 
+function requestOptions(extra = {}) {
+  return { credentials: 'include', ...extra };
+}
+
 function getBaseURL() {
   if (typeof window !== 'undefined') {
-    if (window.TOKEN_API_BASE_URL) return normalizeBase(window.TOKEN_API_BASE_URL);
     try {
       const params = new URLSearchParams(window.location.search);
       const fromParam = params.get('apiBase');
@@ -14,6 +17,7 @@ function getBaseURL() {
     } catch (e) {
       // ignore
     }
+    if (window.TOKEN_API_BASE_URL) return normalizeBase(window.TOKEN_API_BASE_URL);
   }
   return normalizeBase(_defaultBase);
 }
@@ -48,23 +52,23 @@ async function checkResponse(res) {
 // internalKey required
 async function postInternalEvent(eventPayload, internalKey) {
   const url = `${getBaseURL()}/internal/token-usage/events`;
-  const res = await fetch(url, {
+  const res = await fetch(url, requestOptions({
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'X-Internal-Api-Key': internalKey
     },
     body: JSON.stringify(eventPayload)
-  });
+  }));
   return await checkResponse(res);
 }
 
 // GET /api/v1/token-usage/me/today
 async function getTodayStats(userId) {
   const url = `${getBaseURL()}/token-usage/me/today`;
-  const res = await fetch(url, {
+  const res = await fetch(url, requestOptions({
     headers: { 'X-User-Id': userId }
-  });
+  }));
   return await checkResponse(res);
 }
 
@@ -74,7 +78,7 @@ async function getSummary(userId, options = {}) {
   if (options.from) params.set('from', options.from);
   if (options.to) params.set('to', options.to);
   const url = `${getBaseURL()}/token-usage/me/summary${params.toString() ? '?' + params.toString() : ''}`;
-  const res = await fetch(url, { headers: { 'X-User-Id': userId } });
+  const res = await fetch(url, requestOptions({ headers: { 'X-User-Id': userId } }));
   return await checkResponse(res);
 }
 
@@ -86,7 +90,7 @@ async function getTrend(userId, params = {}) {
   if (params.to) q.set('to', params.to);
   if (params.bucket) q.set('bucket', params.bucket);
   const url = `${getBaseURL()}/token-usage/me/trend?${q.toString()}`;
-  const res = await fetch(url, { headers: { 'X-User-Id': userId } });
+  const res = await fetch(url, requestOptions({ headers: { 'X-User-Id': userId } }));
   return await checkResponse(res);
 }
 
@@ -100,7 +104,7 @@ async function getRecords(userId, options = {}) {
   if (options.from) q.set('from', options.from);
   if (options.to) q.set('to', options.to);
   const url = `${getBaseURL()}/token-usage/me/records?${q.toString()}`;
-  const res = await fetch(url, { headers: { 'X-User-Id': userId } });
+  const res = await fetch(url, requestOptions({ headers: { 'X-User-Id': userId } }));
   return await checkResponse(res);
 }
 
@@ -108,14 +112,20 @@ async function getRecords(userId, options = {}) {
 async function getRecordDetail(userId, requestId) {
   if (!requestId) throw new Error('requestId is required');
   const url = `${getBaseURL()}/token-usage/me/records/${encodeURIComponent(requestId)}`;
-  const res = await fetch(url, { headers: { 'X-User-Id': userId } });
+  const res = await fetch(url, requestOptions({ headers: { 'X-User-Id': userId } }));
   return await checkResponse(res);
 }
 
 // GET /api/v1/token-usage/me/status
 async function getStatus(userId) {
   const url = `${getBaseURL()}/token-usage/me/status`;
-  const res = await fetch(url, { headers: { 'X-User-Id': userId } });
+  const res = await fetch(url, requestOptions({ headers: { 'X-User-Id': userId } }));
+  return await checkResponse(res);
+}
+
+async function getCurrentUser() {
+  const url = `${getBaseURL()}/auth/me`;
+  const res = await fetch(url, requestOptions());
   return await checkResponse(res);
 }
 
@@ -128,7 +138,7 @@ async function connectStream(userId, onEvent, onError) {
   const signal = controller.signal;
 
   try {
-    const res = await fetch(url, { headers: { 'X-User-Id': userId }, signal });
+    const res = await fetch(url, requestOptions({ headers: { 'X-User-Id': userId }, signal }));
     if (!res.ok) {
       const body = await checkResponse(res); // will throw
       return null;
@@ -186,6 +196,7 @@ const tokenApi = {
   getRecords,
   getRecordDetail,
   getStatus,
+  getCurrentUser,
   connectStream
 };
 

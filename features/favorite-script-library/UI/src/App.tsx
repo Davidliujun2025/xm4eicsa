@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import AiCustomer from './views/aiCustomer';
 
 type IconProps = { className?: string };
@@ -68,14 +68,49 @@ const navItems = [
   { Icon: Clip, label: '我的评估' },
 ];
 
-const appLinks: Record<string, string> = {
-  '智能对话': 'http://localhost:5177/',
-  '个人话术库': 'http://localhost:5176/',
-  'Token统计': 'http://localhost:5600/'
+const isLocalDevelopment = () => window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
+const localUrl = (port: number, path = '/') => `${window.location.protocol}//${window.location.hostname}:${port}${path}`;
+
+const getAppLinks = (): Record<string, string> => {
+  if (isLocalDevelopment()) {
+    const workbenchUrl = import.meta.env.VITE_WORKBENCH_URL || localUrl(15274);
+    const tokenUsageUrl = import.meta.env.VITE_TOKEN_USAGE_URL || localUrl(15280);
+    return {
+      '智能对话': workbenchUrl,
+      '对话记录': `${workbenchUrl.replace(/\/$/, '')}/?view=history`,
+      '个人话术库': window.location.href,
+      '我的评估': `${workbenchUrl.replace(/\/$/, '')}/?view=evaluation`,
+      'Token统计': tokenUsageUrl,
+    };
+  }
+
+  return {
+    '智能对话': `${window.location.origin}/workbench/`,
+    '对话记录': `${window.location.origin}/workbench/?view=history`,
+    '个人话术库': `${window.location.origin}/favorite-script-library/`,
+    '我的评估': `${window.location.origin}/workbench/?view=evaluation`,
+    'Token统计': `${window.location.origin}/token-usage/`,
+  };
 };
 
 const App: React.FC = () => {
   const [dashboardOpen, setDashboardOpen] = useState(true);
+  const [displayName, setDisplayName] = useState('客服');
+  const appLinks = getAppLinks();
+
+  useEffect(() => {
+    const loadCurrentUser = async () => {
+      try {
+        const response = await fetch('/api/v1/auth/me', { credentials: 'include' });
+        if (!response.ok) return;
+        const payload = await response.json();
+        setDisplayName(payload?.data?.username || payload?.data?.account || '客服');
+      } catch {
+        // Keep a neutral label when account details are temporarily unavailable.
+      }
+    };
+    void loadCurrentUser();
+  }, []);
 
   return (
     <div className="script-app-shell">
@@ -141,8 +176,8 @@ const App: React.FC = () => {
               <span>2</span>
             </button>
             <button className="script-account-button" type="button" aria-label="账号菜单">
-              <span className="script-avatar">倩</span>
-              <span className="script-account-name">张小倩</span>
+              <span className="script-avatar">{displayName.trim().slice(0, 1) || '客'}</span>
+              <span className="script-account-name">{displayName}</span>
               <Chev className="script-chev-icon" />
             </button>
           </div>
