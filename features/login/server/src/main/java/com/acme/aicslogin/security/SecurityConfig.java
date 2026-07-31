@@ -48,7 +48,11 @@ public class SecurityConfig {
         http
                 .cors(Customizer.withDefaults())
                 .csrf(csrf -> csrf
-                        .ignoringRequestMatchers("/api/v1/auth/login", "/api/auth/login")
+                        .ignoringRequestMatchers(
+                                "/api/v1/auth/login",
+                                "/api/auth/login",
+                                "/api/password/**",
+                                "/api/auth/password-reset/**")
                         .csrfTokenRepository(csrfRepository)
                         .csrfTokenRequestHandler(csrfRequestHandler))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -67,7 +71,11 @@ public class SecurityConfig {
                                 "/api/v1/auth/logout",
                                 "/api/auth/login",
                                 "/api/auth/refresh",
-                                "/api/auth/logout").permitAll()
+                                "/api/auth/logout",
+                                "/api/password/**",
+                                "/api/auth/password-reset/**").permitAll()
+                        .requestMatchers("/api/admin/**", "/api/forbidden-words/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/chat-audit/logs").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .exceptionHandling(errors -> errors
                         .authenticationEntryPoint((request, response, exception) ->
@@ -85,7 +93,7 @@ public class SecurityConfig {
     CorsConfigurationSource corsConfigurationSource(AuthProperties properties) {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(properties.allowedOrigins());
-                configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Content-Type", "X-XSRF-TOKEN", "X-Request-ID"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);

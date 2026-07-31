@@ -138,7 +138,7 @@
       </div>
     </div>
     <!-- Toast 提示 -->
-    <div v-if="message && !loginError" class="toast">{{ message }}</div>
+    <div v-if="message" class="toast">{{ message }}</div>
     <!-- 成功弹窗 -->
     <div v-if="showSuccessDialog" class="dialog-mask">
       <div class="dialog">

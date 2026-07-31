@@ -114,6 +114,8 @@ import type { LoginForm, PwdChecks } from '../types'
 
 const defaultForgotUrl =
   import.meta.env.VITE_FORGOT_PASSWORD_URL || `${window.location.origin}/forgot-password/`
+const workbenchUrl =
+  import.meta.env.VITE_WORKBENCH_URL || `${window.location.origin}/workbench/`
 
 const FORGOT_PASSWORD_URL =
   new URLSearchParams(window.location.search).get('forgotUrl') ||
@@ -219,7 +221,8 @@ const canLogin = computed(() => {
 function isValidAccountFormat(account: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   const phoneRegex = /^1[3-9]\d{9}$/
-  return emailRegex.test(account) || phoneRegex.test(account)
+  const usernameRegex = /^[A-Za-z0-9_@.-]{4,64}$/
+  return emailRegex.test(account) || phoneRegex.test(account) || usernameRegex.test(account)
 }
 
 // =============================================================
@@ -243,17 +246,15 @@ async function handleLogin() {
   try {
     const response = await apiClient.post('/auth/login', {
       account,
-      password
+      password,
+      rememberMe: loginForm.remember
     })
 
     const { code, message, data } = response.data
 
     if (code === 'OK') {
-      if (data?.token) {
-        localStorage.setItem('carepilot_token', data.token)
-        // Keep compatibility with admin modules that read accessToken.
-        localStorage.setItem('accessToken', data.token)
-      }
+      localStorage.removeItem('carepilot_token')
+      localStorage.removeItem('accessToken')
       if (data?.user) {
         localStorage.setItem('carepilot_user', JSON.stringify(data.user))
       }
@@ -261,18 +262,21 @@ async function handleLogin() {
       if (loginForm.remember) {
         localStorage.setItem('carepilot_remember', 'true')
         localStorage.setItem('carepilot_account', account)
-        localStorage.setItem('carepilot_password', password)
       } else {
         localStorage.removeItem('carepilot_remember')
         localStorage.removeItem('carepilot_account')
-        localStorage.removeItem('carepilot_password')
       }
 
+      localStorage.removeItem('carepilot_password')
+
+      const roleType = typeof data?.user?.roleType === 'string' ? data.user.roleType : ''
       const backendPath = typeof data?.redirectPath === 'string' ? data.redirectPath : ''
       const normalizedPath = backendPath === '/ai-customer-service' ? '/workbench/' : backendPath
-      const redirectUrl = normalizedPath && normalizedPath.startsWith('/')
-        ? `${window.location.origin}${normalizedPath}`
-        : `${window.location.origin}/workbench/`
+      const redirectUrl = roleType === 'CUSTOMER_SERVICE'
+        ? workbenchUrl
+        : normalizedPath && normalizedPath.startsWith('/')
+          ? `${window.location.origin}${normalizedPath}`
+          : `${window.location.origin}/`
       window.location.href = redirectUrl
     } else {
       if (message.includes('不存在')) {
@@ -304,7 +308,7 @@ function loadRemembered() {
   const remember = localStorage.getItem('carepilot_remember') === 'true'
   if (remember) {
     const account = localStorage.getItem('carepilot_account') || ''
-    const password = localStorage.getItem('carepilot_password') || ''
+    const password = ''
     loginForm.account = account
     loginForm.password = password
     loginForm.remember = true

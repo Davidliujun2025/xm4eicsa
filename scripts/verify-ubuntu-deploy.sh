@@ -23,7 +23,7 @@ echo "login-bg.png => $asset_code, Content-Type: ${asset_type:-unknown}"
 head -c 100 /tmp/xm4_asset.out; echo
 
 echo "=== Local Port Listeners ==="
-ss -lntp | grep -E ':8080|:8082|:8083|:8084|:8085' || true
+ss -lntp | grep ':8080' || true
 
 echo "=== DB Quick Check (requires mysql client and credentials) ==="
 echo "Run manually if needed:"

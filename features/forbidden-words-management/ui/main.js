@@ -3,8 +3,6 @@ const API_BASE =
   window.localStorage.getItem("forbiddenWordsApiBase") ||
   `${window.location.origin}/api`;
 const PAGE_SIZE = 20;
-const DEFAULT_OPERATOR = "admin";
-
 const state = {
   currentPlatform: "ALL",
   currentPage: 1,
@@ -66,12 +64,20 @@ function formatTime(text) {
 }
 
 async function api(path, options = {}) {
+  const csrfCookie = document.cookie
+    .split("; ")
+    .find((item) => item.startsWith("XSRF-TOKEN="));
+  const csrfToken = csrfCookie
+    ? decodeURIComponent(csrfCookie.split("=").slice(1).join("="))
+    : "";
   const response = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
-      "X-Operator": DEFAULT_OPERATOR
-    },
-    ...options
+      ...(csrfToken ? { "X-XSRF-TOKEN": csrfToken } : {}),
+      ...(options.headers || {})
+    }
   });
 
   if (!response.ok) {
@@ -585,6 +591,22 @@ function bindSidebarNavigation() {
   });
 }
 
+async function loadCurrentUser() {
+  const response = await fetch("/api/v1/auth/me", { credentials: "include" });
+  if (response.status === 401) {
+    window.location.href = `/?returnUrl=${encodeURIComponent(window.location.pathname)}`;
+    throw new Error("登录状态已失效");
+  }
+  if (!response.ok) {
+    throw new Error("无法获取当前登录用户");
+  }
+  const payload = await response.json();
+  const user = payload.data || {};
+  const displayName = user.username || "";
+  qs("currentUserName").textContent = displayName;
+  qs("currentUserAvatar").textContent = displayName.slice(0, 1) || "?";
+}
+
 async function bootstrap() {
   renderStats();
   createPlatformOptions(qs("platformSelect"));
@@ -597,6 +619,7 @@ async function bootstrap() {
   bindFilters();
   bindSidebarNavigation();
 
+  await loadCurrentUser();
   await loadWords();
 }
 

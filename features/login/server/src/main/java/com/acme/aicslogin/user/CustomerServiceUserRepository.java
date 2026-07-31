@@ -7,5 +7,7 @@ import java.util.Optional;
 public interface CustomerServiceUserRepository extends JpaRepository<CustomerServiceUser, Long> {
     Optional<CustomerServiceUser> findByAccount(String account);
 
+    Optional<CustomerServiceUser> findFirstByAccountOrEmail(String account, String email);
+
     Optional<CustomerServiceUser> findByPhone(String phone);
 }

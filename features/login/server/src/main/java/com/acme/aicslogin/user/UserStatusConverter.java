@@ -10,7 +10,7 @@ public class UserStatusConverter implements AttributeConverter<UserStatus, Strin
 
     @Override
     public String convertToDatabaseColumn(UserStatus attribute) {
-        return attribute == null ? null : attribute.name();
+        return attribute == null ? null : attribute == UserStatus.ACTIVE ? "ENABLED" : attribute.name();
     }
 
     @Override
@@ -18,6 +18,7 @@ public class UserStatusConverter implements AttributeConverter<UserStatus, Strin
         if (dbData == null || dbData.isBlank()) {
             return null;
         }
-        return UserStatus.valueOf(dbData.trim().toUpperCase(Locale.ROOT));
+        String normalized = dbData.trim().toUpperCase(Locale.ROOT);
+        return "ENABLED".equals(normalized) ? UserStatus.ACTIVE : UserStatus.valueOf(normalized);
     }
 }

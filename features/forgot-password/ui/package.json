@@ -9,7 +9,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@rolldown/binding-darwin-arm64": "^1.2.0",
     "vue": "^3.5.39"
   },
   "devDependencies": {

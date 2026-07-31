@@ -6,19 +6,12 @@ const baseURL = import.meta.env.VITE_API_BASE_URL || '';
 const instance: AxiosInstance = axios.create({
   baseURL,
   timeout: 10000,
+  withCredentials: true,
+  withXSRFToken: true,
   headers: {
     'Content-Type': 'application/json',
   },
 });
-
-instance.interceptors.request.use(
-  (config) => {
-    const staffId = localStorage.getItem('staffId') || 'demo-csr';
-    config.headers['X-Staff-Id'] = staffId;
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
 
 instance.interceptors.response.use(
   (response) => response,

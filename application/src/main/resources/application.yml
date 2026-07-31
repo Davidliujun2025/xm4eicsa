@@ -1,0 +1,74 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: xm4eicsa
+  profiles:
+    default: mysql
+  datasource:
+    url: ${DB_URL:jdbc:mysql://127.0.0.1:3306/xm4?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
+  flyway:
+    enabled: true
+    locations: classpath:db/xm4
+    baseline-on-migrate: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  health:
+    redis:
+      enabled: ${REDIS_HEALTH_ENABLED:false}
+
+app:
+  auth:
+    issuer: ${JWT_ISSUER:xm4eicsa}
+    jwt-secret-base64: ${JWT_SECRET_BASE64:MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
+    access-ttl: ${JWT_ACCESS_TTL:PT15M}
+    session-refresh-ttl: ${JWT_REFRESH_TTL:PT8H}
+    remembered-refresh-ttl: ${JWT_REMEMBERED_REFRESH_TTL:P30D}
+    secure-cookies: ${SECURE_COOKIES:false}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:5500,http://localhost:5500}
+    allow-plain-password-debug: ${ALLOW_PLAIN_PASSWORD_DEBUG:false}
+  ai:
+    timeout-seconds: ${AI_TIMEOUT_SECONDS:15}
+    api-key: ${AI_API_KEY:}
+    base-url: ${AI_BASE_URL:https://api.openai.com/v1}
+  token:
+    daily-limit: ${TOKEN_DAILY_LIMIT:50000}
+  cache:
+    sync-window-minutes: ${FORBIDDEN_WORD_CACHE_SYNC_MINUTES:5}
+  script-library:
+    max-size: ${SCRIPT_LIBRARY_MAX_SIZE:200}
+  token-monitor:
+    zone: ${TOKEN_MONITOR_ZONE:Asia/Shanghai}
+    default-daily-limit: ${TOKEN_MONITOR_DAILY_TOKEN_LIMIT:0}
+    high-usage-threshold: ${TOKEN_MONITOR_HIGH_USAGE_THRESHOLD:0.80}
+    failure-rate-threshold: ${TOKEN_MONITOR_FAILURE_RATE_THRESHOLD:0.20}
+  bootstrap-admin:
+    enabled: ${BOOTSTRAP_ADMIN_ENABLED:false}
+    name: ${BOOTSTRAP_ADMIN_NAME:}
+    phone: ${BOOTSTRAP_ADMIN_PHONE:}
+    email: ${BOOTSTRAP_ADMIN_EMAIL:}
+    password: ${BOOTSTRAP_ADMIN_PASSWORD:}
+
+carepilot:
+  password-reset:
+    reset-token-ttl: ${PASSWORD_RESET_TOKEN_TTL:30m}
+    code-ttl: ${PASSWORD_RESET_CODE_TTL:5m}
+    code-cooldown: ${PASSWORD_RESET_CODE_COOLDOWN:60s}
+    code-length: ${PASSWORD_RESET_CODE_LENGTH:6}
+    username-pattern: ${PASSWORD_RESET_USERNAME_PATTERN:^[A-Za-z0-9_@.-]{4,64}$}

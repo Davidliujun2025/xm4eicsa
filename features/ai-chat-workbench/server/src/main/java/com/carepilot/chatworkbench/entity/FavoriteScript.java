@@ -11,9 +11,9 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "favorite_script", indexes = {
-        @Index(name = "idx_customer_id", columnList = "customer_id"),
-        @Index(name = "idx_script_hash", columnList = "script_hash"),
-        @Index(name = "idx_created_at", columnList = "created_at")
+        @Index(name = "idx_favorite_script_customer_id", columnList = "customer_id"),
+        @Index(name = "idx_favorite_script_hash", columnList = "script_hash"),
+        @Index(name = "idx_favorite_script_created_at", columnList = "created_at")
 })
 @Data
 @Builder

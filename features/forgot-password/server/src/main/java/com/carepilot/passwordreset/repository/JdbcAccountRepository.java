@@ -18,30 +18,31 @@ public class JdbcAccountRepository implements AccountRepository {
 
     @Override
     public Optional<AccountRecord> findCustomerServiceByUsername(String username) {
-        return findByAccount(username);
+        return find("username", username);
     }
 
     @Override
     public Optional<AccountRecord> findCustomerServiceByPhone(String phone) {
-        return findByAccount(phone);
+        return find("phone", phone);
     }
 
     @Override
     public void updatePasswordHash(Long accountId, String passwordHash) {
         jdbcTemplate.update("""
-                UPDATE customer_service_user
+                UPDATE sys_user
                 SET password_hash = ?, updated_at = CURRENT_TIMESTAMP(6)
                 WHERE id = ?
                 """, passwordHash, accountId);
     }
 
-    private Optional<AccountRecord> findByAccount(String account) {
-        List<AccountRecord> records = jdbcTemplate.query("""
-                SELECT id, account, password_hash, status
-                FROM customer_service_user
-                WHERE account = ?
+    private Optional<AccountRecord> find(String column, String value) {
+        String sql = """
+                SELECT id, username AS account, phone, password_hash, status
+                FROM sys_user
+                WHERE %s = ?
                 LIMIT 1
-                """, this::mapAccount, account);
+                """.formatted(column);
+        List<AccountRecord> records = jdbcTemplate.query(sql, this::mapAccount, value);
         return records.stream().findFirst();
     }
 
@@ -49,10 +50,10 @@ public class JdbcAccountRepository implements AccountRepository {
         String account = rs.getString("account");
         return new AccountRecord(
                 rs.getLong("id"),
-                account,
+                rs.getString("phone"),
                 account,
                 rs.getString("password_hash"),
-                "ACTIVE".equalsIgnoreCase(rs.getString("status"))
+                "ENABLED".equalsIgnoreCase(rs.getString("status"))
         );
     }
 }

@@ -9,12 +9,13 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.List;
 
 @Component
 public class AccessTokenAuthenticationFilter extends OncePerRequestFilter {
@@ -39,10 +40,11 @@ public class AccessTokenAuthenticationFilter extends OncePerRequestFilter {
                     .filter(user -> user.getStatus() == UserStatus.ACTIVE)
                     .ifPresent(user -> {
                         AuthenticatedUser principal = new AuthenticatedUser(
-                                user.getId(), user.getAccount(), user.getDisplayName());
+                                user.getId(), user.getAccount(), user.getDisplayName(), user.getRoleType());
                         UsernamePasswordAuthenticationToken authentication =
                                 UsernamePasswordAuthenticationToken.authenticated(
-                                        principal, null, Collections.emptyList());
+                                        principal, null,
+                                        List.of(new SimpleGrantedAuthority("ROLE_" + user.getRoleType().name())));
                         SecurityContextHolder.getContext().setAuthentication(authentication);
                     });
         }

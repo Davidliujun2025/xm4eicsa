@@ -39,6 +39,9 @@ management:
     web:
       exposure:
         include: health,info
+  health:
+    redis:
+      enabled: ${REDIS_HEALTH_ENABLED:false}
   endpoint:
     health:
       show-details: never

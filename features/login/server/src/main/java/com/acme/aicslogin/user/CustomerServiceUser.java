@@ -6,23 +6,28 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 
 import java.time.Instant;
 
 @Entity
-@Table(name = "customer_service_user")
+@Table(name = "sys_user")
 public class CustomerServiceUser {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true, length = 32)
+    @Column(name = "username", nullable = false, unique = true, length = 64)
     private String account;
 
     @Column(name = "phone", length = 20)
     private String phone;
+
+    @Column(name = "email", length = 128)
+    private String email;
 
     @Column(name = "password_hash", nullable = false, length = 100)
     private String passwordHash;
@@ -30,8 +35,9 @@ public class CustomerServiceUser {
     @Column(name = "password", length = 255)
     private String legacyPassword;
 
-    @Column(name = "display_name", nullable = false, length = 64)
-    private String displayName;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "role_type", nullable = false, length = 32)
+    private RoleType roleType;
 
     @Convert(converter = UserStatusConverter.class)
     @Column(nullable = false, length = 32)
@@ -52,14 +58,14 @@ public class CustomerServiceUser {
     public static CustomerServiceUser create(
             String account,
             String passwordHash,
-            String displayName,
+            String ignoredDisplayName,
             UserStatus status
     ) {
         CustomerServiceUser user = new CustomerServiceUser();
         user.account = account;
         user.passwordHash = passwordHash;
-        user.displayName = displayName;
         user.status = status;
+        user.roleType = RoleType.CUSTOMER_SERVICE;
         return user;
     }
 
@@ -83,12 +89,20 @@ public class CustomerServiceUser {
         return phone;
     }
 
+    public String getEmail() {
+        return email;
+    }
+
     public String getDisplayName() {
-        return displayName;
+        return account;
     }
 
     public UserStatus getStatus() {
         return status;
+    }
+
+    public RoleType getRoleType() {
+        return roleType;
     }
 
     public Instant getLastLoginAt() {

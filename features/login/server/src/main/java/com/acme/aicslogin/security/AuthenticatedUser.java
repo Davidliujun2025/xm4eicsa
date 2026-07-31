@@ -1,4 +1,6 @@
 package com.acme.aicslogin.security;
 
-public record AuthenticatedUser(Long id, String account, String displayName) {
+import com.acme.aicslogin.user.RoleType;
+
+public record AuthenticatedUser(Long id, String account, String displayName, RoleType roleType) {
 }

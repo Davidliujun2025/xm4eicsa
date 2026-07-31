@@ -1,24 +1,8 @@
 # Example Nginx virtual host for Tencent Cloud deployment.
 # Copy to /etc/nginx/sites-available/xm4eicsa or /etc/nginx/conf.d/xm4eicsa.conf.
 
-upstream xm4_login_backend {
+upstream xm4_backend {
     server 127.0.0.1:8080;
-}
-
-upstream xm4_forgot_password_backend {
-    server 127.0.0.1:8082;
-}
-
-upstream xm4_create_agent_backend {
-    server 127.0.0.1:8083;
-}
-
-upstream xm4_forbidden_words_backend {
-    server 127.0.0.1:8084;
-}
-
-upstream xm4_ai_chat_backend {
-    server 127.0.0.1:8085;
 }
 
 server {
@@ -48,94 +32,9 @@ server {
         add_header Cache-Control "public, max-age=604800, immutable";
     }
 
-    # Login service APIs
-    location /api/v1/auth/ {
-        proxy_pass http://xm4_login_backend;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location /api/v1/public/ {
-        proxy_pass http://xm4_login_backend;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # Forgot-password APIs
-    location /api/password/ {
-        proxy_pass http://xm4_forgot_password_backend;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location /api/auth/password-reset/ {
-        proxy_pass http://xm4_forgot_password_backend;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # Create-agent-account APIs
-    location /api/admin/customer-service-users/ {
-        proxy_pass http://xm4_create_agent_backend;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # Forbidden words APIs
-    location /api/forbidden-words/ {
-        proxy_pass http://xm4_forbidden_words_backend;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location /api/chat-audit/ {
-        proxy_pass http://xm4_forbidden_words_backend;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # AI chat workbench APIs
-    location /api/v1/conversations/ {
-        proxy_pass http://xm4_ai_chat_backend;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location /api/v1/favorites/ {
-        proxy_pass http://xm4_ai_chat_backend;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    location /api/v1/tokens/ {
-        proxy_pass http://xm4_ai_chat_backend;
+    # All backend modules are packaged in one Spring Boot application.
+    location /api/ {
+        proxy_pass http://xm4_backend;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;

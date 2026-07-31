@@ -5,15 +5,14 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
-public interface ScriptFavoriteRepository extends JpaRepository<ScriptFavorite, UUID> {
+public interface ScriptFavoriteRepository extends JpaRepository<ScriptFavorite, Long> {
 
-    long countByStaffId(String staffId);
+    long countByStaffId(Long staffId);
 
-    List<ScriptFavorite> findByStaffId(String staffId);
+    List<ScriptFavorite> findByStaffId(Long staffId);
 
-    Optional<ScriptFavorite> findByStaffIdAndSourceTalkId(String staffId, String sourceTalkId);
+    Optional<ScriptFavorite> findByStaffIdAndSourceTalkId(Long staffId, String sourceTalkId);
 
-    Optional<ScriptFavorite> findByStaffIdAndContentHash(String staffId, String contentHash);
+    Optional<ScriptFavorite> findByStaffIdAndContentHash(Long staffId, String contentHash);
 }

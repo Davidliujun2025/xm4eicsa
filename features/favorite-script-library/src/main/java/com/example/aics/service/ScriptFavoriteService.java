@@ -23,7 +23,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 
 @Service
 public class ScriptFavoriteService {
@@ -40,8 +39,8 @@ public class ScriptFavoriteService {
     }
 
     @Transactional
-    public ToggleFavoriteResponse toggle(String staffId, ToggleFavoriteRequest request) {
-        String normalizedStaffId = normalizeStaffId(staffId);
+    public ToggleFavoriteResponse toggle(Long staffId, ToggleFavoriteRequest request) {
+        Long normalizedStaffId = normalizeStaffId(staffId);
         String contentHash = sha256(request.content());
 
         Optional<ScriptFavorite> existing = findExisting(normalizedStaffId, request.sourceTalkId(), contentHash);
@@ -71,7 +70,7 @@ public class ScriptFavoriteService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<FavoriteResponse> search(String staffId, String keyword, String tag, int page, int size) {
+    public PageResponse<FavoriteResponse> search(Long staffId, String keyword, String tag, int page, int size) {
         int safePage = Math.max(page, 0);
         int safeSize = Math.max(1, Math.min(size, 100));
         String normalizedKeyword = normalizeSearchText(keyword);
@@ -90,7 +89,7 @@ public class ScriptFavoriteService {
     }
 
     @Transactional
-    public FavoriteResponse markUsed(String staffId, UUID favoriteId) {
+    public FavoriteResponse markUsed(Long staffId, Long favoriteId) {
         ScriptFavorite favorite = repository.findById(favoriteId)
                 .filter(item -> item.getStaffId().equals(normalizeStaffId(staffId)))
                 .orElseThrow(() -> new ResourceNotFoundException("话术不存在"));
@@ -99,7 +98,7 @@ public class ScriptFavoriteService {
     }
 
     @Transactional(readOnly = true)
-    public List<String> listTags(String staffId) {
+    public List<String> listTags(Long staffId) {
         return repository.findByStaffId(normalizeStaffId(staffId)).stream()
                 .flatMap(favorite -> favorite.getTags().stream())
                 .distinct()
@@ -108,14 +107,14 @@ public class ScriptFavoriteService {
     }
 
     @Transactional
-    public void delete(String staffId, UUID favoriteId) {
+    public void delete(Long staffId, Long favoriteId) {
         ScriptFavorite favorite = repository.findById(favoriteId)
                 .filter(item -> item.getStaffId().equals(normalizeStaffId(staffId)))
                 .orElseThrow(() -> new ResourceNotFoundException("话术不存在"));
         repository.delete(favorite);
     }
 
-    private Optional<ScriptFavorite> findExisting(String staffId, String sourceTalkId, String contentHash) {
+    private Optional<ScriptFavorite> findExisting(Long staffId, String sourceTalkId, String contentHash) {
         if (StringUtils.hasText(sourceTalkId)) {
             Optional<ScriptFavorite> bySourceTalkId = repository.findByStaffIdAndSourceTalkId(staffId, sourceTalkId.trim());
             if (bySourceTalkId.isPresent()) {
@@ -169,8 +168,11 @@ public class ScriptFavoriteService {
                 .anyMatch(item -> item.equals(tag));
     }
 
-    private String normalizeStaffId(String staffId) {
-        return StringUtils.hasText(staffId) ? staffId.trim() : "demo-csr";
+    private Long normalizeStaffId(Long staffId) {
+        if (staffId == null || staffId <= 0) {
+            throw new IllegalArgumentException("客服用户ID无效");
+        }
+        return staffId;
     }
 
     private String normalizeSearchText(String text) {

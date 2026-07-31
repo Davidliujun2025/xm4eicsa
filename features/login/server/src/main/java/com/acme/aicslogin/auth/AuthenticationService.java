@@ -25,7 +25,8 @@ public class AuthenticationService {
 
     private static final Logger log = LoggerFactory.getLogger(AuthenticationService.class);
 
-    private static final String REDIRECT_PATH = "/ai-customer-service";
+    private static final String CUSTOMER_SERVICE_REDIRECT_PATH = "/workbench/";
+    private static final String ADMIN_REDIRECT_PATH = "/admin/users/";
 
     private final CustomerServiceUserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -78,7 +79,7 @@ public class AuthenticationService {
 
         Optional<CustomerServiceUser> userOptional = phoneInput
                 ? userRepository.findByPhone(loginKey)
-                : userRepository.findByAccount(loginKey);
+                : userRepository.findFirstByAccountOrEmail(loginKey, loginKey);
         log.info("LOGIN_DEBUG lookupBy={} resultPresent={}", phoneInput ? "PHONE" : "ACCOUNT", userOptional.isPresent());
 
         CustomerServiceUser user = userOptional.orElse(null);
@@ -163,7 +164,10 @@ public class AuthenticationService {
     private AuthSession createSession(CustomerServiceUser user, boolean remembered) {
         String accessToken = jwtService.createAccessToken(user);
         RefreshTokenService.IssuedRefreshToken refreshToken = refreshTokenService.issue(user.getId(), remembered);
-        LoginResult result = new LoginResult(UserSummary.from(user), accessToken, REDIRECT_PATH);
+        String redirectPath = user.getRoleType() == com.acme.aicslogin.user.RoleType.ADMIN
+                ? ADMIN_REDIRECT_PATH
+                : CUSTOMER_SERVICE_REDIRECT_PATH;
+        LoginResult result = new LoginResult(UserSummary.from(user), accessToken, redirectPath);
         return new AuthSession(result, accessToken, refreshToken);
     }
 

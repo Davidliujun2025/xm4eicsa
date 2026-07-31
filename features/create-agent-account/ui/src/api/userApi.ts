@@ -17,6 +17,15 @@ import type {
 const API_BASE_URL =
   (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 
+function getCookie(name: string): string | undefined {
+  return document.cookie
+    .split("; ")
+    .find((item) => item.startsWith(`${name}=`))
+    ?.split("=")
+    .slice(1)
+    .join("=");
+}
+
 export class ApiError extends Error {
   status: number;
   response: ApiErrorResponse;
@@ -37,11 +46,6 @@ async function apiRequest<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const token =
-    localStorage.getItem(
-      "accessToken",
-    ) || localStorage.getItem("carepilot_token");
-
   let response: Response;
 
   try {
@@ -49,17 +53,13 @@ async function apiRequest<T>(
       `${API_BASE_URL}${path}`,
       {
         ...options,
+        credentials: "include",
         headers: {
           "Content-Type":
             "application/json",
-
-          ...(token
-            ? {
-                Authorization:
-                  `Bearer ${token}`,
-              }
+          ...(getCookie("XSRF-TOKEN")
+            ? { "X-XSRF-TOKEN": decodeURIComponent(getCookie("XSRF-TOKEN")!) }
             : {}),
-
           ...options.headers,
         },
       },
@@ -216,6 +216,21 @@ export async function getCustomerServiceUserOperationLogs(
   return apiRequest<OperationLogResponse>(
     `/api/admin/customer-service-users/${userId}/operation-logs`,
   );
+}
+
+export interface CurrentUserResponse {
+  code: string;
+  message: string;
+  data: {
+    userId: number;
+    username: string;
+    status: UserStatus;
+    roleType: "ADMIN" | "CUSTOMER_SERVICE";
+  };
+}
+
+export async function getCurrentUser(): Promise<CurrentUserResponse> {
+  return apiRequest<CurrentUserResponse>("/api/v1/auth/me");
 }
 
 export interface UserStatisticsResponse {

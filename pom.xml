@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.carepilot</groupId>
+    <artifactId>xm4eicsa</artifactId>
+    <version>1.0.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>CarePilot AI Customer Service</name>
+
+    <modules>
+        <module>features/login/server</module>
+        <module>features/forgot-password/server</module>
+        <module>features/create-agent-account/server</module>
+        <module>features/forbidden-words-management/server</module>
+        <module>features/ai-chat-workbench/server</module>
+        <module>features/favorite-script-library</module>
+        <module>features/token-usage-view/server/backend</module>
+        <module>application</module>
+    </modules>
+</project>

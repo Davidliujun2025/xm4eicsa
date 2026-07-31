@@ -16,6 +16,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import {
   ApiError,
+  getCurrentUser,
   getCustomerServiceUserOperationLogs,
   getCustomerServiceUsers,
   resetCustomerServiceUserPassword,
@@ -68,6 +69,7 @@ export default function UserManagementPage() {
   const [customerServiceCount, setCustomerServiceCount] = useState(0);
   const [administratorCount, setAdministratorCount] = useState(0);
   const [disabledCount, setDisabledCount] = useState(0);
+  const [currentUserName, setCurrentUserName] = useState("");
 
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editName, setEditName] = useState("");
@@ -170,6 +172,16 @@ export default function UserManagementPage() {
     loadUsers,
     loadStatistics
    ]);
+
+  useEffect(() => {
+    getCurrentUser()
+      .then((response) => {
+        setCurrentUserName(response.data.username);
+      })
+      .catch(() => {
+        window.location.href = `/?returnUrl=${encodeURIComponent(window.location.pathname)}`;
+      });
+  }, []);
 
   const totalPages = Math.max(1, Math.ceil(totalUsers / PAGE_SIZE));
 
@@ -404,8 +416,8 @@ export default function UserManagementPage() {
             <div className="page-header__right">
               <div className="service-status"><span />AI服务正常</div>
               <div className="current-user">
-                <div className="current-user__avatar">陈</div>
-                <span>陈一冉</span>
+                <div className="current-user__avatar">{currentUserName.slice(0, 1) || "?"}</div>
+                <span>{currentUserName || "正在加载"}</span>
                 <ChevronDown size={16} />
               </div>
             </div>

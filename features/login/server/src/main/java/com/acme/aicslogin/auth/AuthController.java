@@ -11,12 +11,15 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping({"/api/v1/auth", "/api/auth"})
@@ -64,15 +67,21 @@ public class AuthController {
         return ApiResponse.ok(new UserSummary(
                 principal.id(),
                 principal.account(),
-                principal.displayName(),
                 com.acme.aicslogin.auth.dto.UserStatusType.ENABLED,
-                com.acme.aicslogin.auth.dto.RoleType.CUSTOMER_SERVICE,
+                com.acme.aicslogin.auth.dto.RoleType.valueOf(principal.roleType().name()),
                 null,
                 null,
                 principal.id(),
                 principal.account(),
                 principal.displayName()
         ));
+    }
+
+    @GetMapping("/csrf")
+    public ApiResponse<Map<String, String>> csrf(CsrfToken token) {
+        return ApiResponse.ok(Map.of(
+                "headerName", token.getHeaderName(),
+                "token", token.getToken()));
     }
 
     @PostMapping("/logout")

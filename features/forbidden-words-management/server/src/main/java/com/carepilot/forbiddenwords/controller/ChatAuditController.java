@@ -12,7 +12,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/chat-audit")
-@CrossOrigin
 public class ChatAuditController {
     private final HitAuditService hitAuditService;
 

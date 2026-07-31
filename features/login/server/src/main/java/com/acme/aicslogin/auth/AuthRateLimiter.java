@@ -36,6 +36,8 @@ public class AuthRateLimiter {
             } else if (failures >= 5) {
                 acquireGate(accountKey + ":gate:moderate", Duration.ofSeconds(30));
             }
+        } catch (BusinessException ex) {
+            throw ex;
         } catch (RuntimeException ex) {
             log.warn("Redis unavailable for rate limiting, skipping throttle checks", ex);
         }

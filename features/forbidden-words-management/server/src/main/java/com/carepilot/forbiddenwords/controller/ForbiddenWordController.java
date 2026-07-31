@@ -1,5 +1,6 @@
 package com.carepilot.forbiddenwords.controller;
 
+import com.acme.aicslogin.security.AuthenticatedUser;
 import com.carepilot.forbiddenwords.dto.CreateWordRequest;
 import com.carepilot.forbiddenwords.dto.CsvConfirmRequest;
 import com.carepilot.forbiddenwords.dto.CsvPreviewItem;
@@ -11,6 +12,7 @@ import com.carepilot.forbiddenwords.model.Platform;
 import com.carepilot.forbiddenwords.service.ForbiddenWordService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -19,7 +21,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/forbidden-words")
-@CrossOrigin
 public class ForbiddenWordController {
     private final ForbiddenWordService forbiddenWordService;
 
@@ -39,19 +40,20 @@ public class ForbiddenWordController {
     @PostMapping
     public ForbiddenWord addWord(
             @Valid @RequestBody CreateWordRequest request,
-            @RequestHeader(value = "X-Operator", defaultValue = "管理员") String operator,
+            @AuthenticationPrincipal AuthenticatedUser user,
             HttpServletRequest servletRequest
     ) {
-        return forbiddenWordService.addWord(request.getWord(), request.getPlatform(), operator, servletRequest.getRemoteAddr());
+        return forbiddenWordService.addWord(
+                request.getWord(), request.getPlatform(), user.account(), servletRequest.getRemoteAddr());
     }
 
     @DeleteMapping("/{id}")
     public Map<String, Object> deleteWord(
             @PathVariable Long id,
-            @RequestHeader(value = "X-Operator", defaultValue = "管理员") String operator,
+            @AuthenticationPrincipal AuthenticatedUser user,
             HttpServletRequest servletRequest
     ) {
-        forbiddenWordService.removeWord(id, operator, servletRequest.getRemoteAddr());
+        forbiddenWordService.removeWord(id, user.account(), servletRequest.getRemoteAddr());
 
         Map<String, Object> result = new HashMap<>();
         result.put("message", "Deleted");
@@ -68,10 +70,11 @@ public class ForbiddenWordController {
     @PostMapping("/csv/confirm")
     public Map<String, Object> confirmCsv(
             @Valid @RequestBody CsvConfirmRequest request,
-            @RequestHeader(value = "X-Operator", defaultValue = "管理员") String operator,
+            @AuthenticationPrincipal AuthenticatedUser user,
             HttpServletRequest servletRequest
     ) {
-        int importedCount = forbiddenWordService.confirmImport(request.getPreviewItems(), operator, servletRequest.getRemoteAddr());
+        int importedCount = forbiddenWordService.confirmImport(
+                request.getPreviewItems(), user.account(), servletRequest.getRemoteAddr());
         Map<String, Object> result = new HashMap<>();
         result.put("importedCount", importedCount);
         return result;

@@ -1,5 +1,6 @@
 package com.carepilot.chatworkbench.controller;
 
+import com.acme.aicslogin.security.AuthenticatedUser;
 import com.carepilot.chatworkbench.dto.request.FavoriteScriptRequest;
 import com.carepilot.chatworkbench.dto.response.ApiResponse;
 import com.carepilot.chatworkbench.dto.response.FavoriteScriptResponse;
@@ -9,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,8 +26,9 @@ public class FavoriteScriptController {
 
     @PostMapping
     public ResponseEntity<ApiResponse<FavoriteScriptResponse>> favoriteScript(
-            @RequestHeader("X-Customer-Id") String customerId,
+            @AuthenticationPrincipal AuthenticatedUser user,
             @Valid @RequestBody FavoriteScriptRequest request) {
+        String customerId = user.id().toString();
         log.info("Favorite script: customerId={}, scriptStep={}", customerId, request.getScriptStep());
         FavoriteScriptResponse response = favoriteScriptService.favoriteScript(customerId, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("已收藏到话术库", response));
@@ -33,8 +36,9 @@ public class FavoriteScriptController {
 
     @DeleteMapping
     public ResponseEntity<ApiResponse<Void>> unfavoriteScript(
-            @RequestHeader("X-Customer-Id") String customerId,
+            @AuthenticationPrincipal AuthenticatedUser user,
             @RequestBody Map<String, String> request) {
+        String customerId = user.id().toString();
         String scriptHash = request.get("scriptHash");
         log.info("Unfavorite script: customerId={}, scriptHash={}", customerId, scriptHash);
         favoriteScriptService.unfavoriteScript(customerId, scriptHash);
@@ -43,8 +47,9 @@ public class FavoriteScriptController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<FavoriteScriptResponse>>> getFavoriteScripts(
-            @RequestHeader("X-Customer-Id") String customerId,
+            @AuthenticationPrincipal AuthenticatedUser user,
             @RequestParam(value = "platform", required = false) String platform) {
+        String customerId = user.id().toString();
         log.info("Get favorite scripts: customerId={}, platform={}", customerId, platform);
         List<FavoriteScriptResponse> favorites;
         if (platform != null && !platform.isEmpty()) {
@@ -57,8 +62,9 @@ public class FavoriteScriptController {
 
     @PostMapping("/check")
     public ResponseEntity<ApiResponse<Boolean>> checkFavorited(
-            @RequestHeader("X-Customer-Id") String customerId,
+            @AuthenticationPrincipal AuthenticatedUser user,
             @RequestBody Map<String, String> request) {
+        String customerId = user.id().toString();
         String scriptContent = request.get("scriptContent");
         boolean isFavorited = favoriteScriptService.isFavorited(customerId, scriptContent);
         return ResponseEntity.ok(ApiResponse.success(isFavorited));

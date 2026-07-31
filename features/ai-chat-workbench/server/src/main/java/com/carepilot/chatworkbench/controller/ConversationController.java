@@ -1,5 +1,6 @@
 package com.carepilot.chatworkbench.controller;
 
+import com.acme.aicslogin.security.AuthenticatedUser;
 import com.carepilot.chatworkbench.dto.request.CreateConversationRequest;
 import com.carepilot.chatworkbench.dto.response.ApiResponse;
 import com.carepilot.chatworkbench.dto.response.ConversationResponse;
@@ -10,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,7 +27,8 @@ public class ConversationController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<List<ConversationResponse>>> getConversationList(
-            @RequestHeader("X-Customer-Id") String customerId) {
+            @AuthenticationPrincipal AuthenticatedUser user) {
+        String customerId = user.id().toString();
         log.info("Get conversation list: customerId={}", customerId);
         List<ConversationResponse> conversations = conversationService.getConversationList(customerId);
         return ResponseEntity.ok(ApiResponse.success(conversations));
@@ -33,8 +36,9 @@ public class ConversationController {
 
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<ConversationResponse>> getConversationById(
-            @RequestHeader("X-Customer-Id") String customerId,
+            @AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable("id") String conversationId) {
+        String customerId = user.id().toString();
         log.info("Get conversation by id: customerId={}, conversationId={}", customerId, conversationId);
         ConversationResponse conversation = conversationService.getConversationById(customerId, conversationId);
         return ResponseEntity.ok(ApiResponse.success(conversation));
@@ -42,8 +46,9 @@ public class ConversationController {
 
     @PostMapping
     public ResponseEntity<ApiResponse<ConversationResponse>> createConversation(
-            @RequestHeader("X-Customer-Id") String customerId,
+            @AuthenticationPrincipal AuthenticatedUser user,
             @Valid @RequestBody CreateConversationRequest request) {
+        String customerId = user.id().toString();
         log.info("Create conversation: customerId={}, question={}, platform={}",
                 customerId, request.getQuestion(), request.getPlatform());
         ConversationResponse response = aiService.createConversation(
@@ -57,9 +62,10 @@ public class ConversationController {
 
     @PostMapping("/{id}/messages")
     public ResponseEntity<ApiResponse<ConversationResponse>> addMessage(
-            @RequestHeader("X-Customer-Id") String customerId,
+            @AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable("id") String conversationId,
             @Valid @RequestBody CreateConversationRequest request) {
+        String customerId = user.id().toString();
         log.info("Add message to conversation: customerId={}, conversationId={}, question={}",
                 customerId, conversationId, request.getQuestion());
         ConversationResponse response = aiService.addMessage(
@@ -73,8 +79,9 @@ public class ConversationController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteConversation(
-            @RequestHeader("X-Customer-Id") String customerId,
+            @AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable("id") String conversationId) {
+        String customerId = user.id().toString();
         log.info("Delete conversation: customerId={}, conversationId={}", customerId, conversationId);
         conversationService.deleteConversation(customerId, conversationId);
         return ResponseEntity.ok(ApiResponse.success(null));

@@ -96,7 +96,7 @@ class LoginFlowIntegrationTest {
                                 {"account":"Demo.Agent","password":"AiService2026!","rememberMe":true}
                                 """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.redirectPath").value("/ai-customer-service"))
+                .andExpect(jsonPath("$.data.redirectPath").value("/workbench/"))
                 .andExpect(jsonPath("$.data.user.account").value("demo.agent"))
                 .andExpect(cookie().httpOnly(AuthCookieService.ACCESS_COOKIE, true))
                 .andExpect(cookie().httpOnly(AuthCookieService.REFRESH_COOKIE, true))
@@ -106,7 +106,7 @@ class LoginFlowIntegrationTest {
         Cookie refresh = loginResult.getResponse().getCookie(AuthCookieService.REFRESH_COOKIE);
         mockMvc.perform(get("/api/v1/auth/me").cookie(access))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.displayName").value("演示客服"));
+                .andExpect(jsonPath("$.data.displayName").value("demo.agent"));
 
         MvcResult refreshedCsrfResult = mockMvc.perform(get("/api/v1/public/login-config"))
                 .andExpect(status().isOk())

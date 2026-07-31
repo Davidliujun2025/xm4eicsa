@@ -41,6 +41,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   try {
     response = await fetch(`${API_BASE_URL}${PASSWORD_RESET_BASE_PATH}${path}`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
       },

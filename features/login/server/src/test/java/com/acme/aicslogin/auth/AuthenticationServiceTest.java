@@ -53,7 +53,7 @@ class AuthenticationServiceTest {
     void logsInWithNormalizedAccountAndReturnsRedirect() {
         CustomerServiceUser user = CustomerServiceUser.create(
                 "demo.agent", passwordEncoder.encode("AiService2026!"), "演示客服", UserStatus.ACTIVE);
-        when(repository.findByAccount("demo.agent")).thenReturn(Optional.of(user));
+        when(repository.findFirstByAccountOrEmail("demo.agent", "demo.agent")).thenReturn(Optional.of(user));
         when(jwtService.createAccessToken(user)).thenReturn("access");
         when(refreshTokenService.issue(null, true)).thenReturn(
                 new RefreshTokenService.IssuedRefreshToken("refresh", true, Duration.ofDays(30)));
@@ -61,15 +61,33 @@ class AuthenticationServiceTest {
         AuthSession session = service.login(
                 new LoginRequest("  Demo.Agent ", "AiService2026!", true), "127.0.0.1");
 
-        assertThat(session.result().redirectPath()).isEqualTo("/ai-customer-service");
+        assertThat(session.result().redirectPath()).isEqualTo("/workbench/");
         assertThat(session.result().user().account()).isEqualTo("demo.agent");
         verify(rateLimiter).clearFailures("demo.agent");
         verify(repository).save(user);
     }
 
     @Test
+    void logsInByEmailWhenUsernameIsDisplayName() {
+        CustomerServiceUser user = CustomerServiceUser.create(
+                "王客服", passwordEncoder.encode("AiService2026!"), "王客服", UserStatus.ACTIVE);
+        when(repository.findFirstByAccountOrEmail("demo@example.com", "demo@example.com"))
+                .thenReturn(Optional.of(user));
+        when(jwtService.createAccessToken(user)).thenReturn("access");
+        when(refreshTokenService.issue(null, false)).thenReturn(
+                new RefreshTokenService.IssuedRefreshToken("refresh", false, Duration.ofHours(8)));
+
+        AuthSession session = service.login(
+                new LoginRequest("demo@example.com", "AiService2026!", false), "127.0.0.1");
+
+        assertThat(session.result().redirectPath()).isEqualTo("/workbench/");
+        assertThat(session.result().user().account()).isEqualTo("王客服");
+        verify(repository).save(user);
+    }
+
+    @Test
     void distinguishesUnknownAccountFromWrongPassword() {
-        when(repository.findByAccount("missing.agent")).thenReturn(Optional.empty());
+        when(repository.findFirstByAccountOrEmail("missing.agent", "missing.agent")).thenReturn(Optional.empty());
         assertThatThrownBy(() -> service.login(
                 new LoginRequest("missing.agent", "WrongPassword1!", false), "127.0.0.1"))
                 .isInstanceOfSatisfying(BusinessException.class, exception -> {
@@ -79,7 +97,7 @@ class AuthenticationServiceTest {
 
         CustomerServiceUser user = CustomerServiceUser.create(
                 "demo.agent", passwordEncoder.encode("AiService2026!"), "演示客服", UserStatus.ACTIVE);
-        when(repository.findByAccount("demo.agent")).thenReturn(Optional.of(user));
+        when(repository.findFirstByAccountOrEmail("demo.agent", "demo.agent")).thenReturn(Optional.of(user));
         assertThatThrownBy(() -> service.login(
                 new LoginRequest("demo.agent", "WrongPassword1!", false), "127.0.0.1"))
                 .isInstanceOfSatisfying(BusinessException.class, exception -> {

@@ -49,6 +49,7 @@ build_vite_app "${ROOT_DIR}/features/forgot-password/ui" "/forgot-password/"
 build_vite_app "${ROOT_DIR}/features/create-agent-account/ui" "/admin/users/"
 build_vite_app "${ROOT_DIR}/features/token-quota-management/token-quota-adminvue" "/admin/tokens/"
 build_vite_app "${ROOT_DIR}/features/ai-chat-workbench/ui/client" "/workbench/"
+build_vite_app "${ROOT_DIR}/features/favorite-script-library/UI" "/favorite-script-library/"
 
 echo "[2/4] Assemble deployment stage"
 rm -rf "${STAGE_DIR}"
@@ -62,9 +63,7 @@ copy_dir_contents "${ROOT_DIR}/features/ai-chat-workbench/ui/client/dist" "${STA
 copy_dir_contents "${ROOT_DIR}/features/forbidden-words-management/ui" "${STAGE_DIR}/admin-forbidden-words"
 copy_dir_contents "${ROOT_DIR}/features/token-usage-view/ui" "${STAGE_DIR}/token-usage"
 
-if [[ -d "${ROOT_DIR}/features/favorite-script-library/UI/dist" ]]; then
-  copy_dir_contents "${ROOT_DIR}/features/favorite-script-library/UI/dist" "${STAGE_DIR}/favorite-script-library"
-fi
+copy_dir_contents "${ROOT_DIR}/features/favorite-script-library/UI/dist" "${STAGE_DIR}/favorite-script-library"
 
 if [[ "${MODE}" == "build-only" ]]; then
   echo "Build-only mode complete. Staged files: ${STAGE_DIR}"

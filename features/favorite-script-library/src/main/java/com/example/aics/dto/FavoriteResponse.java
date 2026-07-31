@@ -4,10 +4,9 @@ import com.example.aics.entity.ScriptFavorite;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.UUID;
 
 public record FavoriteResponse(
-        UUID id,
+        Long id,
         String sourceTalkId,
         String content,
         String scenario,

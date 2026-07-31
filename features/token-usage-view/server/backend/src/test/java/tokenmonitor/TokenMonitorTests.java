@@ -152,7 +152,7 @@ public final class TokenMonitorTests {
                 new InMemoryTokenUsageRepository(), ZoneId.of("Asia/Shanghai"), clock,
                 20, new BigDecimal("0.80"), new BigDecimal("0.20"));
         try (TokenMonitorHttpServer server = new TokenMonitorHttpServer("127.0.0.1", 0, usage,
-                new ProviderQuotaService(Map.of(), clock), "test-key")) {
+                new ProviderQuotaService(Map.of(), clock), "test-key", "")) {
             server.start();
             String base = "http://127.0.0.1:" + server.port();
             HttpClient client = HttpClient.newHttpClient();

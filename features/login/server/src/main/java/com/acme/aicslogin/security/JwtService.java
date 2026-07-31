@@ -51,6 +51,7 @@ public class JwtService {
                 .issueTime(Date.from(issuedAt))
                 .expirationTime(Date.from(issuedAt.plus(properties.accessTtl())))
                 .claim("account", user.getAccount())
+                .claim("role", user.getRoleType().name())
                 .build();
         SignedJWT jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256), claims);
         try {

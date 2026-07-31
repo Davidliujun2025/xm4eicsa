@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "chat_message", indexes = {
         @Index(name = "idx_chat_conversation_id", columnList = "conversation_id"),
-        @Index(name = "idx_chat_created_at", columnList = "created_at")
+        @Index(name = "idx_chat_message_created_at", columnList = "created_at")
 })
 @Data
 @Builder

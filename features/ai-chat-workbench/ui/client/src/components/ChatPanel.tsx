@@ -1,110 +1,38 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { PLATFORMS, NOTES } from "../mock/data";
 import { Chev, Check, Spark, Help, Tick } from "./icons";
 
-type Conv = {
-  t: string;
-  time: string;
-  tag: string;
-  platform?: string;
-  messages?: { role: "user" | "assistant"; content: string; time?: string }[];
-};
-
 type Props = {
-  selectedConversation: Conv | null;
-  onNewConversation: () => void;
-  platformId?: string;
-  onPlatformChange?: (id: string) => void;
+  platformId: string;
+  onPlatformChange: (id: string) => void;
   regen: boolean;
   onRegen: () => void;
 };
 
-export default function ChatPanel({
-  selectedConversation,
-  onNewConversation,
-  platformId: _platformId, // 重命名为 _platformId 避免警告
-  onPlatformChange,
-  regen: _regen, // 重命名为 _regen
-  onRegen,
-}: Props) {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [open, setOpen] = useState(false);
-  const [text, setText] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
-
-  useEffect(() => {
-    console.log("💬 ChatPanel 收到 selectedConversation:", selectedConversation);
-  }, [selectedConversation]);
-
-  const cur = PLATFORMS.find((p) => p.id === selectedId);
-
-  const handleSelect = (id: string) => {
-    setSelectedId(id);
-    setOpen(false);
-    if (onPlatformChange) {
-      onPlatformChange(id);
-    }
-  };
-
-  const handleGenerate = () => {
-    if (!cur || !text.trim() || isGenerating) return;
-    setIsGenerating(true);
-    if (onRegen) {
-      onRegen();
-    }
-    setTimeout(() => {
-      setIsGenerating(false);
-    }, 2000);
-  };
-
-  const renderMessages = () => {
-    if (selectedConversation?.messages?.length) {
-      return selectedConversation.messages.map((msg, idx) => (
-        <div
-          key={idx}
-          className={`max-w-[78%] rounded-2xl px-4 py-3 text-[13.5px] leading-relaxed ${
-            msg.role === "user"
-              ? "ml-auto rounded-tr-md bg-blue-50 text-slate-700"
-              : "mr-auto rounded-tl-md bg-slate-100 text-slate-700"
-          }`}
-        >
-          {msg.content}
-          {msg.time && <div className="mt-1 text-right text-[11px] text-slate-400">{msg.time}</div>}
-        </div>
-      ));
-    }
-
-    return (
-      <div className="ml-auto max-w-[78%] rounded-2xl rounded-tr-md bg-blue-50 px-4 py-3 text-[13.5px] leading-relaxed text-slate-700">
-        您好，请问你们的这款蓝牙耳机支持七天无理由退货吗？我刚刚收到，还没拆封，想确认一下是否支持无理由退货，谢谢！
-        <div className="mt-1 text-right text-[11px] text-slate-400">10:24</div>
-      </div>
-    );
-  };
+export default function ChatPanel({ platformId, onPlatformChange, regen, onRegen }: Props) {
+  const [open, setOpen] = useState(true); // 与原型截图同状态：下拉展开
+  const [text, setText] = useState(
+    "这款蓝牙耳机支持七天无理由退货吗？我刚收到且尚未拆封，想确认退货条件和申请流程。"
+  );
+  const cur = PLATFORMS.find((p) => p.id === platformId)!;
 
   return (
     <section className="flex min-h-0 flex-col">
       {/* 服务平台行 */}
       <div className="relative z-30 mb-4 flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-white px-5 py-3.5 shadow-sm">
-        <span className="whitespace-nowrap text-[14px] font-medium text-slate-500">服务平台</span>
+        <span className="text-[14px] font-medium text-slate-500">服务平台</span>
         <div className="relative w-[360px]">
           <button
             onClick={() => setOpen((o) => !o)}
             className="flex w-full items-center justify-between rounded-xl border border-slate-200 px-3 py-2.5 transition-colors hover:border-blue-300"
           >
             <span className="flex items-center gap-2.5">
-              {cur ? (
-                <>
-                  <span className="grid h-7 w-7 place-items-center rounded-lg text-[13px] font-bold text-white" style={{ background: cur.c }}>
-                    {cur.t}
-                  </span>
-                  <span className="text-[14px] font-medium text-slate-800">{cur.name}</span>
-                </>
-              ) : (
-                <span className="text-[14px] font-medium text-slate-400">请选择服务平台</span>
-              )}
+              <span className="grid h-7 w-7 place-items-center rounded-lg text-[13px] font-bold text-white" style={{ background: cur.c }}>
+                {cur.t}
+              </span>
+              <span className="text-[14px] font-medium text-slate-800">{cur.name}</span>
             </span>
-            <Chev className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+            <Chev className={`h-4 w-4 text-slate-400 transition-transform duration-200  $ {open ? "rotate-180" : ""}`} />
           </button>
 
           {open && (
@@ -112,9 +40,12 @@ export default function ChatPanel({
               {PLATFORMS.map((p) => (
                 <button
                   key={p.id}
-                  onClick={() => handleSelect(p.id)}
-                  className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-[14px] transition-colors ${
-                    p.id === selectedId ? "bg-blue-50 text-blue-700" : "text-slate-700 hover:bg-slate-50"
+                  onClick={() => {
+                    onPlatformChange(p.id);
+                    setOpen(false);
+                  }}
+                  className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-[14px] transition-colors  $ {
+                    p.id === platformId ? "bg-blue-50 text-blue-700" : "text-slate-700 hover:bg-slate-50"
                   }`}
                 >
                   <span className="flex items-center gap-2.5">
@@ -123,7 +54,7 @@ export default function ChatPanel({
                     </span>
                     {p.name}
                   </span>
-                  {p.id === selectedId && <Check className="h-4 w-4 text-blue-600" />}
+                  {p.id === platformId && <Check className="h-4 w-4 text-blue-600" />}
                 </button>
               ))}
             </div>
@@ -132,8 +63,14 @@ export default function ChatPanel({
       </div>
 
       {/* 聊天流 */}
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-        {renderMessages()}
+      <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
+        <div className="ml-auto max-w-[78%] rounded-2xl rounded-tr-md bg-blue-50 px-4 py-3 text-[13.5px] leading-relaxed text-slate-700">
+          您好，请问你们的这款蓝牙耳机支持七天无理由退货吗？
+        </div>
+        <div className="ml-auto mt-3 max-w-[78%] rounded-2xl rounded-tr-md bg-blue-50 px-4 py-3 text-[13.5px] leading-relaxed text-slate-700">
+          我刚刚收到，还没拆封，想确认一下是否支持无理由退货，谢谢！
+          <div className="mt-1 text-right text-[11px] text-slate-400">10:24</div>
+        </div>
       </div>
 
       {/* 输入区 */}
@@ -163,17 +100,13 @@ export default function ChatPanel({
         </div>
 
         <button
-          onClick={handleGenerate}
-          disabled={!cur || !text.trim() || isGenerating}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-500 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-blue-500/25 transition-all hover:bg-blue-600 active:scale-[.99] disabled:opacity-60 disabled:cursor-not-allowed"
+          onClick={onRegen}
+          disabled={regen}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-500 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-blue-500/25 transition-all hover:bg-blue-600 active:scale-[.99] disabled:opacity-80"
         >
-          <Spark className={`h-5 w-5 ${isGenerating ? "spin" : ""}`} />
-          {isGenerating ? "AI正在生成中..." : "生成AI回复"}
+          <Spark className={`h-5 w-5  $ {regen ? "spin" : ""}`} />
+          {regen ? "正在生成…" : "重新生成 AI 回复"}
         </button>
-
-        {!cur && text.trim() && (
-          <p className="mt-2 text-center text-[12px] text-orange-500">请先选择服务平台</p>
-        )}
 
         <div className="mt-3 space-y-2 rounded-xl bg-blue-50/60 p-3.5 text-[12.5px] text-blue-700/90">
           {NOTES.map((s) => (

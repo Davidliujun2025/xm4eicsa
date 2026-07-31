@@ -181,6 +181,10 @@ body {
   animation: spinSlow 2.6s linear infinite;
 }
 
+.workbench-grid {
+  grid-template-columns: 300px minmax(0, 1fr) 372px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::after,

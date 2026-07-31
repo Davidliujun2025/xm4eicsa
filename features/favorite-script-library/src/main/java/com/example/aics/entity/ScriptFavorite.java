@@ -15,30 +15,28 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.Set;
-import java.util.UUID;
 
 @Entity
 @Table(
         name = "script_favorite",
         indexes = {
-                @Index(name = "idx_script_favorite_staff", columnList = "staff_id"),
-                @Index(name = "idx_script_favorite_staff_source", columnList = "staff_id, source_talk_id"),
-                @Index(name = "idx_script_favorite_staff_hash", columnList = "staff_id, content_hash")
+                @Index(name = "idx_script_favorite_user_used", columnList = "user_id, last_used_at, id"),
+                @Index(name = "idx_script_favorite_user_created", columnList = "user_id, created_at, id")
         }
 )
 public class ScriptFavorite {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
 
-    @Column(name = "staff_id", nullable = false, length = 64)
-    private String staffId;
+    @Column(name = "user_id", nullable = false)
+    private Long staffId;
 
-    @Column(name = "source_talk_id", length = 128)
+    @Column(name = "source_talk_id", length = 160)
     private String sourceTalkId;
 
-    @Column(name = "content_hash", nullable = false, length = 64)
+    @Column(name = "content_hash", nullable = false, length = 64, columnDefinition = "char(64)")
     private String contentHash;
 
     @Column(name = "content", nullable = false, columnDefinition = "TEXT")
@@ -69,7 +67,7 @@ public class ScriptFavorite {
     }
 
     public ScriptFavorite(
-            String staffId,
+            Long staffId,
             String sourceTalkId,
             String contentHash,
             String content,
@@ -89,11 +87,11 @@ public class ScriptFavorite {
         this.lastUsedAt = now;
     }
 
-    public UUID getId() {
+    public Long getId() {
         return id;
     }
 
-    public String getStaffId() {
+    public Long getStaffId() {
         return staffId;
     }
 

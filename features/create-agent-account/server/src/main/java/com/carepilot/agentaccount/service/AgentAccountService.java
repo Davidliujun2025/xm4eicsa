@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import com.carepilot.agentaccount.dto.CreateAgentAccountRequest;
 import com.carepilot.agentaccount.dto.ResetPasswordRequest;
 import com.carepilot.agentaccount.dto.UpdateAgentAccountRequest;
+import com.carepilot.agentaccount.exception.BusinessException;
 import com.carepilot.agentaccount.model.AgentAccount;
 import com.carepilot.agentaccount.model.OperationLog;
 import com.carepilot.agentaccount.repository.AgentAccountRepository;
@@ -75,8 +76,9 @@ public class AgentAccountService {
 
         if(repository.findByPhone(phone).isPresent()){
 
-            throw new IllegalArgumentException(
-                    "手机号已存在"
+            throw new BusinessException(
+                    "PHONE_ALREADY_EXISTS",
+                    "该手机号已存在"
             );
 
         }
@@ -87,13 +89,21 @@ public class AgentAccountService {
                 repository.findByEmail(email).isPresent()){
 
 
-            throw new IllegalArgumentException(
-                    "邮箱已存在"
+            throw new BusinessException(
+                    "EMAIL_ALREADY_EXISTS",
+                    "该邮箱已存在"
             );
 
         }
 
 
+
+        if (password.equals(phone)) {
+            throw new BusinessException(
+                    "PASSWORD_EQUALS_PHONE",
+                    "初始密码不能与手机号相同"
+            );
+        }
 
         AgentAccount account =
                 new AgentAccount();

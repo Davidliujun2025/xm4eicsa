@@ -8,7 +8,6 @@ import java.time.Instant;
 public record UserSummary(
     Long userId,
     String username,
-    String nickName,
     UserStatusType status,
     RoleType roleType,
     Instant createdAt,
@@ -25,9 +24,8 @@ public record UserSummary(
     return new UserSummary(
         user.getId(),
         user.getAccount(),
-        user.getDisplayName(),
         normalizedStatus,
-        RoleType.CUSTOMER_SERVICE,
+        RoleType.valueOf(user.getRoleType().name()),
         user.getCreatedAt(),
         user.getUpdatedAt(),
         user.getId(),

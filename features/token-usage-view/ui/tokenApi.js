@@ -63,7 +63,7 @@ async function postInternalEvent(eventPayload, internalKey) {
 async function getTodayStats(userId) {
   const url = `${getBaseURL()}/token-usage/me/today`;
   const res = await fetch(url, {
-    headers: { 'X-User-Id': userId }
+    credentials: 'include'
   });
   return await checkResponse(res);
 }
@@ -74,7 +74,7 @@ async function getSummary(userId, options = {}) {
   if (options.from) params.set('from', options.from);
   if (options.to) params.set('to', options.to);
   const url = `${getBaseURL()}/token-usage/me/summary${params.toString() ? '?' + params.toString() : ''}`;
-  const res = await fetch(url, { headers: { 'X-User-Id': userId } });
+  const res = await fetch(url, { credentials: 'include' });
   return await checkResponse(res);
 }
 
@@ -86,7 +86,7 @@ async function getTrend(userId, params = {}) {
   if (params.to) q.set('to', params.to);
   if (params.bucket) q.set('bucket', params.bucket);
   const url = `${getBaseURL()}/token-usage/me/trend?${q.toString()}`;
-  const res = await fetch(url, { headers: { 'X-User-Id': userId } });
+  const res = await fetch(url, { credentials: 'include' });
   return await checkResponse(res);
 }
 
@@ -100,7 +100,7 @@ async function getRecords(userId, options = {}) {
   if (options.from) q.set('from', options.from);
   if (options.to) q.set('to', options.to);
   const url = `${getBaseURL()}/token-usage/me/records?${q.toString()}`;
-  const res = await fetch(url, { headers: { 'X-User-Id': userId } });
+  const res = await fetch(url, { credentials: 'include' });
   return await checkResponse(res);
 }
 
@@ -108,18 +108,18 @@ async function getRecords(userId, options = {}) {
 async function getRecordDetail(userId, requestId) {
   if (!requestId) throw new Error('requestId is required');
   const url = `${getBaseURL()}/token-usage/me/records/${encodeURIComponent(requestId)}`;
-  const res = await fetch(url, { headers: { 'X-User-Id': userId } });
+  const res = await fetch(url, { credentials: 'include' });
   return await checkResponse(res);
 }
 
 // GET /api/v1/token-usage/me/status
 async function getStatus(userId) {
   const url = `${getBaseURL()}/token-usage/me/status`;
-  const res = await fetch(url, { headers: { 'X-User-Id': userId } });
+  const res = await fetch(url, { credentials: 'include' });
   return await checkResponse(res);
 }
 
-// SSE-like stream using fetch + ReadableStream so we can send X-User-Id header.
+// SSE-like stream using fetch + ReadableStream with the authenticated cookie.
 // onEvent(parsedJson) will be called for each event data block.
 // returns an object { close(): void }
 async function connectStream(userId, onEvent, onError) {
@@ -128,7 +128,7 @@ async function connectStream(userId, onEvent, onError) {
   const signal = controller.signal;
 
   try {
-    const res = await fetch(url, { headers: { 'X-User-Id': userId }, signal });
+    const res = await fetch(url, { credentials: 'include', signal });
     if (!res.ok) {
       const body = await checkResponse(res); // will throw
       return null;
