@@ -72,9 +72,34 @@
             @keydown.enter="handleLogin"
             autocomplete="current-password"
           />
-          <span class="toggle-pwd" @click="pwdVisible = !pwdVisible">
-            <i :class="pwdVisible ? 'fas fa-eye-slash' : 'fas fa-eye'"></i>
-          </span>
+          <button
+            type="button"
+            class="toggle-pwd"
+            :aria-label="pwdVisible ? '隐藏密码' : '显示密码'"
+            :title="pwdVisible ? '隐藏密码' : '显示密码'"
+            @click="pwdVisible = !pwdVisible"
+          >
+            <svg
+              v-if="pwdVisible"
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M3 3l18 18" />
+              <path d="M10.6 6.2A10.8 10.8 0 0 1 12 6c6.5 0 10 6 10 6a17.2 17.2 0 0 1-3 3.7" />
+              <path d="M14.1 14.2a3 3 0 0 1-4.2-4.3" />
+              <path d="M6.2 6.3C3.5 8.2 2 12 2 12s3.5 6 10 6a10.7 10.7 0 0 0 3.8-.7" />
+            </svg>
+            <svg
+              v-else
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" />
+              <circle cx="12" cy="12" r="3" />
+            </svg>
+          </button>
         </div>
         <div class="pwd-hint" :class="pwdHintClass">
           <span class="hint-text">{{ pwdHintText }}</span>
@@ -556,17 +581,46 @@ onMounted(() => {
   font-size: 14px;
 }
 
+.input-wrapper input::-ms-reveal,
+.input-wrapper input::-ms-clear {
+  display: none;
+}
+
 .input-wrapper .toggle-pwd {
-  padding-right: 16px;
+  width: 44px;
+  height: 44px;
+  padding: 0 16px 0 8px;
+  border: 0;
+  background: transparent;
   color: #8f9bb3;
   cursor: pointer;
-  font-size: 16px;
   transition: color 0.2s;
   user-select: none;
+  flex: 0 0 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .input-wrapper .toggle-pwd:hover {
   color: #2a6df4;
+}
+
+.input-wrapper .toggle-pwd:focus-visible {
+  outline: 2px solid #2a6df4;
+  outline-offset: -4px;
+  border-radius: 8px;
+}
+
+.input-wrapper .toggle-pwd svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
 }
 
 .pwd-hint {
