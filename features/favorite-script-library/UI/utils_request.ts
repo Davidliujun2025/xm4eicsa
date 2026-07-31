@@ -4,14 +4,12 @@ import axios, { AxiosInstance, AxiosError, AxiosRequestConfig } from 'axios';
 import { ErrorResponse } from '../types/favorite';
 
 // 从环境变量读取API基础URL
-const baseURL = import.meta.env.VITE_API_BASE_URL || '';
+const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8088';
 
 // 创建axios实例
 const instance: AxiosInstance = axios.create({
   baseURL,
   timeout: 10000,
-  withCredentials: true,
-  withXSRFToken: true,
   headers: {
     'Content-Type': 'application/json',
   },

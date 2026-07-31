@@ -14,23 +14,7 @@ let itemsPerPage = 10;
 let filteredRecords = [];
 
 function getCustomerId() {
-    return '';
-}
-
-async function loadCurrentUser() {
-    const response = await fetch('/api/v1/auth/me', { credentials: 'include' });
-    if (response.status === 401) {
-        window.location.href = '/?returnUrl=' + encodeURIComponent(window.location.pathname);
-        throw new Error('login required');
-    }
-    if (!response.ok) throw new Error('failed to load current user');
-    const payload = await response.json();
-    const user = payload?.data || {};
-    const displayName = user.username || '';
-    const nameElement = document.querySelector('.user-name');
-    const avatarElement = document.querySelector('.avatar');
-    if (nameElement) nameElement.textContent = displayName;
-    if (avatarElement) avatarElement.textContent = displayName.slice(0, 1) || '?';
+    return new URLSearchParams(window.location.search).get('customerId') || localStorage.getItem('customerId') || 'demo-customer';
 }
 
 async function loadTokenData() {
@@ -59,7 +43,8 @@ async function loadTokenData() {
     } catch (error) {
         updateDataSourceNote('本地模拟数据');
         // normalize mock data structure if present
-        tokenData = { records: [], fromServer: false };
+        const mockRecords = (typeof mockData !== 'undefined' && Array.isArray(mockData.records)) ? mockData.records.map(normalizeRecord) : (typeof mockData !== 'undefined' && Array.isArray(mockData) ? mockData.map(normalizeRecord) : []);
+        tokenData = { records: mockRecords, fromServer: false };
         return tokenData;
     }
 }
@@ -337,7 +322,6 @@ function getDashboardStats() {
 
 async function initApp() {
     try {
-        await loadCurrentUser();
         // Load today/summary/trend/records from backend when available
         tokenUsageInfo = await loadTokenUsageInfo();
         await loadSummary();
