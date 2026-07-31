@@ -31,9 +31,16 @@ fi
 build_vite_app() {
   local app_dir="$1"
   local base_path="$2"
+  local install_mode="${3:-normal}"
 
   echo "[build] ${app_dir} (base=${base_path})"
-  (cd "${app_dir}" && npm install --no-audit --no-fund && npx vite build --base "${base_path}")
+  if [[ "${install_mode}" == "force-platform" ]]; then
+    # The original token-quota package pins a macOS binding. Force installation
+    # so npm can also select the native binding for the deployment host.
+    (cd "${app_dir}" && npm install --force --no-audit --no-fund && npx vite build --base "${base_path}")
+  else
+    (cd "${app_dir}" && npm install --no-audit --no-fund && npx vite build --base "${base_path}")
+  fi
 }
 
 copy_dir_contents() {
@@ -47,7 +54,7 @@ echo "[1/4] Build frontends"
 build_vite_app "${ROOT_DIR}/features/login/ui" "/"
 build_vite_app "${ROOT_DIR}/features/forgot-password/ui" "/forgot-password/"
 build_vite_app "${ROOT_DIR}/features/create-agent-account/ui" "/admin/users/"
-build_vite_app "${ROOT_DIR}/features/token-quota-management/token-quota-adminvue" "/admin/tokens/"
+build_vite_app "${ROOT_DIR}/features/token-quota-management/token-quota-adminvue" "/admin/tokens/" "force-platform"
 build_vite_app "${ROOT_DIR}/features/ai-chat-workbench/ui/client" "/workbench/"
 build_vite_app "${ROOT_DIR}/features/favorite-script-library/UI" "/favorite-script-library/"
 
