@@ -1,11 +1,10 @@
 package com.carepilot.chatworkbench.service;
 
-import com.carepilot.chatworkbench.dto.response.ChatMessageResponse;
 import com.carepilot.chatworkbench.dto.response.ConversationResponse;
-import com.carepilot.chatworkbench.dto.response.TokenInfo;
-import com.carepilot.chatworkbench.entity.ChatMessage;
+import com.carepilot.chatworkbench.entity.AiDialogStepRecord;
 import com.carepilot.chatworkbench.entity.Conversation;
-import com.carepilot.chatworkbench.repository.ChatMessageRepository;
+import com.carepilot.chatworkbench.enums.PlatformEnum;
+import com.carepilot.chatworkbench.repository.AiDialogStepRecordRepository;
 import com.carepilot.chatworkbench.repository.ConversationRepository;
 import com.carepilot.chatworkbench.util.IdGenerator;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +13,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -25,7 +28,9 @@ import java.util.concurrent.TimeUnit;
 public class AIService {
 
     private final ConversationRepository conversationRepository;
-    private final ChatMessageRepository chatMessageRepository;
+    private final AiDialogStepRecordRepository stepRecordRepository;
+    private final AiDialogStepAssembler stepAssembler;
+    private final ConversationService conversationService;
     private final TokenService tokenService;
 
     @Value("${app.ai.timeout-seconds:15}")
@@ -36,211 +41,152 @@ public class AIService {
     @Transactional
     public ConversationResponse createConversation(String customerId, String question,
                                                     String platform, String customerType) {
-        if (tokenService.isTokenQuotaExceeded(customerId)) {
-            throw new IllegalStateException("今日Token配额已耗尽");
-        }
-
-        String conversationId = IdGenerator.generateConversationId();
-        String title = truncate(question, 50);
-
-        AIResponseResult result = generateAIResponse(question, platform);
+        assertTokenQuota(customerId);
 
         Conversation conversation = Conversation.builder()
-                .conversationId(conversationId)
+                .conversationId(IdGenerator.generateConversationId())
                 .customerId(customerId)
                 .platform(platform)
-                .title(title)
+                .title(truncate(question, 50))
                 .build();
-        conversationRepository.save(conversation);
+        conversationRepository.saveAndFlush(conversation);
 
-        ChatMessage message = ChatMessage.builder()
-                .conversationId(conversationId)
-                .question(question)
-                .customerType(customerType)
-                .intentRecognition(result.intentRecognition)
-                .replyStrategy(result.replyStrategy)
-                .recommendedScript(result.recommendedScript)
-                .hookGuidance(result.hookGuidance)
-                .successClose(result.successClose)
-                .riskWarning(result.riskWarning)
-                .riskSuggestion(result.riskSuggestion)
-                .totalTokens(result.totalTokens)
-                .promptTokens(result.promptTokens)
-                .completionTokens(result.completionTokens)
-                .build();
-        chatMessageRepository.save(message);
-
-        tokenService.recordTokenUsage(customerId, conversationId,
-                result.totalTokens, result.promptTokens, result.completionTokens,
-                "gpt-4o-mini", "chat_completion");
-
-        return toConversationResponse(conversation, customerId);
+        AIResponseResult result = generateAIResponse(question, platform);
+        saveGeneration(conversation, customerId, question, customerType, result);
+        return conversationService.getConversationById(customerId, conversation.getConversationId());
     }
 
     @Transactional
     public ConversationResponse addMessage(String customerId, String conversationId,
                                            String question, String customerType) {
-        if (tokenService.isTokenQuotaExceeded(customerId)) {
-            throw new IllegalStateException("今日Token配额已耗尽");
-        }
+        assertTokenQuota(customerId);
 
         Conversation conversation = conversationRepository.findByConversationId(conversationId)
-                .orElseThrow(() -> new IllegalArgumentException("对话不存在"));
-
+                .orElseThrow(() -> new IllegalArgumentException("Conversation does not exist"));
         if (!customerId.equals(conversation.getCustomerId())) {
-            throw new SecurityException("无权访问该对话");
+            throw new SecurityException("Access to this conversation is forbidden");
         }
 
         AIResponseResult result = generateAIResponse(question, conversation.getPlatform());
+        saveGeneration(conversation, customerId, question, customerType, result);
+        conversation.setUpdatedAt(LocalDateTime.now());
+        conversationRepository.save(conversation);
+        return conversationService.getConversationById(customerId, conversationId);
+    }
 
-        ChatMessage message = ChatMessage.builder()
-                .conversationId(conversationId)
-                .question(question)
-                .customerType(customerType)
-                .intentRecognition(result.intentRecognition)
-                .replyStrategy(result.replyStrategy)
-                .recommendedScript(result.recommendedScript)
-                .hookGuidance(result.hookGuidance)
-                .successClose(result.successClose)
-                .riskWarning(result.riskWarning)
-                .riskSuggestion(result.riskSuggestion)
-                .totalTokens(result.totalTokens)
-                .promptTokens(result.promptTokens)
-                .completionTokens(result.completionTokens)
-                .build();
-        chatMessageRepository.save(message);
+    private void saveGeneration(Conversation conversation, String customerId, String question,
+                                String customerType, AIResponseResult result) {
+        int dialogRound = stepRecordRepository.findMaxDialogRound(conversation.getId()) + 1;
+        LocalDateTime triggerAt = LocalDateTime.now();
+        LocalDateTime replyAt = LocalDateTime.now();
+        String traceId = UUID.randomUUID().toString();
+        String extraJson = stepAssembler.createExtraJson(
+                customerType, result.riskWarning(), result.riskSuggestion());
+        List<String> contents = List.of(
+                result.intentRecognition(),
+                result.replyStrategy(),
+                result.recommendedScript(),
+                result.hookGuidance(),
+                result.successClose());
 
-        tokenService.recordTokenUsage(customerId, conversationId,
-                result.totalTokens, result.promptTokens, result.completionTokens,
-                "gpt-4o-mini", "chat_completion");
-
-        return toConversationResponse(conversation, customerId);
+        List<AiDialogStepRecord> records = new ArrayList<>(5);
+        for (int index = 0; index < contents.size(); index++) {
+            int stepNo = index + 1;
+            boolean tokenOwner = stepNo == 1;
+            records.add(AiDialogStepRecord.builder()
+                    .sessionTaskId(conversation.getId())
+                    .platformId(platformId(conversation.getPlatform()))
+                    .customerDialog(question)
+                    .dialogRound(dialogRound)
+                    .stepNo((byte) stepNo)
+                    .stepRound(1)
+                    .aiContent(contents.get(index))
+                    .extraJson(extraJson)
+                    .isManualEdit((byte) 0)
+                    .isEffective((byte) 1)
+                    .triggerAt(triggerAt)
+                    .llmReplyAt(replyAt)
+                    .generateStatus((byte) 1)
+                    .operatorId(Long.valueOf(customerId))
+                    .traceId(traceId)
+                    .isDelete((byte) 0)
+                    .promptTokens(tokenOwner ? result.promptTokens() : 0)
+                    .completionTokens(tokenOwner ? result.completionTokens() : 0)
+                    .totalTokens(tokenOwner ? result.totalTokens() : 0)
+                    .build());
+        }
+        stepRecordRepository.saveAll(records);
     }
 
     private AIResponseResult generateAIResponse(String question, String platform) {
-        CompletableFuture<AIResponseResult> future = CompletableFuture.supplyAsync(() -> {
-            try {
-                return simulateAIResponse(question, platform);
-            } catch (Exception e) {
-                log.error("AI generation failed: {}", e.getMessage(), e);
-                throw new RuntimeException("AI生成失败", e);
-            }
-        }, executorService);
-
+        CompletableFuture<AIResponseResult> future = CompletableFuture.supplyAsync(
+                () -> simulateAIResponse(question, platform), executorService);
         try {
             return future.get(timeoutSeconds, TimeUnit.SECONDS);
-        } catch (Exception e) {
-            log.error("AI generation timeout after {} seconds", timeoutSeconds);
-            throw new RuntimeException("AI生成超时", e);
+        } catch (Exception exception) {
+            future.cancel(true);
+            log.error("AI generation timeout or failure after {} seconds", timeoutSeconds, exception);
+            throw new RuntimeException("AI generation failed", exception);
         }
     }
 
     private AIResponseResult simulateAIResponse(String question, String platform) {
         int promptTokens = (question.length() + 500) / 4;
         int completionTokens = 300 + (int) (Math.random() * 200);
-        int totalTokens = promptTokens + completionTokens;
-
         return new AIResponseResult(
-                String.format("客户意图：售前咨询\n关键词：%s", extractKeywords(question)),
-                String.format("先明确告知客户需求，再根据平台规则给出专业建议，最后引导客户继续咨询或下单。"),
-                String.format("您好！感谢您的咨询。针对您提出的\"%s\"问题，我们非常重视。在%s平台上，我们提供专业的服务支持。",
+                "客户意图：售前咨询\n关键词：" + extractKeywords(question),
+                "先明确客户需求，再根据平台规则给出专业建议，最后引导客户继续咨询或下单。",
+                String.format("您好！感谢您的咨询。针对您提出的“%s”问题，在%s平台上我们会为您提供专业服务支持。",
                         truncate(question, 30), platform),
                 "可补充当前活动优惠和售后保障，增强客户下单信心。",
-                "您可以放心咨询，如果后续有任何问题，我这边也会协助您处理。",
+                "您可以放心咨询，如果后续有任何问题，我们也会继续协助您处理。",
                 "当前平台：" + platform,
-                "建议使用更中性的描述，避免平台敏感词",
-                totalTokens,
+                "建议使用中性描述，并在回复前核对平台最新规则。",
                 promptTokens,
-                completionTokens
-        );
+                completionTokens);
+    }
+
+    private void assertTokenQuota(String customerId) {
+        if (tokenService.isTokenQuotaExceeded(customerId)) {
+            throw new IllegalStateException("今日Token配额已用尽");
+        }
+    }
+
+    private Long platformId(String platform) {
+        PlatformEnum[] platforms = PlatformEnum.values();
+        for (int index = 0; index < platforms.length; index++) {
+            PlatformEnum candidate = platforms[index];
+            if (candidate.name().equalsIgnoreCase(platform)
+                    || candidate.getDescription().equalsIgnoreCase(platform)) {
+                return (long) index + 1;
+            }
+        }
+        return null;
     }
 
     private String extractKeywords(String question) {
-        if (question.length() < 10) {
-            return question;
-        }
-        return question.substring(0, Math.min(question.length(), 20)) + "...";
+        return question.length() < 10
+                ? question
+                : question.substring(0, Math.min(question.length(), 20)) + "...";
     }
 
     private String truncate(String text, int maxLength) {
-        if (text.length() <= maxLength) {
-            return text;
-        }
-        return text.substring(0, maxLength) + "...";
+        return text.length() <= maxLength ? text : text.substring(0, maxLength) + "...";
     }
 
-    private ConversationResponse toConversationResponse(Conversation conversation, String customerId) {
-        Integer usedToday = tokenService.getTodayUsedTokens(customerId);
-        Integer dailyLimit = tokenService.getDailyLimit();
-
-        TokenInfo tokenInfo = TokenInfo.builder()
-                .currentChatUsage(conversation.getId() != null ?
-                        chatMessageRepository.findByConversationIdOrderByCreatedAtAsc(conversation.getConversationId())
-                                .stream().mapToInt(ChatMessage::getTotalTokens).sum() : 0)
-                .totalLimit(dailyLimit)
-                .usedToday(usedToday)
-                .usagePercent(usedToday != null ? (usedToday.doubleValue() / dailyLimit) * 100 : 0.0)
-                .build();
-
-        return ConversationResponse.builder()
-                .conversationId(conversation.getConversationId())
-                .platform(conversation.getPlatform())
-                .title(conversation.getTitle())
-                .messages(chatMessageRepository.findByConversationIdOrderByCreatedAtAsc(conversation.getConversationId())
-                        .stream()
-                        .map(this::toChatMessageResponse)
-                        .toList())
-                .tokenInfo(tokenInfo)
-                .createdAt(conversation.getCreatedAt())
-                .updatedAt(conversation.getUpdatedAt())
-                .build();
-    }
-
-    private ChatMessageResponse toChatMessageResponse(ChatMessage message) {
-        return ChatMessageResponse.builder()
-                .id(message.getId())
-                .question(message.getQuestion())
-                .customerType(message.getCustomerType())
-                .intentRecognition(message.getIntentRecognition())
-                .replyStrategy(message.getReplyStrategy())
-                .recommendedScript(message.getRecommendedScript())
-                .hookGuidance(message.getHookGuidance())
-                .successClose(message.getSuccessClose())
-                .riskWarning(message.getRiskWarning())
-                .riskSuggestion(message.getRiskSuggestion())
-                .totalTokens(message.getTotalTokens())
-                .promptTokens(message.getPromptTokens())
-                .completionTokens(message.getCompletionTokens())
-                .createdAt(message.getCreatedAt())
-                .build();
-    }
-
-    private static class AIResponseResult {
-        final String intentRecognition;
-        final String replyStrategy;
-        final String recommendedScript;
-        final String hookGuidance;
-        final String successClose;
-        final String riskWarning;
-        final String riskSuggestion;
-        final Integer totalTokens;
-        final Integer promptTokens;
-        final Integer completionTokens;
-
-        AIResponseResult(String intentRecognition, String replyStrategy, String recommendedScript,
-                         String hookGuidance, String successClose, String riskWarning,
-                         String riskSuggestion, Integer totalTokens, Integer promptTokens,
-                         Integer completionTokens) {
-            this.intentRecognition = intentRecognition;
-            this.replyStrategy = replyStrategy;
-            this.recommendedScript = recommendedScript;
-            this.hookGuidance = hookGuidance;
-            this.successClose = successClose;
-            this.riskWarning = riskWarning;
-            this.riskSuggestion = riskSuggestion;
-            this.totalTokens = totalTokens;
-            this.promptTokens = promptTokens;
-            this.completionTokens = completionTokens;
+    private record AIResponseResult(
+            String intentRecognition,
+            String replyStrategy,
+            String recommendedScript,
+            String hookGuidance,
+            String successClose,
+            String riskWarning,
+            String riskSuggestion,
+            Integer promptTokens,
+            Integer completionTokens
+    ) {
+        Integer totalTokens() {
+            return promptTokens + completionTokens;
         }
     }
 }

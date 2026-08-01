@@ -1,11 +1,12 @@
 package com.carepilot.chatworkbench.service;
 
+import com.carepilot.chatworkbench.dto.response.AiDialogStepResponse;
 import com.carepilot.chatworkbench.dto.response.ChatMessageResponse;
 import com.carepilot.chatworkbench.dto.response.ConversationResponse;
 import com.carepilot.chatworkbench.dto.response.TokenInfo;
-import com.carepilot.chatworkbench.entity.ChatMessage;
+import com.carepilot.chatworkbench.entity.AiDialogStepRecord;
 import com.carepilot.chatworkbench.entity.Conversation;
-import com.carepilot.chatworkbench.repository.ChatMessageRepository;
+import com.carepilot.chatworkbench.repository.AiDialogStepRecordRepository;
 import com.carepilot.chatworkbench.repository.ConversationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,88 +21,77 @@ import java.util.List;
 public class ConversationService {
 
     private final ConversationRepository conversationRepository;
-    private final ChatMessageRepository chatMessageRepository;
+    private final AiDialogStepRecordRepository stepRecordRepository;
+    private final AiDialogStepAssembler stepAssembler;
     private final TokenService tokenService;
 
     public ConversationResponse getConversationById(String customerId, String conversationId) {
-        Conversation conversation = conversationRepository.findByConversationId(conversationId)
-                .orElseThrow(() -> new IllegalArgumentException("对话不存在"));
-
-        if (!customerId.equals(conversation.getCustomerId())) {
-            throw new SecurityException("无权访问该对话");
-        }
-
+        Conversation conversation = ownedConversation(customerId, conversationId);
         return toResponse(conversation, customerId);
     }
 
+    public List<AiDialogStepResponse> getEffectiveSteps(String customerId, String conversationId) {
+        Conversation conversation = ownedConversation(customerId, conversationId);
+        return stepAssembler.toSteps(stepRecordRepository
+                .findBySessionTaskIdAndIsEffectiveAndIsDeleteOrderByDialogRoundAscStepNoAsc(
+                        conversation.getId(), (byte) 1, (byte) 0));
+    }
+
     public List<ConversationResponse> getConversationList(String customerId) {
-        List<Conversation> conversations = conversationRepository.findByCustomerIdOrderByCreatedAtDesc(customerId);
-        return conversations.stream()
-                .map(c -> toResponse(c, customerId))
+        return conversationRepository.findByCustomerIdOrderByCreatedAtDesc(customerId).stream()
+                .map(conversation -> toResponse(conversation, customerId))
                 .toList();
     }
 
     public List<ConversationResponse> getRecentConversations(String customerId, Integer limit) {
-        List<Conversation> conversations = conversationRepository.findRecentByCustomerId(customerId, limit);
-        return conversations.stream()
-                .map(c -> toResponse(c, customerId))
+        return conversationRepository.findRecentByCustomerId(customerId, limit).stream()
+                .map(conversation -> toResponse(conversation, customerId))
                 .toList();
     }
 
     @Transactional
     public void deleteConversation(String customerId, String conversationId) {
-        Conversation conversation = conversationRepository.findByConversationId(conversationId)
-                .orElseThrow(() -> new IllegalArgumentException("对话不存在"));
-
-        if (!customerId.equals(conversation.getCustomerId())) {
-            throw new SecurityException("无权删除该对话");
-        }
-
-        chatMessageRepository.deleteByConversationId(conversationId);
+        Conversation conversation = ownedConversation(customerId, conversationId);
+        stepRecordRepository.deleteBySessionTaskId(conversation.getId());
         conversationRepository.delete(conversation);
         log.info("Conversation deleted: customerId={}, conversationId={}", customerId, conversationId);
+    }
+
+    private Conversation ownedConversation(String customerId, String conversationId) {
+        Conversation conversation = conversationRepository.findByConversationId(conversationId)
+                .orElseThrow(() -> new IllegalArgumentException("Conversation does not exist"));
+        if (!customerId.equals(conversation.getCustomerId())) {
+            throw new SecurityException("Access to this conversation is forbidden");
+        }
+        return conversation;
     }
 
     private ConversationResponse toResponse(Conversation conversation, String customerId) {
         Integer usedToday = tokenService.getTodayUsedTokens(customerId);
         Integer dailyLimit = tokenService.getDailyLimit();
-
-        List<ChatMessage> messages = chatMessageRepository.findByConversationIdOrderByCreatedAtAsc(conversation.getConversationId());
+        List<AiDialogStepRecord> records = stepRecordRepository
+                .findBySessionTaskIdAndIsEffectiveAndIsDeleteOrderByDialogRoundAscStepNoAsc(
+                        conversation.getId(), (byte) 1, (byte) 0);
+        List<ChatMessageResponse> messages = stepAssembler.toMessages(records);
 
         TokenInfo tokenInfo = TokenInfo.builder()
-                .currentChatUsage(messages.stream().mapToInt(ChatMessage::getTotalTokens).sum())
+                .currentChatUsage(tokenService.getSessionUsedTokens(conversation.getId()))
                 .totalLimit(dailyLimit)
                 .usedToday(usedToday)
-                .usagePercent(usedToday != null ? (usedToday.doubleValue() / dailyLimit) * 100 : 0.0)
+                .usagePercent(dailyLimit != null && dailyLimit > 0
+                        ? (usedToday.doubleValue() / dailyLimit) * 100
+                        : 0.0)
                 .build();
 
         return ConversationResponse.builder()
                 .conversationId(conversation.getConversationId())
+                .sessionTaskId(conversation.getId())
                 .platform(conversation.getPlatform())
                 .title(conversation.getTitle())
-                .messages(messages.stream().map(this::toChatMessageResponse).toList())
+                .messages(messages)
                 .tokenInfo(tokenInfo)
                 .createdAt(conversation.getCreatedAt())
                 .updatedAt(conversation.getUpdatedAt())
-                .build();
-    }
-
-    private ChatMessageResponse toChatMessageResponse(ChatMessage message) {
-        return ChatMessageResponse.builder()
-                .id(message.getId())
-                .question(message.getQuestion())
-                .customerType(message.getCustomerType())
-                .intentRecognition(message.getIntentRecognition())
-                .replyStrategy(message.getReplyStrategy())
-                .recommendedScript(message.getRecommendedScript())
-                .hookGuidance(message.getHookGuidance())
-                .successClose(message.getSuccessClose())
-                .riskWarning(message.getRiskWarning())
-                .riskSuggestion(message.getRiskSuggestion())
-                .totalTokens(message.getTotalTokens())
-                .promptTokens(message.getPromptTokens())
-                .completionTokens(message.getCompletionTokens())
-                .createdAt(message.getCreatedAt())
                 .build();
     }
 }

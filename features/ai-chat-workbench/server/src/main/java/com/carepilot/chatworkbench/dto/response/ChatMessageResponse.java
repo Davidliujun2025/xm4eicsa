@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 public class ChatMessageResponse {
 
     private Long id;
+    private Integer dialogRound;
     private String question;
     private String customerType;
     private String intentRecognition;

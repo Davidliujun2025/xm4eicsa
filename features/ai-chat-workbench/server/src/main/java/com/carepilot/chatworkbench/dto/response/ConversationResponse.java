@@ -15,6 +15,7 @@ import java.util.List;
 public class ConversationResponse {
 
     private String conversationId;
+    private Long sessionTaskId;
     private String platform;
     private String title;
     private List<ChatMessageResponse> messages;

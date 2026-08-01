@@ -3,6 +3,7 @@ package com.carepilot.chatworkbench.controller;
 import com.acme.aicslogin.security.AuthenticatedUser;
 import com.carepilot.chatworkbench.dto.request.CreateConversationRequest;
 import com.carepilot.chatworkbench.dto.response.ApiResponse;
+import com.carepilot.chatworkbench.dto.response.AiDialogStepResponse;
 import com.carepilot.chatworkbench.dto.response.ConversationResponse;
 import com.carepilot.chatworkbench.service.AIService;
 import com.carepilot.chatworkbench.service.ConversationService;
@@ -42,6 +43,15 @@ public class ConversationController {
         log.info("Get conversation by id: customerId={}, conversationId={}", customerId, conversationId);
         ConversationResponse conversation = conversationService.getConversationById(customerId, conversationId);
         return ResponseEntity.ok(ApiResponse.success(conversation));
+    }
+
+    @GetMapping("/{id}/steps")
+    public ResponseEntity<ApiResponse<List<AiDialogStepResponse>>> getConversationSteps(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable("id") String conversationId) {
+        String customerId = user.id().toString();
+        return ResponseEntity.ok(ApiResponse.success(
+                conversationService.getEffectiveSteps(customerId, conversationId)));
     }
 
     @PostMapping
