@@ -73,7 +73,7 @@ const localUrl = (port: number, path = '/') => `${window.location.protocol}//${w
 
 const getAppLinks = (): Record<string, string> => {
   if (isLocalDevelopment()) {
-    const workbenchUrl = import.meta.env.VITE_WORKBENCH_URL || localUrl(15274);
+    const workbenchUrl = import.meta.env.VITE_WORKBENCH_URL || localUrl(15174);
     const tokenUsageUrl = import.meta.env.VITE_TOKEN_USAGE_URL || localUrl(15280);
     return {
       '智能对话': workbenchUrl,

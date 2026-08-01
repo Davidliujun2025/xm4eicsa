@@ -21,16 +21,15 @@ type Props = {
 
 export default function AssistantPanel({ platformName, messages, tokenInfo, generating }: Props) {
   const latestMessage = messages.at(-1);
-  const initialStep = latestMessage ? 3 : 1;
-  const [step, setStep] = useState(initialStep);
+  const [step, setStep] = useState(1);
   const usedToday = useCountUp(tokenInfo?.usedToday ?? 0);
   const totalLimit = tokenInfo?.totalLimit ?? 0;
   const usagePercent = Math.min(100, Math.max(0, tokenInfo?.usagePercent ?? 0));
   const content = latestMessage?.[STEP_FIELDS[step - 1]];
 
   useEffect(() => {
-    setStep(initialStep);
-  }, [initialStep, latestMessage?.id]);
+    setStep(1);
+  }, [generating, latestMessage?.id, latestMessage?.dialogRound]);
 
   const advance = () => setStep((current) => Math.min(5, current + 1));
 
@@ -77,8 +76,8 @@ export default function AssistantPanel({ platformName, messages, tokenInfo, gene
                   <div className="flex w-full items-center">
                     <button
                       type="button"
-                      disabled={!latestMessage}
-                      onClick={() => setStep(number)}
+                      disabled
+                      aria-current={current && latestMessage ? "step" : undefined}
                       className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-bold transition-all duration-300 ${
                         completed
                           ? "bg-blue-600 text-white"

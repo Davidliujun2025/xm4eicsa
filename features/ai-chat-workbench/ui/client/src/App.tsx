@@ -30,6 +30,8 @@ function getLoginUrl() {
 export default function App() {
   const [platformId, setPlatformId] = useState("tm");
   const [isAuthenticatedCustomerService, setIsAuthenticatedCustomerService] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [authRetryKey, setAuthRetryKey] = useState(0);
   const [displayName, setDisplayName] = useState("客服");
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
@@ -49,22 +51,35 @@ export default function App() {
   useEffect(() => {
     const controller = new AbortController();
     const verifyLogin = async () => {
+      setAuthError("");
       try {
         const response = await fetch("/api/v1/auth/me", { credentials: "include", signal: controller.signal });
+        if (response.status === 401 || response.status === 403) {
+          window.location.replace(getLoginUrl());
+          return;
+        }
+        if (!response.ok) {
+          throw new Error(`登录状态验证失败（HTTP ${response.status}）`);
+        }
         const payload = response.ok ? await response.json() : null;
         if (response.ok && payload?.code === "OK" && payload?.data?.roleType === "CUSTOMER_SERVICE") {
           setDisplayName(payload.data.username || payload.data.account || "客服");
           setIsAuthenticatedCustomerService(true);
           return;
         }
-      } catch {
+        if (payload?.code === "OK" && payload?.data?.roleType) {
+          window.location.replace(getLoginUrl());
+          return;
+        }
+        throw new Error("登录状态接口返回的数据格式不正确");
+      } catch (verifyError) {
         if (controller.signal.aborted) return;
+        setAuthError(verifyError instanceof Error ? verifyError.message : "登录状态验证失败");
       }
-      window.location.replace(getLoginUrl());
     };
     void verifyLogin();
     return () => controller.abort();
-  }, []);
+  }, [authRetryKey]);
 
   const loadWorkbench = useCallback(async () => {
     setLoading(true);
@@ -154,7 +169,23 @@ export default function App() {
   };
 
   if (!isAuthenticatedCustomerService) {
-    return <div className="h-screen w-full bg-[#f4f6fb]" aria-label="正在验证登录状态" />;
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-[#f4f6fb]" aria-label="正在验证登录状态">
+        {authError ? (
+          <div className="rounded-2xl bg-white px-10 py-8 text-center shadow-sm">
+            <p className="text-lg font-semibold text-slate-800">暂时无法验证登录状态</p>
+            <p className="mt-2 text-sm text-slate-500">{authError}</p>
+            <button
+              type="button"
+              className="mt-5 rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              onClick={() => setAuthRetryKey((key) => key + 1)}
+            >
+              重新验证
+            </button>
+          </div>
+        ) : null}
+      </div>
+    );
   }
 
   return (

@@ -29,11 +29,5 @@ var mockData = {
     {date:'3月', inputToken:15600, outputToken:4400, totalToken:20000},
     {date:'4月', inputToken:14900, outputToken:4100, totalToken:19000}
   ],
-  records: [
-    {id:'r1', callTime:'2026-07-07 10:32', modelName:'GPT-4o', inputToken:120, outputToken:260, totalToken:380, responseTime:120, status:'success', sessionId:'s1', userId:'u1', prompt:'示例输入1', response:'示例响应1'},
-    {id:'r2', callTime:'2026-07-07 09:18', modelName:'GPT-4o-mini', inputToken:80, outputToken:140, totalToken:220, responseTime:110, status:'success', sessionId:'s2', userId:'u1', prompt:'示例输入2', response:'示例响应2'},
-    {id:'r3', callTime:'2026-07-06 21:45', modelName:'GPT-4o', inputToken:200, outputToken:310, totalToken:510, responseTime:200, status:'success', sessionId:'s3', userId:'u2', prompt:'示例输入3', response:'示例响应3'},
-    {id:'r4', callTime:'2026-07-06 16:20', modelName:'GPT-4o-mini', inputToken:60, outputToken:120, totalToken:180, responseTime:90, status:'success', sessionId:'s4', userId:'u1', prompt:'示例输入4', response:'示例响应4'},
-    {id:'r5', callTime:'2026-07-05 14:05', modelName:'GPT-4o', inputToken:150, outputToken:240, totalToken:390, responseTime:130, status:'success', sessionId:'s5', userId:'u3', prompt:'示例输入5', response:'示例响应5'}
-  ]
+  records: []
 };

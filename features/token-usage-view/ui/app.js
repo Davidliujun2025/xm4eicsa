@@ -1062,10 +1062,10 @@ function bindEvents() {
     const local = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
     const localUrl = (port, path = '/') => `${window.location.protocol}//${window.location.hostname}:${port}${path}`;
     const customerNavMap = local ? {
-        '智能对话': localUrl(15274),
-        '对话记录': localUrl(15274, '/?view=history'),
+        '智能对话': localUrl(15174),
+        '对话记录': localUrl(15174, '/?view=history'),
         '个人话术库': localUrl(15278),
-        '我的评估': localUrl(15274, '/?view=evaluation'),
+        '我的评估': localUrl(15174, '/?view=evaluation'),
         'Token统计': window.location.href
     } : {
         '智能对话': `${window.location.origin}/workbench/`,
