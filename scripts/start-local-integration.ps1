@@ -157,7 +157,8 @@ if (Test-PortInUse -Port $BackendPort) {
     Write-Output "BACKEND_PID=$($backend.Id)"
 }
 
-$env:VITE_API_BASE_URL = "http://127.0.0.1:$BackendPort/api/v1"
+$env:VITE_API_BASE_URL = "/api/v1"
+$env:VITE_API_PROXY_TARGET = "http://127.0.0.1:$BackendPort"
 $env:VITE_WORKBENCH_URL = "http://127.0.0.1:$WorkbenchPort/"
 Install-FrontendDependencies -AppDirectory (Join-Path $projectRoot "features\login\ui")
 if (Test-PortInUse -Port $FrontendPort) {
@@ -179,7 +180,6 @@ if (Test-PortInUse -Port $FrontendPort) {
     Write-Output "FRONTEND_PID=$($frontend.Id)"
 }
 
-$env:VITE_API_PROXY_TARGET = "http://127.0.0.1:$BackendPort"
 $env:VITE_FAVORITE_SCRIPT_URL = "http://127.0.0.1:$FavoriteScriptPort/"
 $env:VITE_TOKEN_USAGE_URL = "http://127.0.0.1:$TokenUsagePort/"
 Install-FrontendDependencies -AppDirectory (Join-Path $projectRoot "features\ai-chat-workbench\ui\client")
