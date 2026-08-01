@@ -1,23 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { platformFor } from "../config/workbench";
+import type { Conversation } from "../types";
 import { Clock, Search } from "./icons";
-
-type ChatMessage = {
-  id: number;
-  question: string;
-  recommendedScript?: string;
-  riskWarning?: string;
-  totalTokens?: number;
-  createdAt?: string;
-};
-
-type Conversation = {
-  conversationId: string;
-  platform: string;
-  title: string;
-  messages?: ChatMessage[];
-  createdAt?: string;
-  updatedAt?: string;
-};
 
 type ApiResponse<T> = {
   code: number;
@@ -124,7 +108,7 @@ export default function ConversationHistoryPage() {
             >
               <div className="flex items-start justify-between gap-3">
                 <span className="truncate text-[13.5px] font-semibold text-slate-800">{conversation.title || "未命名对话"}</span>
-                <span className="shrink-0 text-[11px] text-slate-400">{conversation.platform}</span>
+                <span className="shrink-0 text-[11px] text-slate-400">{platformFor(conversation.platform).name}</span>
               </div>
               <div className="mt-2 flex items-center gap-1.5 text-[11.5px] text-slate-400">
                 <Clock className="h-3.5 w-3.5" />
@@ -145,7 +129,7 @@ export default function ConversationHistoryPage() {
             <div className="border-b border-slate-100 pb-4">
               <div className="flex items-center gap-3">
                 <h2 className="text-xl font-bold text-slate-900">{selected.title || "未命名对话"}</h2>
-                <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-600">{selected.platform}</span>
+                <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-600">{platformFor(selected.platform).name}</span>
               </div>
               <p className="mt-2 text-xs text-slate-400">最近更新：{formatTime(selected.updatedAt || selected.createdAt)}</p>
             </div>

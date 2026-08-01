@@ -1,60 +1,86 @@
 import { useState } from "react";
-import { PLATFORMS, NOTES } from "../mock/data";
+import { NOTES, PLATFORMS } from "../config/workbench";
+import type { ChatMessage } from "../types";
 import { Chev, Check, Spark, Help, Tick } from "./icons";
 
 type Props = {
   platformId: string;
   onPlatformChange: (id: string) => void;
-  regen: boolean;
-  onRegen: () => void;
+  messages: ChatMessage[];
+  text: string;
+  onTextChange: (value: string) => void;
+  generating: boolean;
+  error: string;
+  onGenerate: () => void;
 };
 
-export default function ChatPanel({ platformId, onPlatformChange, regen, onRegen }: Props) {
-  const [open, setOpen] = useState(true); // 与原型截图同状态：下拉展开
-  const [text, setText] = useState(
-    "这款蓝牙耳机支持七天无理由退货吗？我刚收到且尚未拆封，想确认退货条件和申请流程。"
-  );
-  const cur = PLATFORMS.find((p) => p.id === platformId)!;
+function formatMessageTime(value?: string) {
+  if (!value) return "--:--";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false });
+}
+
+export default function ChatPanel({
+  platformId,
+  onPlatformChange,
+  messages,
+  text,
+  onTextChange,
+  generating,
+  error,
+  onGenerate,
+}: Props) {
+  const [open, setOpen] = useState(true);
+  const currentPlatform = PLATFORMS.find((platform) => platform.id === platformId) ?? PLATFORMS[1];
 
   return (
     <section className="flex min-h-0 flex-col">
-      {/* 服务平台行 */}
       <div className="relative z-30 mb-4 flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-white px-5 py-3.5 shadow-sm">
         <span className="text-[14px] font-medium text-slate-500">服务平台</span>
         <div className="relative w-[360px]">
           <button
-            onClick={() => setOpen((o) => !o)}
+            type="button"
+            onClick={() => setOpen((value) => !value)}
             className="flex w-full items-center justify-between rounded-xl border border-slate-200 px-3 py-2.5 transition-colors hover:border-blue-300"
           >
             <span className="flex items-center gap-2.5">
-              <span className="grid h-7 w-7 place-items-center rounded-lg text-[13px] font-bold text-white" style={{ background: cur.c }}>
-                {cur.t}
+              <span
+                className="grid h-7 w-7 place-items-center rounded-lg text-[13px] font-bold text-white"
+                style={{ background: currentPlatform.color }}
+              >
+                {currentPlatform.shortName}
               </span>
-              <span className="text-[14px] font-medium text-slate-800">{cur.name}</span>
+              <span className="text-[14px] font-medium text-slate-800">{currentPlatform.name}</span>
             </span>
-            <Chev className={`h-4 w-4 text-slate-400 transition-transform duration-200  $ {open ? "rotate-180" : ""}`} />
+            <Chev className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
           </button>
 
           {open && (
             <div className="pop absolute left-0 top-[calc(100%+6px)] w-[230px] rounded-2xl border border-slate-100 bg-white p-2 shadow-2xl shadow-slate-300/40">
-              {PLATFORMS.map((p) => (
+              {PLATFORMS.map((platform) => (
                 <button
-                  key={p.id}
+                  key={platform.id}
+                  type="button"
                   onClick={() => {
-                    onPlatformChange(p.id);
+                    onPlatformChange(platform.id);
                     setOpen(false);
                   }}
-                  className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-[14px] transition-colors  $ {
-                    p.id === platformId ? "bg-blue-50 text-blue-700" : "text-slate-700 hover:bg-slate-50"
+                  className={`flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-[14px] transition-colors ${
+                    platform.id === platformId ? "bg-blue-50 text-blue-700" : "text-slate-700 hover:bg-slate-50"
                   }`}
                 >
                   <span className="flex items-center gap-2.5">
-                    <span className="grid h-7 w-7 place-items-center rounded-lg text-[13px] font-bold text-white" style={{ background: p.c }}>
-                      {p.t}
+                    <span
+                      className="grid h-7 w-7 place-items-center rounded-lg text-[13px] font-bold text-white"
+                      style={{ background: platform.color }}
+                    >
+                      {platform.shortName}
                     </span>
-                    {p.name}
+                    {platform.name}
                   </span>
-                  {p.id === platformId && <Check className="h-4 w-4 text-blue-600" />}
+                  {platform.id === platformId && <Check className="h-4 w-4 text-blue-600" />}
                 </button>
               ))}
             </div>
@@ -62,22 +88,25 @@ export default function ChatPanel({ platformId, onPlatformChange, regen, onRegen
         </div>
       </div>
 
-      {/* 聊天流 */}
       <div className="min-h-0 flex-1 overflow-y-auto rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
-        <div className="ml-auto max-w-[78%] rounded-2xl rounded-tr-md bg-blue-50 px-4 py-3 text-[13.5px] leading-relaxed text-slate-700">
-          您好，请问你们的这款蓝牙耳机支持七天无理由退货吗？
-        </div>
-        <div className="ml-auto mt-3 max-w-[78%] rounded-2xl rounded-tr-md bg-blue-50 px-4 py-3 text-[13.5px] leading-relaxed text-slate-700">
-          我刚刚收到，还没拆封，想确认一下是否支持无理由退货，谢谢！
-          <div className="mt-1 text-right text-[11px] text-slate-400">10:24</div>
-        </div>
+        {messages.length === 0 && (
+          <div className="grid h-full place-items-center text-[13px] text-slate-400">新建对话后，客户问题会显示在这里</div>
+        )}
+        {messages.map((message) => (
+          <div
+            key={`${message.id}-${message.dialogRound}`}
+            className="ml-auto mb-3 max-w-[78%] rounded-2xl rounded-tr-md bg-blue-50 px-4 py-3 text-[13.5px] leading-relaxed text-slate-700"
+          >
+            {message.question}
+            <div className="mt-1 text-right text-[11px] text-slate-400">{formatMessageTime(message.createdAt)}</div>
+          </div>
+        ))}
       </div>
 
-      {/* 输入区 */}
       <div className="mt-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm">
         <div className="flex items-center justify-between">
           <span className="text-[14px] font-bold text-slate-800">请输入客户问题</span>
-          <button onClick={() => setText("")} className="text-[13px] font-medium text-blue-600 hover:opacity-70">
+          <button type="button" onClick={() => onTextChange("")} className="text-[13px] font-medium text-blue-600 hover:opacity-70">
             清空
           </button>
         </div>
@@ -86,33 +115,36 @@ export default function ChatPanel({ platformId, onPlatformChange, regen, onRegen
         <div className="relative mt-3">
           <textarea
             value={text}
-            onChange={(e) => setText(e.target.value.slice(0, 500))}
+            onChange={(event) => onTextChange(event.target.value.slice(0, 500))}
             rows={3}
             className="w-full resize-none rounded-xl border border-slate-200 p-3.5 pr-16 text-[13.5px] leading-relaxed outline-none transition-all placeholder:text-slate-400 focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
-            placeholder="例如：客户询问蓝牙耳机是否支持七天无理由退货…"
+            placeholder="请输入当前客户的真实问题"
           />
           <span className="pointer-events-none absolute bottom-2.5 right-3 text-[12px] text-slate-400">{text.length}/500</span>
         </div>
 
+        {error && <div className="mt-2.5 rounded-lg bg-red-50 px-3 py-2 text-[12.5px] text-red-600">{error}</div>}
+
         <div className="mt-2.5 flex items-center gap-1.5 text-[12.5px] text-slate-400">
           <Help className="h-4 w-4" />
-          可从当前会话中选择最近 5 条消息，或按 Ctrl + / 快捷提取关键信息。
+          当前生成结果将保存到数据库，并计入当前客服的 Token 用量。
         </div>
 
         <button
-          onClick={onRegen}
-          disabled={regen}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-500 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-blue-500/25 transition-all hover:bg-blue-600 active:scale-[.99] disabled:opacity-80"
+          type="button"
+          onClick={onGenerate}
+          disabled={generating || !text.trim()}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-500 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-blue-500/25 transition-all hover:bg-blue-600 active:scale-[.99] disabled:opacity-60"
         >
-          <Spark className={`h-5 w-5  $ {regen ? "spin" : ""}`} />
-          {regen ? "正在生成…" : "重新生成 AI 回复"}
+          <Spark className={`h-5 w-5 ${generating ? "spin" : ""}`} />
+          {generating ? "正在生成并保存…" : messages.length > 0 ? "继续生成 AI 回复" : "生成 AI 回复"}
         </button>
 
         <div className="mt-3 space-y-2 rounded-xl bg-blue-50/60 p-3.5 text-[12.5px] text-blue-700/90">
-          {NOTES.map((s) => (
-            <div key={s} className="flex items-start gap-2">
+          {NOTES.map((note) => (
+            <div key={note} className="flex items-start gap-2">
               <Tick className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
-              <span>{s}</span>
+              <span>{note}</span>
             </div>
           ))}
         </div>
