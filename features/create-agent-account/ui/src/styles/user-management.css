@@ -960,6 +960,13 @@
   text-decoration: underline;
 }
 
+.text-action:disabled,
+.text-action:disabled:hover {
+  color: #98a2b3;
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
 .text-action--danger {
   color: var(--error);
 }

@@ -389,7 +389,17 @@ public class AgentAccountService {
     ){
 
 
-        getRequired(userId);
+        AgentAccount account = getRequired(userId);
+
+
+        if ("DISABLED".equals(status) && isAdministrator(account)) {
+
+            throw new BusinessException(
+                    "ADMIN_DISABLE_FORBIDDEN",
+                    "管理员账号不允许禁用"
+            );
+
+        }
 
 
 
@@ -409,6 +419,15 @@ public class AgentAccountService {
 
 
         return getRequired(userId);
+
+    }
+
+
+
+    private boolean isAdministrator(AgentAccount account) {
+
+        return "SYSTEM_ADMIN".equals(account.getRole())
+                || "ADMIN".equals(account.getRole());
 
     }
 

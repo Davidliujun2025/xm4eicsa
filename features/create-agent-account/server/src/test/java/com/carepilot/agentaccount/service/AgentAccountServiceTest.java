@@ -88,6 +88,23 @@ class AgentAccountServiceTest {
         assertEquals("PASSWORD_EQUALS_PHONE", ex.getCode());
     }
 
+    @Test
+    void updateStatusRejectsDisablingAdministrator() {
+        AgentAccount administrator = new AgentAccount();
+        administrator.setUserId(13L);
+        administrator.setRole("SYSTEM_ADMIN");
+        administrator.setStatus("ENABLED");
+        when(repository.findById(13L)).thenReturn(Optional.of(administrator));
+
+        BusinessException ex = assertThrows(BusinessException.class,
+                () -> service.updateStatus(13L, "DISABLED"));
+
+        assertEquals("ADMIN_DISABLE_FORBIDDEN", ex.getCode());
+        assertEquals("管理员账号不允许禁用", ex.getMessage());
+        verify(repository, never()).updateStatus(anyLong(), anyString());
+        verify(repository, never()).saveOperationLog(anyLong(), anyString(), anyString());
+    }
+
     private CreateAgentAccountRequest request(String name, String phone, String email, String password) {
         CreateAgentAccountRequest r = new CreateAgentAccountRequest();
         r.setName(name); r.setPhone(phone); r.setEmail(email); r.setInitialPassword(password); return r;

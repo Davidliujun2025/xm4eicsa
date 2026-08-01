@@ -298,6 +298,9 @@ export default function UserManagementPage() {
   async function handleToggleStatus(user: User) {
     const nextStatus: UserStatus =
       user.status === "ENABLED" ? "DISABLED" : "ENABLED";
+    if (user.role === "SYSTEM_ADMIN" && nextStatus === "DISABLED") {
+      return;
+    }
     const confirmed = window.confirm(
       nextStatus === "DISABLED"
         ? `确认禁用客服人员“${user.name}”吗？`
@@ -536,10 +539,14 @@ export default function UserManagementPage() {
                       <button type="button" className="text-action" onClick={() => openEditModal(user)}>编辑</button>
                       <button
                         type="button"
-                        className={user.status === "ENABLED" ? "text-action text-action--danger" : "text-action"}
+                        className={user.status === "ENABLED" && user.role !== "SYSTEM_ADMIN" ? "text-action text-action--danger" : "text-action"}
+                        disabled={user.role === "SYSTEM_ADMIN" && user.status === "ENABLED"}
+                        title={user.role === "SYSTEM_ADMIN" && user.status === "ENABLED" ? "管理员账号不允许禁用" : undefined}
                         onClick={() => void handleToggleStatus(user)}
                       >
-                        {user.status === "ENABLED" ? "禁用" : "启用"}
+                        {user.role === "SYSTEM_ADMIN" && user.status === "ENABLED"
+                          ? "禁止禁用"
+                          : user.status === "ENABLED" ? "禁用" : "启用"}
                       </button>
                       <button type="button" className="text-action text-action--more" onClick={() => setMoreUser(user)}>
                         更多<ChevronDown size={14} />
