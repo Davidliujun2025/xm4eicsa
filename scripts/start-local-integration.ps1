@@ -2,6 +2,10 @@ param(
     [int]$BackendPort = 18080,
     [int]$FrontendPort = 15173,
     [int]$WorkbenchPort = 15174,
+    [int]$AdminUsersPort = 15175,
+    [int]$AdminTokensPort = 15176,
+    [int]$AdminForbiddenWordsPort = 15177,
+    [int]$ForgotPasswordPort = 15178,
     [int]$FavoriteScriptPort = 15278,
     [int]$TokenUsagePort = 15280,
     [switch]$ReuseExisting
@@ -130,7 +134,7 @@ $env:SPRING_FLYWAY_ENABLED = "false"
 $env:SPRING_SQL_INIT_MODE = "never"
 $env:SPRING_JPA_HIBERNATE_DDL_AUTO = "validate"
 $env:SPRING_DATA_REDIS_REPOSITORIES_ENABLED = "false"
-$env:CORS_ALLOWED_ORIGINS = "http://127.0.0.1:$FrontendPort,http://127.0.0.1:$WorkbenchPort,http://127.0.0.1:$FavoriteScriptPort,http://127.0.0.1:$TokenUsagePort"
+$env:CORS_ALLOWED_ORIGINS = "http://127.0.0.1:$FrontendPort,http://127.0.0.1:$WorkbenchPort,http://127.0.0.1:$AdminUsersPort,http://127.0.0.1:$AdminTokensPort,http://127.0.0.1:$AdminForbiddenWordsPort,http://127.0.0.1:$ForgotPasswordPort,http://127.0.0.1:$FavoriteScriptPort,http://127.0.0.1:$TokenUsagePort"
 
 if (Test-PortInUse -Port $BackendPort) {
     if (-not $ReuseExisting) {
@@ -160,6 +164,17 @@ if (Test-PortInUse -Port $BackendPort) {
 $env:VITE_API_BASE_URL = "/api/v1"
 $env:VITE_API_PROXY_TARGET = "http://127.0.0.1:$BackendPort"
 $env:VITE_WORKBENCH_URL = "http://127.0.0.1:$WorkbenchPort/"
+$adminUsersUrl = "http://127.0.0.1:$AdminUsersPort/"
+$adminTokensUrl = "http://127.0.0.1:$AdminTokensPort/"
+$adminForbiddenBaseUrl = "http://127.0.0.1:$AdminForbiddenWordsPort/"
+$adminForbiddenUrl = $adminForbiddenBaseUrl +
+    "?usersUrl=$([Uri]::EscapeDataString($adminUsersUrl))" +
+    "&tokensUrl=$([Uri]::EscapeDataString($adminTokensUrl))" +
+    "&forbiddenUrl=$([Uri]::EscapeDataString($adminForbiddenBaseUrl))"
+$env:VITE_ADMIN_USERS_URL = $adminUsersUrl
+$env:VITE_ADMIN_TOKENS_URL = $adminTokensUrl
+$env:VITE_ADMIN_FORBIDDEN_WORDS_URL = $adminForbiddenUrl
+$env:VITE_FORGOT_PASSWORD_URL = "http://127.0.0.1:$ForgotPasswordPort/"
 Install-FrontendDependencies -AppDirectory (Join-Path $projectRoot "features\login\ui")
 if (Test-PortInUse -Port $FrontendPort) {
     if (-not $ReuseExisting) {
@@ -201,6 +216,91 @@ if (Test-PortInUse -Port $WorkbenchPort) {
         -PassThru
     Write-Output "WORKBENCH_PID=$($workbench.Id)"
 }
+
+$previousAdminApiBaseUrl = $env:VITE_ADMIN_API_BASE_URL
+$env:VITE_ADMIN_API_BASE_URL = "http://127.0.0.1:$AdminUsersPort"
+Install-FrontendDependencies -AppDirectory (Join-Path $projectRoot "features\create-agent-account\ui")
+if (Test-PortInUse -Port $AdminUsersPort) {
+    if (-not $ReuseExisting) {
+        throw "Admin users port $AdminUsersPort is already in use. Stop the existing process, choose another port, or pass -ReuseExisting."
+    }
+    Write-Output "ADMIN_USERS_ALREADY_RUNNING=true"
+} else {
+    $adminUsersOut = Join-Path $projectRoot "features\create-agent-account\ui\local-integration.out.log"
+    $adminUsersErr = Join-Path $projectRoot "features\create-agent-account\ui\local-integration.err.log"
+    $adminUsers = Start-Process `
+        -FilePath $npm `
+        -ArgumentList @("run", "dev", "--", "--host", "127.0.0.1", "--port", [string]$AdminUsersPort, "--strictPort") `
+        -WorkingDirectory (Join-Path $projectRoot "features\create-agent-account\ui") `
+        -RedirectStandardOutput $adminUsersOut `
+        -RedirectStandardError $adminUsersErr `
+        -WindowStyle Hidden `
+        -PassThru
+    Write-Output "ADMIN_USERS_PID=$($adminUsers.Id)"
+}
+$env:VITE_ADMIN_API_BASE_URL = $previousAdminApiBaseUrl
+
+Install-FrontendDependencies -AppDirectory (Join-Path $projectRoot "features\token-quota-management\token-quota-adminvue")
+if (Test-PortInUse -Port $AdminTokensPort) {
+    if (-not $ReuseExisting) {
+        throw "Admin tokens port $AdminTokensPort is already in use. Stop the existing process, choose another port, or pass -ReuseExisting."
+    }
+    Write-Output "ADMIN_TOKENS_ALREADY_RUNNING=true"
+} else {
+    $adminTokensOut = Join-Path $projectRoot "features\token-quota-management\token-quota-adminvue\local-integration.out.log"
+    $adminTokensErr = Join-Path $projectRoot "features\token-quota-management\token-quota-adminvue\local-integration.err.log"
+    $adminTokens = Start-Process `
+        -FilePath $npm `
+        -ArgumentList @("run", "dev", "--", "--host", "127.0.0.1", "--port", [string]$AdminTokensPort, "--strictPort") `
+        -WorkingDirectory (Join-Path $projectRoot "features\token-quota-management\token-quota-adminvue") `
+        -RedirectStandardOutput $adminTokensOut `
+        -RedirectStandardError $adminTokensErr `
+        -WindowStyle Hidden `
+        -PassThru
+    Write-Output "ADMIN_TOKENS_PID=$($adminTokens.Id)"
+}
+
+if (Test-PortInUse -Port $AdminForbiddenWordsPort) {
+    if (-not $ReuseExisting) {
+        throw "Admin forbidden words port $AdminForbiddenWordsPort is already in use. Stop the existing process, choose another port, or pass -ReuseExisting."
+    }
+    Write-Output "ADMIN_FORBIDDEN_WORDS_ALREADY_RUNNING=true"
+} else {
+    $adminForbiddenOut = Join-Path $projectRoot "features\forbidden-words-management\ui\local-integration.out.log"
+    $adminForbiddenErr = Join-Path $projectRoot "features\forbidden-words-management\ui\local-integration.err.log"
+    $adminForbidden = Start-Process `
+        -FilePath $npm `
+        -ArgumentList @("exec", "--", "vite", (Join-Path $projectRoot "features\forbidden-words-management\ui"), "--config", (Join-Path $projectRoot "features\ai-chat-workbench\ui\client\vite.config.ts"), "--host", "127.0.0.1", "--port", [string]$AdminForbiddenWordsPort, "--strictPort") `
+        -WorkingDirectory (Join-Path $projectRoot "features\ai-chat-workbench\ui\client") `
+        -RedirectStandardOutput $adminForbiddenOut `
+        -RedirectStandardError $adminForbiddenErr `
+        -WindowStyle Hidden `
+        -PassThru
+    Write-Output "ADMIN_FORBIDDEN_WORDS_PID=$($adminForbidden.Id)"
+}
+
+$previousForgotApiBaseUrl = $env:VITE_API_BASE_URL
+$env:VITE_API_BASE_URL = ""
+Install-FrontendDependencies -AppDirectory (Join-Path $projectRoot "features\forgot-password\ui")
+if (Test-PortInUse -Port $ForgotPasswordPort) {
+    if (-not $ReuseExisting) {
+        throw "Forgot password port $ForgotPasswordPort is already in use. Stop the existing process, choose another port, or pass -ReuseExisting."
+    }
+    Write-Output "FORGOT_PASSWORD_ALREADY_RUNNING=true"
+} else {
+    $forgotPasswordOut = Join-Path $projectRoot "features\forgot-password\ui\local-integration.out.log"
+    $forgotPasswordErr = Join-Path $projectRoot "features\forgot-password\ui\local-integration.err.log"
+    $forgotPassword = Start-Process `
+        -FilePath $npm `
+        -ArgumentList @("run", "dev", "--", "--host", "127.0.0.1", "--port", [string]$ForgotPasswordPort, "--strictPort") `
+        -WorkingDirectory (Join-Path $projectRoot "features\forgot-password\ui") `
+        -RedirectStandardOutput $forgotPasswordOut `
+        -RedirectStandardError $forgotPasswordErr `
+        -WindowStyle Hidden `
+        -PassThru
+    Write-Output "FORGOT_PASSWORD_PID=$($forgotPassword.Id)"
+}
+$env:VITE_API_BASE_URL = $previousForgotApiBaseUrl
 
 Install-FrontendDependencies -AppDirectory (Join-Path $projectRoot "features\favorite-script-library\UI")
 if (Test-PortInUse -Port $FavoriteScriptPort) {
@@ -244,5 +344,9 @@ if (Test-PortInUse -Port $TokenUsagePort) {
 Write-Output "BACKEND_URL=http://127.0.0.1:$BackendPort"
 Write-Output "FRONTEND_URL=http://127.0.0.1:$FrontendPort"
 Write-Output "WORKBENCH_URL=http://127.0.0.1:$WorkbenchPort"
+Write-Output "ADMIN_USERS_URL=http://127.0.0.1:$AdminUsersPort"
+Write-Output "ADMIN_TOKENS_URL=http://127.0.0.1:$AdminTokensPort"
+Write-Output "ADMIN_FORBIDDEN_WORDS_URL=http://127.0.0.1:$AdminForbiddenWordsPort"
+Write-Output "FORGOT_PASSWORD_URL=http://127.0.0.1:$ForgotPasswordPort"
 Write-Output "FAVORITE_SCRIPT_URL=http://127.0.0.1:$FavoriteScriptPort"
 Write-Output "TOKEN_USAGE_URL=http://127.0.0.1:$TokenUsagePort"

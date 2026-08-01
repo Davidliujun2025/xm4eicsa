@@ -51,9 +51,9 @@ const NAVIGATION_ITEMS = [
 ];
 
 const NAV_LINKS: Record<string, string> = {
-  "用户管理": `${window.location.origin}/admin/users/`,
-  "Token 管理": `${window.location.origin}/admin/tokens/`,
-  "违禁词管理": `${window.location.origin}/admin/forbidden-words/`,
+  "用户管理": import.meta.env.VITE_ADMIN_USERS_URL || `${window.location.origin}/admin/users/`,
+  "Token 管理": import.meta.env.VITE_ADMIN_TOKENS_URL || `${window.location.origin}/admin/tokens/`,
+  "违禁词管理": import.meta.env.VITE_ADMIN_FORBIDDEN_WORDS_URL || `${window.location.origin}/admin/forbidden-words/`,
 };
 
 export default function UserManagementPage() {

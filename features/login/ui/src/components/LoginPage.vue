@@ -141,6 +141,8 @@ const defaultForgotUrl =
   import.meta.env.VITE_FORGOT_PASSWORD_URL || `${window.location.origin}/forgot-password/`
 const workbenchUrl =
   import.meta.env.VITE_WORKBENCH_URL || `${window.location.origin}/workbench/`
+const adminUsersUrl =
+  import.meta.env.VITE_ADMIN_USERS_URL || `${window.location.origin}/admin/users/`
 
 const FORGOT_PASSWORD_URL =
   new URLSearchParams(window.location.search).get('forgotUrl') ||
@@ -299,9 +301,11 @@ async function handleLogin() {
       const normalizedPath = backendPath === '/ai-customer-service' ? '/workbench/' : backendPath
       const redirectUrl = roleType === 'CUSTOMER_SERVICE'
         ? workbenchUrl
-        : normalizedPath && normalizedPath.startsWith('/')
-          ? `${window.location.origin}${normalizedPath}`
-          : `${window.location.origin}/`
+        : roleType === 'ADMIN'
+          ? adminUsersUrl
+          : normalizedPath && normalizedPath.startsWith('/')
+            ? `${window.location.origin}${normalizedPath}`
+            : `${window.location.origin}/`
       window.location.href = redirectUrl
     } else {
       if (message.includes('不存在')) {

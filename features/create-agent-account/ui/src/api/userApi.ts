@@ -15,7 +15,11 @@ import type {
 } from "../types/user";
 
 const API_BASE_URL =
-  (import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
+  (
+    import.meta.env.VITE_ADMIN_API_BASE_URL ??
+    import.meta.env.VITE_API_BASE_URL ??
+    ""
+  ).replace(/\/$/, "");
 
 function getCookie(name: string): string | undefined {
   return document.cookie
