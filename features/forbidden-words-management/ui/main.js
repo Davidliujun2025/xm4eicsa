@@ -575,10 +575,13 @@ function bindFilters() {
 }
 
 function bindSidebarNavigation() {
+  const isLocalDevelopment =
+    window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost";
+  const localUrl = (port) => `${window.location.protocol}//${window.location.hostname}:${port}/`;
   const navMap = {
-    "用户管理": PAGE_PARAMS.get("usersUrl") || `${window.location.origin}/admin/users/`,
-    "Token 管理": PAGE_PARAMS.get("tokensUrl") || `${window.location.origin}/admin/tokens/`,
-    "违禁词管理": PAGE_PARAMS.get("forbiddenUrl") || `${window.location.origin}/admin/forbidden-words/`
+    "用户管理": PAGE_PARAMS.get("usersUrl") || (isLocalDevelopment ? localUrl(5176) : `${window.location.origin}/admin/users/`),
+    "Token 管理": PAGE_PARAMS.get("tokensUrl") || (isLocalDevelopment ? localUrl(5177) : `${window.location.origin}/admin/tokens/`),
+    "违禁词管理": PAGE_PARAMS.get("forbiddenUrl") || (isLocalDevelopment ? localUrl(5179) : `${window.location.origin}/admin/forbidden-words/`)
   };
 
   document.querySelectorAll(".nav-menu .nav-item").forEach((btn) => {

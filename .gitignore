@@ -20,3 +20,4 @@ target/
 # System and logs
 .DS_Store
 *.log
+.local/

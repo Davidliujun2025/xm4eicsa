@@ -1,4 +1,3 @@
-import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./styles/global.css";
@@ -9,8 +8,4 @@ if (!rootElement) {
   throw new Error("未找到 root 节点");
 }
 
-createRoot(rootElement).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
+createRoot(rootElement).render(<App />);

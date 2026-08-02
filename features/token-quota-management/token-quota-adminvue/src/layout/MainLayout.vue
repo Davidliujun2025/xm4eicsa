@@ -45,11 +45,14 @@ const currentUser = ref<CurrentUser | null>(null)
 const avatar = computed(() =>
   (currentUser.value?.username || '?').slice(0, 1),
 )
+const isLocalDevelopment =
+  window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost'
+const localUrl = (port: number) => `${window.location.protocol}//${window.location.hostname}:${port}/`
 
 const links: Record<string, string> = {
-  users: import.meta.env.VITE_ADMIN_USERS_URL || '/admin/users/',
-  tokens: import.meta.env.VITE_ADMIN_TOKENS_URL || '/admin/tokens/',
-  forbidden: import.meta.env.VITE_ADMIN_FORBIDDEN_WORDS_URL || '/admin/forbidden-words/',
+  users: import.meta.env.VITE_ADMIN_USERS_URL || (isLocalDevelopment ? localUrl(5176) : '/admin/users/'),
+  tokens: import.meta.env.VITE_ADMIN_TOKENS_URL || (isLocalDevelopment ? localUrl(5177) : '/admin/tokens/'),
+  forbidden: import.meta.env.VITE_ADMIN_FORBIDDEN_WORDS_URL || (isLocalDevelopment ? localUrl(5179) : '/admin/forbidden-words/'),
 }
 
 function go(key: string) {

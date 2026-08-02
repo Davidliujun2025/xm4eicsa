@@ -35,12 +35,12 @@ export function getSidebarTarget(id: SidebarItemId) {
       return local ? `${window.location.origin}/?view=history` : `${window.location.origin}/workbench/?view=history`;
     case "scripts":
       return import.meta.env.VITE_FAVORITE_SCRIPT_URL
-        || (local ? localAppUrl(15278) : `${window.location.origin}/favorite-script-library/`);
+        || (local ? localAppUrl(5178) : `${window.location.origin}/favorite-script-library/`);
     case "evaluation":
       return local ? `${window.location.origin}/?view=evaluation` : `${window.location.origin}/workbench/?view=evaluation`;
     case "dashboard":
       return import.meta.env.VITE_TOKEN_USAGE_URL
-        || (local ? localAppUrl(15280) : `${window.location.origin}/token-usage/`);
+        || (local ? localAppUrl(5180) : `${window.location.origin}/token-usage/`);
   }
 }
 

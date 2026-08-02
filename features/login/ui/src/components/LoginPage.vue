@@ -48,7 +48,7 @@
             id="accountInput"
             type="text"
             v-model="loginForm.account"
-            placeholder="请输入手机号或邮箱"
+            placeholder="请输入账号、手机号或邮箱"
             @input="clearError"
             @keydown.enter="handleLogin"
             autocomplete="username"
@@ -137,16 +137,27 @@ import { reactive, ref, computed, onMounted } from 'vue'
 import { apiClient } from '../utils/api'
 import type { LoginForm, PwdChecks } from '../types'
 
+const isLocalDevelopment =
+  window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost'
+const localUrl = (port: number, path = '/') =>
+  `${window.location.protocol}//${window.location.hostname}:${port}${path}`
+
 const defaultForgotUrl =
-  import.meta.env.VITE_FORGOT_PASSWORD_URL || `${window.location.origin}/forgot-password/`
+  import.meta.env.VITE_FORGOT_PASSWORD_URL ||
+  (isLocalDevelopment ? localUrl(5175) : `${window.location.origin}/forgot-password/`)
 const workbenchUrl =
-  import.meta.env.VITE_WORKBENCH_URL || `${window.location.origin}/workbench/`
+  import.meta.env.VITE_WORKBENCH_URL ||
+  (isLocalDevelopment ? localUrl(5174) : `${window.location.origin}/workbench/`)
 const adminUsersUrl =
-  import.meta.env.VITE_ADMIN_USERS_URL || `${window.location.origin}/admin/users/`
+  import.meta.env.VITE_ADMIN_USERS_URL ||
+  (isLocalDevelopment ? localUrl(5176) : `${window.location.origin}/admin/users/`)
+const SAFE_LOCAL_PORTS = new Set(['5173', '5174', '5175', '5176', '5177', '5178', '5179', '5180'])
 
 const FORGOT_PASSWORD_URL =
   new URLSearchParams(window.location.search).get('forgotUrl') ||
   defaultForgotUrl
+const RETURN_URL =
+  new URLSearchParams(window.location.search).get('returnUrl') || ''
 
 // =============================================================
 // 背景图片（可配置，此处使用在线示例图）
@@ -238,8 +249,7 @@ const pwdHintClass = computed(() => {
 // =============================================================
 const canLogin = computed(() => {
   return loginForm.account.trim() !== '' &&
-         loginForm.password.trim() !== '' &&
-         isPwdValid.value
+         loginForm.password.trim() !== ''
 })
 
 // =============================================================
@@ -248,8 +258,41 @@ const canLogin = computed(() => {
 function isValidAccountFormat(account: string): boolean {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
   const phoneRegex = /^1[3-9]\d{9}$/
-  const usernameRegex = /^[A-Za-z0-9_@.-]{4,64}$/
+  const usernameRegex = /^[\u4e00-\u9fffA-Za-z0-9_@.-]{2,64}$/
   return emailRegex.test(account) || phoneRegex.test(account) || usernameRegex.test(account)
+}
+
+function normalizeReturnUrl(rawReturnUrl: string): string {
+  if (!rawReturnUrl) {
+    return ''
+  }
+
+  try {
+    const targetUrl = new URL(rawReturnUrl, window.location.origin)
+    const sameOrigin = targetUrl.origin === window.location.origin
+    const trustedLocalApp =
+      isLocalDevelopment &&
+      targetUrl.protocol === window.location.protocol &&
+      targetUrl.hostname === window.location.hostname &&
+      SAFE_LOCAL_PORTS.has(targetUrl.port)
+
+    if (!sameOrigin && !trustedLocalApp) {
+      return ''
+    }
+
+    const loginRoot = new URL(window.location.origin)
+    const isLoginPage =
+      targetUrl.origin === loginRoot.origin &&
+      targetUrl.pathname === '/'
+
+    if (isLoginPage) {
+      return ''
+    }
+
+    return targetUrl.toString()
+  } catch {
+    return ''
+  }
 }
 
 // =============================================================
@@ -299,13 +342,16 @@ async function handleLogin() {
       const roleType = typeof data?.user?.roleType === 'string' ? data.user.roleType : ''
       const backendPath = typeof data?.redirectPath === 'string' ? data.redirectPath : ''
       const normalizedPath = backendPath === '/ai-customer-service' ? '/workbench/' : backendPath
-      const redirectUrl = roleType === 'CUSTOMER_SERVICE'
-        ? workbenchUrl
-        : roleType === 'ADMIN'
-          ? adminUsersUrl
-          : normalizedPath && normalizedPath.startsWith('/')
-            ? `${window.location.origin}${normalizedPath}`
-            : `${window.location.origin}/`
+      const normalizedReturnUrl = normalizeReturnUrl(RETURN_URL)
+      const redirectUrl = normalizedReturnUrl
+        ? normalizedReturnUrl
+        : roleType === 'CUSTOMER_SERVICE'
+          ? workbenchUrl
+          : roleType === 'ADMIN'
+            ? adminUsersUrl
+            : normalizedPath && normalizedPath.startsWith('/')
+              ? `${window.location.origin}${normalizedPath}`
+              : `${window.location.origin}/`
       window.location.href = redirectUrl
     } else {
       if (message.includes('不存在')) {
@@ -353,6 +399,11 @@ function goToForgot() {
 }
 
 onMounted(() => {
+  if (RETURN_URL && !normalizeReturnUrl(RETURN_URL)) {
+    const currentUrl = new URL(window.location.href)
+    currentUrl.searchParams.delete('returnUrl')
+    window.history.replaceState({}, '', currentUrl.toString())
+  }
   loadRemembered()
 })
 </script>

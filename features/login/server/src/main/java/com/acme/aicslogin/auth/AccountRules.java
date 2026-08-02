@@ -5,7 +5,7 @@ import java.util.regex.Pattern;
 
 public final class AccountRules {
 
-    private static final Pattern ACCOUNT_PATTERN = Pattern.compile("^[A-Za-z0-9@._-]{4,64}$");
+    private static final Pattern ACCOUNT_PATTERN = Pattern.compile("^[\\p{IsHan}A-Za-z0-9@._-]{2,64}$");
     private static final Pattern PHONE_PATTERN = Pattern.compile("^1\\d{10}$");
 
     private AccountRules() {

@@ -39,6 +39,12 @@ type RoleFilter = "ALL" | UserRole;
 type StatusFilter = "ALL" | UserStatus;
 
 const PAGE_SIZE = 10;
+const isLocalDevelopment =
+  window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost";
+const localUrl = (port: number) => `${window.location.protocol}//${window.location.hostname}:${port}/`;
+const LOGIN_URL =
+  import.meta.env.VITE_LOGIN_URL ||
+  (isLocalDevelopment ? localUrl(5173) : `${window.location.origin}/`);
 
 const NAVIGATION_ITEMS = [
   { label: "管理看板", icon: Gauge },
@@ -51,9 +57,9 @@ const NAVIGATION_ITEMS = [
 ];
 
 const NAV_LINKS: Record<string, string> = {
-  "用户管理": import.meta.env.VITE_ADMIN_USERS_URL || `${window.location.origin}/admin/users/`,
-  "Token 管理": import.meta.env.VITE_ADMIN_TOKENS_URL || `${window.location.origin}/admin/tokens/`,
-  "违禁词管理": import.meta.env.VITE_ADMIN_FORBIDDEN_WORDS_URL || `${window.location.origin}/admin/forbidden-words/`,
+  "用户管理": import.meta.env.VITE_ADMIN_USERS_URL || (isLocalDevelopment ? localUrl(5176) : `${window.location.origin}/admin/users/`),
+  "Token 管理": import.meta.env.VITE_ADMIN_TOKENS_URL || (isLocalDevelopment ? localUrl(5177) : `${window.location.origin}/admin/tokens/`),
+  "违禁词管理": import.meta.env.VITE_ADMIN_FORBIDDEN_WORDS_URL || (isLocalDevelopment ? localUrl(5179) : `${window.location.origin}/admin/forbidden-words/`),
 };
 
 export default function UserManagementPage() {
@@ -88,25 +94,27 @@ export default function UserManagementPage() {
   const [logUser, setLogUser] = useState<User | null>(null);
   const [operationLogs, setOperationLogs] = useState<OperationLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  const redirectToLogin = useCallback(() => {
+    const loginUrl = new URL(LOGIN_URL);
+    loginUrl.searchParams.set(
+      "returnUrl",
+      window.location.href,
+    );
+    window.location.assign(loginUrl.toString());
+  }, []);
 
   const loadUsers = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await getCustomerServiceUsers({
-        page: currentPage,
-        pageSize: PAGE_SIZE,
-        keyword,
-        role: roleFilter,
-        status: statusFilter,
-      });
-      setUsers(response.data.list);
-      
-      setUsers(response.data.list);
-    } catch (error: unknown) {
-      handleError(error, "用户列表加载失败");
-    } finally {
-      setLoading(false);
-    }
+    const response = await getCustomerServiceUsers({
+      page: currentPage,
+      pageSize: PAGE_SIZE,
+      keyword,
+      role: roleFilter,
+      status: statusFilter,
+    });
+    setUsers(response.data.list);
+    setTotalUsers(response.data.total);
   }, [currentPage, keyword, roleFilter, statusFilter]);
 
   const loadStatistics = useCallback(async()=>{
@@ -153,35 +161,48 @@ export default function UserManagementPage() {
   
   },[]);
     
-  useEffect(() => {
-
-    const timer = window.setTimeout(() => {
-   
-      void loadUsers();
-   
-      void loadStatistics();
-   
-    },300);
-   
-   
-    return () =>
-      window.clearTimeout(timer);
-   
-   
-   },[
-    loadUsers,
-    loadStatistics
-   ]);
+  const reloadPageData = useCallback(async () => {
+    try {
+      setLoading(true);
+      await Promise.all([
+        loadUsers(),
+        loadStatistics(),
+      ]);
+    } catch (error: unknown) {
+      handleError(error, "用户列表加载失败");
+    } finally {
+      setLoading(false);
+    }
+  }, [loadStatistics, loadUsers]);
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
+    void reloadPageData();
+  }, [isAuthenticated, reloadPageData]);
+
+  useEffect(() => {
+    let cancelled = false;
+
     getCurrentUser()
       .then((response) => {
+        if (cancelled) {
+          return;
+        }
         setCurrentUserName(response.data.username);
+        setIsAuthenticated(true);
       })
       .catch(() => {
-        window.location.href = `/?returnUrl=${encodeURIComponent(window.location.pathname)}`;
+        if (cancelled) {
+          return;
+        }
+        redirectToLogin();
       });
-  }, []);
+    return () => {
+      cancelled = true;
+    };
+  }, [redirectToLogin]);
 
   const totalPages = Math.max(1, Math.ceil(totalUsers / PAGE_SIZE));
 
@@ -194,6 +215,10 @@ export default function UserManagementPage() {
   function handleError(error: unknown, fallback: string) {
     console.error(fallback, error);
     if (error instanceof ApiError) {
+      if (error.status === 401) {
+        redirectToLogin();
+        return;
+      }
       window.alert(error.response.message || fallback);
       return;
     }
@@ -202,17 +227,27 @@ export default function UserManagementPage() {
 
   function handleCreated() {
     showSuccess("客服人员账号创建成功");
-    setCurrentPage(1);
-    void loadUsers();
-    void loadStatistics();
+    if (currentPage !== 1) {
+      setCurrentPage(1);
+      return;
+    }
+    void reloadPageData();
   }
 
   function handleRefresh() {
+    const shouldReloadDirectly =
+      keyword === "" &&
+      roleFilter === "ALL" &&
+      statusFilter === "ALL" &&
+      currentPage === 1;
+
     setKeyword("");
     setRoleFilter("ALL");
     setStatusFilter("ALL");
     setCurrentPage(1);
-    void loadUsers();
+    if (shouldReloadDirectly) {
+      void reloadPageData();
+    }
     showSuccess("用户列表已刷新");
   }
 

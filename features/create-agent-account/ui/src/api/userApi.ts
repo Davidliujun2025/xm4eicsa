@@ -14,12 +14,20 @@ import type {
   UserStatus,
 } from "../types/user";
 
-const API_BASE_URL =
-  (
+function resolveApiBaseUrl(): string {
+  const configuredBaseUrl =
     import.meta.env.VITE_ADMIN_API_BASE_URL ??
     import.meta.env.VITE_API_BASE_URL ??
-    ""
-  ).replace(/\/$/, "");
+    "";
+
+  if (import.meta.env.DEV) {
+    return "";
+  }
+
+  return configuredBaseUrl.replace(/\/$/, "");
+}
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 function getCookie(name: string): string | undefined {
   return document.cookie
@@ -44,6 +52,15 @@ export class ApiError extends Error {
     this.status = status;
     this.response = response;
   }
+}
+
+function isApiErrorResponse(value: unknown): value is ApiErrorResponse {
+  return Boolean(
+    value &&
+    typeof value === "object" &&
+    "code" in value &&
+    "message" in value,
+  );
 }
 
 async function apiRequest<T>(
@@ -74,20 +91,51 @@ async function apiRequest<T>(
     );
   }
 
-  let result: unknown;
+  const responseText = await response.text();
+  let result: unknown = null;
 
-  try {
-    result = await response.json();
-  } catch {
-    throw new Error(
-      "后端返回的数据不是有效的 JSON",
-    );
+  if (responseText) {
+    try {
+      result = JSON.parse(responseText);
+    } catch {
+      const contentType =
+        response.headers.get("content-type") ??
+        "";
+
+      if (response.status === 401) {
+        throw new ApiError(
+          response.status,
+          {
+            code: "UNAUTHORIZED",
+            message: "登录状态已失效，请重新登录",
+            data: null,
+          },
+        );
+      }
+
+      if (contentType.includes("text/html")) {
+        throw new Error(
+          "接口返回了页面内容，请检查登录状态或本地代理是否正常",
+        );
+      }
+
+      throw new Error(
+        "后端返回的数据不是有效的 JSON",
+      );
+    }
   }
 
   if (!response.ok) {
-    throw new ApiError(
-      response.status,
-      result as ApiErrorResponse,
+    if (isApiErrorResponse(result)) {
+      throw new ApiError(
+        response.status,
+        result,
+      );
+    }
+
+    throw new Error(
+      responseText ||
+      `请求失败（${response.status}）`,
     );
   }
 
