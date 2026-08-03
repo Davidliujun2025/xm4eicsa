@@ -1,0 +1,31 @@
+name: Guard Local Artifacts
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  guard-local-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reject tracked local artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          blocked_files=$(
+            git ls-files \
+              | grep -E '(^|/)(target|dist|coverage)/|(\.class|\.jar|\.war)$|(^|/)\.env($|\.local$|\.development$|\.test$|\.production$)' \
+              || true
+          )
+
+          if [ -n "$blocked_files" ]; then
+            echo "The repository still tracks generated artifacts or local environment files:"
+            echo "$blocked_files"
+            exit 1
+          fi

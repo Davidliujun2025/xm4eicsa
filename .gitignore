@@ -6,10 +6,17 @@ coverage/
 
 # Backend
 target/
+*.class
+*.jar
+*.war
 
 # Environment variables
 .env
 .env.*
+.env.local
+.env.development
+.env.test
+.env.production
 !.env.example
 !**/.env.example
 

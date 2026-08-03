@@ -1,0 +1,16 @@
+#!/bin/sh
+
+set -eu
+
+blocked_files=$(
+  git diff --cached --name-only --diff-filter=ACMR \
+    | grep -E '(^|/)(target|dist|coverage)/|(\.class|\.jar|\.war)$|(^|/)\.env($|\.local$|\.development$|\.test$|\.production$)' \
+    || true
+)
+
+if [ -n "$blocked_files" ]; then
+  echo "提交被拦截：检测到不应进入版本库的本地构建产物或环境文件。"
+  echo "$blocked_files"
+  echo "如果这是误判，请先调整 .gitignore 或 hook 规则。"
+  exit 1
+fi
