@@ -5,7 +5,7 @@ const baseURL = import.meta.env.VITE_API_BASE_URL || '';
 
 const instance: AxiosInstance = axios.create({
   baseURL,
-  timeout: 10000,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -22,6 +22,12 @@ instance.interceptors.request.use(
 instance.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
+    if (error.code === 'ECONNABORTED') {
+      return Promise.reject({
+        status: 0,
+        message: '个人话术库加载超时，请稍后重试',
+      });
+    }
     if (error.response) {
       const data = error.response.data as ErrorResponse;
       return Promise.reject({

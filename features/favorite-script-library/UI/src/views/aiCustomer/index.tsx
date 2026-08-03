@@ -62,6 +62,26 @@ const mockFavorites: FavoriteResponse[] = [
   },
 ];
 
+const enableMockPreview = import.meta.env.VITE_USE_MOCK_FAVORITES === 'true';
+
+const isLocalDevelopment = () => window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
+
+const getLoginUrl = (returnUrl?: string) => {
+  const configuredUrl = import.meta.env.VITE_LOGIN_URL;
+  const baseUrl = configuredUrl
+    || (isLocalDevelopment()
+      ? `${window.location.protocol}//${window.location.hostname}:5173/`
+      : `${window.location.origin}/`);
+
+  if (!returnUrl) {
+    return baseUrl;
+  }
+
+  const targetUrl = new URL(baseUrl, window.location.origin);
+  targetUrl.searchParams.set('returnUrl', returnUrl);
+  return targetUrl.toString();
+};
+
 const AiCustomer: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [list, setList] = useState<FavoriteResponse[]>([]);
@@ -75,6 +95,7 @@ const AiCustomer: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [tagInput, setTagInput] = useState('');
   const [tempTags, setTempTags] = useState<string[]>([]);
+  const [loadError, setLoadError] = useState('');
   const [form] = Form.useForm();
   const size = 12;
 
@@ -93,13 +114,26 @@ const AiCustomer: React.FC = () => {
 
   const fetchList = async () => {
     setLoading(true);
+    setLoadError('');
     try {
       const res = await searchFavorites(keyword || undefined, selectedTag, page, size);
       setList(res.items);
       setTotal(res.total);
       setUsingMock(false);
-    } catch {
-      applyMockData();
+    } catch (error) {
+      const requestError = error as { status?: number; message?: string };
+      if (requestError.status === 401 || requestError.status === 403) {
+        window.location.replace(getLoginUrl(window.location.href));
+        return;
+      }
+      if (enableMockPreview) {
+        applyMockData();
+        return;
+      }
+      setList([]);
+      setTotal(0);
+      setUsingMock(false);
+      setLoadError(requestError.message || '个人话术库加载失败');
     } finally {
       setLoading(false);
     }
@@ -109,8 +143,17 @@ const AiCustomer: React.FC = () => {
     try {
       const res = await listTags();
       setTagOptions(res);
-    } catch {
-      setTagOptions(Array.from(new Set(mockFavorites.flatMap((item) => item.tags))));
+    } catch (error) {
+      const requestError = error as { status?: number };
+      if (requestError.status === 401 || requestError.status === 403) {
+        window.location.replace(getLoginUrl(window.location.href));
+        return;
+      }
+      if (enableMockPreview) {
+        setTagOptions(Array.from(new Set(mockFavorites.flatMap((item) => item.tags))));
+      } else {
+        setTagOptions([]);
+      }
     }
   };
 
@@ -218,6 +261,12 @@ const AiCustomer: React.FC = () => {
         <Text type="secondary">管理收藏的 AI 话术，快速复用提升效率</Text>
         {usingMock && <Tag color="gold" style={{ marginLeft: 12 }}>本地模拟数据</Tag>}
       </div>
+
+      {loadError && (
+        <Card style={{ marginBottom: 16, borderColor: '#ffd8bf', background: '#fff7e6' }}>
+          <Text style={{ color: '#d46b08' }}>{loadError}</Text>
+        </Card>
+      )}
 
       <Card style={{ marginBottom: 24 }}>
         <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>

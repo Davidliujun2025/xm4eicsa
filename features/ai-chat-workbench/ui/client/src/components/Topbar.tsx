@@ -1,5 +1,6 @@
 import { Help, Bell, Chev } from "./icons";
 import { useState, useEffect, useRef } from "react";
+import { logoutAndRedirect } from "../utils/auth";
 
 type TopbarProps = {
   title?: string;
@@ -16,10 +17,9 @@ export default function Topbar({
   const [dropdownOpen, setDropdownOpen] = useState(false);
   // 弹窗类型：''无弹窗 | 'logout'退出登录 | 'switch'切换账号
   const [modalType, setModalType] = useState<"" | "logout" | "switch">("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const FRONTEND_URL = "http://127.0.0.1:15173";
 
-  // 点击空白区域关闭下拉菜单
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
@@ -30,12 +30,13 @@ export default function Topbar({
     return () => document.removeEventListener("click", handleClickOutside);
   }, []);
 
-  // 跳转登录页通用方法
-  const goLoginPage = () => {
-    // 可选：清除本地token
-    // localStorage.removeItem("token");
-    // sessionStorage.clear();
-    window.location.href = `${FRONTEND_URL}/login`;
+  const confirmAccountAction = async () => {
+    setIsSubmitting(true);
+    try {
+      await logoutAndRedirect(window.location.href);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // 打开退出确认弹窗
@@ -123,15 +124,17 @@ export default function Topbar({
               <div className="flex justify-end gap-3">
                 <button
                   onClick={closeModal}
+                  disabled={isSubmitting}
                   className="px-5 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors"
                 >
                   否
                 </button>
                 <button
-                  onClick={goLoginPage}
+                  onClick={() => void confirmAccountAction()}
+                  disabled={isSubmitting}
                   className="px-5 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600 transition-colors"
                 >
-                  是
+                  {isSubmitting ? "处理中..." : "是"}
                 </button>
               </div>
             </div>

@@ -13,6 +13,24 @@ let currentPage = 1;
 let itemsPerPage = 10;
 let filteredRecords = [];
 
+function getCustomerNavMap() {
+    const local = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
+    const localUrl = (port, path = '/') => `${window.location.protocol}//${window.location.hostname}:${port}${path}`;
+    return local ? {
+        '智能对话': localUrl(5174),
+        '对话记录': localUrl(5174, '/?view=history'),
+        '个人话术库': localUrl(5178),
+        '我的评估': localUrl(5174, '/?view=evaluation'),
+        'Token统计': localUrl(5180)
+    } : {
+        '智能对话': `${window.location.origin}/workbench/`,
+        '对话记录': `${window.location.origin}/workbench/?view=history`,
+        '个人话术库': `${window.location.origin}/favorite-script-library/`,
+        '我的评估': `${window.location.origin}/workbench/?view=evaluation`,
+        'Token统计': `${window.location.origin}/token-usage/`
+    };
+}
+
 // ===================== 【新增：和Sidebar.tsx完全一致的侧边栏状态】 =====================
 let expandState = {};
 // 初始化读取共享存储 key:sidebar_expand
@@ -45,7 +63,8 @@ function applySidebarRender() {
     const dashboardOpen = getDashboardOpen();
     const dashboardToggle = document.getElementById('dashboardSectionToggle');
     const tokenStatsMenuItem = document.getElementById('tokenStatsMenuItem');
-    const chevIcon = dashboardToggle?.querySelector('.chev-icon');
+    const chevIcon = dashboardToggle?.querySelector('.chev-icon, .script-fold-arrow');
+    const customerNavMap = getCustomerNavMap();
 
     if (!dashboardToggle || !tokenStatsMenuItem) return;
 
@@ -97,7 +116,7 @@ async function loadTokenData() {
             totalPages: totalPages,
             fromServer: true
         };
-        updateDataSourceNote('后端记录数据');
+        updateDataSourceNote('真实数据库记录');
         return tokenData;
     } catch (error) {
         updateDataSourceNote('本地模拟数据');
@@ -118,7 +137,7 @@ async function loadTokenUsageInfo() {
                 // ensure usedToday field for UI
                 data.usedToday = data.totalTokens ?? data.total_tokens ?? data.total ?? data.usedToday ?? null;
                 tokenUsageInfo = data;
-                updateDataSourceNote('后端TokenUsage');
+                updateDataSourceNote('真实数据库统计');
             }
             return data;
         }
@@ -137,7 +156,7 @@ async function loadSummary() {
             if (data) {
                 tokenUsageInfo = tokenUsageInfo || {};
                 tokenUsageInfo.summary = data;
-                updateDataSourceNote('后端Summary');
+                updateDataSourceNote('真实数据库汇总');
             }
             return data;
         }
@@ -159,7 +178,7 @@ async function loadTrend() {
             } else {
                 tokenTrendData = null;
             }
-            if (tokenTrendData) updateDataSourceNote('后端Trend');
+            if (tokenTrendData) updateDataSourceNote('真实数据库趋势');
             return tokenTrendData;
         }
     } catch (e) {
@@ -214,10 +233,10 @@ function updateDataSourceNote(source) {
         try {
             const base = window.tokenApi && window.tokenApi.getBaseURL ? window.tokenApi.getBaseURL() : (window.TOKEN_API_BASE_URL || '');
             if (base && !/模拟|本地|mock/i.test((source||''))) {
-                detail = `（后端：${base}）`;
+                detail = `（接口：${base}）`;
             }
         } catch (e) {}
-        note.textContent = `当前数据来源：${source} ${detail}`.trim();
+        note.textContent = `当前数据来源：${source}${detail}`.trim();
     }
     const banner = document.getElementById('mockBanner');
     if (banner) {
@@ -300,7 +319,9 @@ function normalizeRecord(r) {
     if (!r) return r;
     const record = {};
     record.id = r.requestId || r.idempotencyKey || r.id || r.request_id || r.requestIdRaw || '';
-    record.callTime = r.callTime || r.call_time || r.createdAt || r.created_at || r.timestamp || '';
+    record.callTime = formatCallTime(
+        r.callTime || r.call_time || r.occurredAt || r.occurred_at || r.createdAt || r.created_at || r.timestamp || ''
+    );
     // model and provider
     record.modelName = r.model || r.modelName || r.model_name || '';
     record.provider = r.provider || r.vendor || '';
@@ -321,6 +342,20 @@ function normalizeRecord(r) {
     record.providerReportedCost = Number((r.providerReportedCost ?? r.provider_reported_cost ?? r.providerReportedCost) || 0);
     record.costCurrency = r.costCurrency || r.cost_currency || r.currency || '';
     return record;
+}
+
+function formatCallTime(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const hh = String(date.getHours()).padStart(2, '0');
+    const min = String(date.getMinutes()).padStart(2, '0');
+    const sec = String(date.getSeconds()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd} ${hh}:${min}:${sec}`;
 }
 
 function normalizeTrendPoint(p) {
@@ -537,15 +572,44 @@ function buildTrendByPeriod(records, period) {
     return Object.values(groups).sort((a, b) => a.key.localeCompare(b.key));
 }
 
+function getLatestHistoricalTime() {
+    const records = tokenData?.records || [];
+    const dates = records
+        .map(record => parseMockDate(record.callTime))
+        .filter(Boolean)
+        .sort((a, b) => b.getTime() - a.getTime());
+    if (!dates.length) return '';
+    return formatCallTime(dates[0]);
+}
+
+function ensureTrendCanvas() {
+    const chartCard = document.querySelector('.chart-card');
+    if (!chartCard) return null;
+
+    let canvas = document.getElementById('trendChart');
+    if (!canvas) {
+        chartCard.innerHTML = '<canvas id="trendChart"></canvas>';
+        canvas = document.getElementById('trendChart');
+    }
+    return canvas;
+}
+
+function renderTrendEmptyState(message) {
+    if (trendChart) {
+        trendChart.destroy();
+        trendChart = null;
+    }
+
+    const chartCard = document.querySelector('.chart-card');
+    if (!chartCard) return;
+    chartCard.innerHTML = `<div class="empty-table">${message}</div>`;
+}
+
 function renderChart() {
     if (typeof Chart === 'undefined') {
-        const chartCard = document.querySelector('.chart-card');
-        if (chartCard) {
-            chartCard.innerHTML = '<div class="empty-table">趋势图资源加载失败，统计卡片和记录表仍可正常查看。</div>';
-        }
+        renderTrendEmptyState('趋势图资源加载失败，统计卡片和记录表仍可正常查看。');
         return;
     }
-    const ctx = document.getElementById('trendChart').getContext('2d');
     let data = [];
     // Prefer server-provided trend data if available and period is day
     if (tokenTrendData && currentPeriod === 'day') {
@@ -568,6 +632,18 @@ function renderChart() {
                 data = buildDailyTrend(records);
         }
     }
+
+    const hasTrendValues = data.some(item => (item.totalToken || item.inputToken || item.outputToken || 0) > 0);
+    if (!data.length || !hasTrendValues) {
+        const latestTime = getLatestHistoricalTime();
+        const suffix = latestTime ? `，当前历史记录最新时间为 ${latestTime}` : '';
+        renderTrendEmptyState(`当前筛选时间范围内暂无趋势数据${suffix}。`);
+        return;
+    }
+
+    const canvas = ensureTrendCanvas();
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
     
     const labels = data.map(d => d.date);
     const inputData = data.map(d => d.inputToken);
@@ -1036,21 +1112,7 @@ function bindEvents() {
     }
 
     // sidebar menu item activation
-    const local = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
-    const localUrl = (port, path = '/') => `${window.location.protocol}//${window.location.hostname}:${port}${path}`;
-    const customerNavMap = local ? {
-        '智能对话': localUrl(5174),
-        '对话记录': localUrl(5174, '/?view=history'),
-        '个人话术库': localUrl(5178),
-        '我的评估': localUrl(5174, '/?view=evaluation'),
-        'Token统计': window.location.href
-    } : {
-        '智能对话': `${window.location.origin}/workbench/`,
-        '对话记录': `${window.location.origin}/workbench/?view=history`,
-        '个人话术库': `${window.location.origin}/favorite-script-library/`,
-        '我的评估': `${window.location.origin}/workbench/?view=evaluation`,
-        'Token统计': `${window.location.origin}/token-usage/`
-    };
+    const customerNavMap = getCustomerNavMap();
 
     document.querySelectorAll('.sidebar .menu-item').forEach(item => {
         item.addEventListener('click', function() {

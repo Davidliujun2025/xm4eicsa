@@ -10,21 +10,13 @@ import ConversationHistoryPage from "./components/ConversationHistoryPage";
 import MyEvaluationPage from "./components/MyEvaluationPage";
 import type { SidebarItemId } from "./components/Sidebar";
 import type { Conversation, TokenInfo } from "./types";
+import { getLoginUrl } from "./utils/auth";
 
 type WorkbenchView = "conversation" | "history" | "evaluation";
 
 function getWorkbenchView(): WorkbenchView {
   const requestedView = new URLSearchParams(window.location.search).get("view");
   return requestedView === "history" || requestedView === "evaluation" ? requestedView : "conversation";
-}
-
-function getLoginUrl() {
-  const configuredUrl = import.meta.env.VITE_LOGIN_URL;
-  if (configuredUrl) return configuredUrl;
-  const isLocal = window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost";
-  return isLocal
-    ? `${window.location.protocol}//${window.location.hostname}:15173/`
-    : `${window.location.origin}/`;
 }
 
 export default function App() {
@@ -75,7 +67,7 @@ export default function App() {
       try {
         const response = await fetch("/api/v1/auth/me", { credentials: "include", signal: controller.signal });
         if (response.status === 401 || response.status === 403) {
-          window.location.replace(getLoginUrl());
+          window.location.replace(getLoginUrl(window.location.href));
           return;
         }
         if (!response.ok) {
@@ -88,7 +80,7 @@ export default function App() {
           return;
         }
         if (payload?.code === "OK" && payload?.data?.roleType) {
-          window.location.replace(getLoginUrl());
+          window.location.replace(getLoginUrl(window.location.href));
           return;
         }
         throw new Error("登录状态接口返回的数据格式不正确");

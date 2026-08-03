@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Token统计（本地预览）</title>
+  <title>Token统计</title>
   <link rel="stylesheet" href="styles.css?v=20260728-dashboard-fold1">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
@@ -31,7 +31,7 @@
         <div class="dashboard-header">
           <div class="dashboard-title">
             <h1>Token统计</h1>
-            <div class="data-note" id="dataSourceNote">当前为本地模拟数据，可切换为后端接口。</div>
+            <div class="data-note" id="dataSourceNote">正在连接真实数据...</div>
           </div>
           <div class="dashboard-actions">
             <button class="top-link help-link" type="button" aria-label="帮助中心">
@@ -175,7 +175,7 @@
               </span>
               <span class="label">数据看板</span>
             </span>
-            <svg class="script-fold-arrow" id="dashboardFoldArrow" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <svg class="script-fold-arrow chev-icon" id="dashboardFoldArrow" width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
   <path d="M6 9L12 15L18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
         </li>
@@ -198,10 +198,3 @@
   <script src="app.js?v=20260801-navigation-fix"></script>
 </body>
 </html>
-/* 箭头动画样式，必须添加，和React端统一 */
-.chev-icon {
-    transition: transform 0.2s ease;
-}
-.rotate-180 {
-    transform: rotate(180deg);
-}

@@ -6,6 +6,22 @@ type ConversationInput = {
   customerType?: string;
 };
 
+type PersonalFavoriteToggleInput = {
+  sourceTalkId?: string;
+  content: string;
+  scenario: string;
+  generatedAt?: string;
+  tags: string[];
+};
+
+type PersonalFavoriteToggleResponse = {
+  favorited: boolean;
+  favorite: {
+    id: string;
+  } | null;
+  message: string;
+};
+
 async function parseResponse<T>(response: Response): Promise<T> {
   const payload = await response.json() as ApiResponse<T>;
   if (!response.ok || payload.code !== 200) {
@@ -34,6 +50,24 @@ async function mutate<T>(url: string, method: "POST" | "DELETE", body?: unknown)
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   }));
+}
+
+async function mutateJson<T>(url: string, method: "POST" | "DELETE", body?: unknown) {
+  const token = await csrfToken();
+  const response = await fetch(url, {
+    method,
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      "X-XSRF-TOKEN": token,
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const payload = await response.json() as T & { message?: string };
+  if (!response.ok) {
+    throw new Error(payload?.message || "服务请求失败");
+  }
+  return payload;
 }
 
 export const workbenchApi = {
@@ -66,5 +100,9 @@ export const workbenchApi = {
       "POST",
       input,
     );
+  },
+
+  async togglePersonalFavorite(input: PersonalFavoriteToggleInput) {
+    return mutateJson<PersonalFavoriteToggleResponse>("/api/v1/script-favorites/toggle", "POST", input);
   },
 };

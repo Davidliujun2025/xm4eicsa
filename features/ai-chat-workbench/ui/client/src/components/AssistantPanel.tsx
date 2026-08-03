@@ -3,6 +3,7 @@ import { STEPS } from "../config/workbench";
 import { useCountUp } from "../hooks/useCountUp";
 import type { ChatMessage, TokenInfo } from "../types";
 import { Spark, Check, Flag, Arrow } from "./icons";
+import { workbenchApi } from "../services/workbenchApi";
 
 const STEP_FIELDS: Array<keyof ChatMessage> = [
   "intentRecognition",
@@ -27,8 +28,69 @@ export default function AssistantPanel({ platformName, messages, tokenInfo, gene
   const totalLimit = tokenInfo?.totalLimit ?? 0;
   const usagePercent = Math.min(100, Math.max(0, tokenInfo?.usagePercent ?? 0));
   const content = latestMessage?.[STEP_FIELDS[step - 1]];
+  const [favoriteMessage, setFavoriteMessage] = useState("");
+  const [favoriteError, setFavoriteError] = useState("");
+  const [favoriting, setFavoriting] = useState(false);
 
   const advance = () => onNextStep();
+
+  useEffect(() => {
+    setFavoriteMessage("");
+    setFavoriteError("");
+  }, [latestMessage?.id, step]);
+
+  const buildFavoriteTags = () => {
+    const candidates = [
+      platformName,
+      latestMessage?.customerType,
+      STEPS[step - 1],
+    ];
+
+    return [...new Set(
+      candidates
+        .map((item) => item?.trim())
+        .filter((item): item is string => Boolean(item))
+        .map((item) => item.slice(0, 5)),
+    )];
+  };
+
+  const buildGeneratedAt = () => {
+    if (!latestMessage?.createdAt) {
+      return undefined;
+    }
+
+    const parsed = new Date(latestMessage.createdAt);
+    if (Number.isNaN(parsed.getTime())) {
+      return undefined;
+    }
+
+    return parsed.toISOString();
+  };
+
+  const handleFavorite = async () => {
+    if (!latestMessage || typeof content !== "string" || !content.trim() || favoriting) {
+      return;
+    }
+
+    setFavoriting(true);
+    setFavoriteMessage("");
+    setFavoriteError("");
+
+    try {
+      const response = await workbenchApi.togglePersonalFavorite({
+        sourceTalkId: `msg-${latestMessage.id}-round-${latestMessage.dialogRound}-step-${step}`,
+        content: content.trim(),
+        scenario: `${platformName}-${latestMessage.customerType || "通用"}-${STEPS[step - 1]}`.slice(0, 100),
+        generatedAt: buildGeneratedAt(),
+        tags: buildFavoriteTags(),
+      });
+      setFavoriteMessage(response.message || (response.favorited ? "已收藏到个人话术库" : "已取消收藏"));
+    } catch (error) {
+      setFavoriteError(error instanceof Error ? error.message : "收藏失败，请稍后重试");
+    } finally {
+      setFavoriting(false);
+    }
+  };
 
   return (
     <section className="flex min-h-0 flex-col gap-4">
@@ -153,12 +215,21 @@ export default function AssistantPanel({ platformName, messages, tokenInfo, gene
               </div>
 
               <div className="mt-3 flex items-center justify-between">
-                <span className="text-[12.5px] text-slate-400">
-                  本轮消耗 {latestMessage.totalTokens?.toLocaleString() ?? 0} Token
-                </span>
-                <button type="button" className="flex items-center gap-1.5 rounded-lg border border-blue-200 px-3 py-1.5 text-[12.5px] font-medium text-blue-600 transition-colors hover:bg-blue-50">
+                <div className="flex flex-col gap-1">
+                  <span className="text-[12.5px] text-slate-400">
+                    本轮消耗 {latestMessage.totalTokens?.toLocaleString() ?? 0} Token
+                  </span>
+                  {favoriteMessage && <span className="text-[12px] text-emerald-600">{favoriteMessage}</span>}
+                  {favoriteError && <span className="text-[12px] text-red-600">{favoriteError}</span>}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleFavorite()}
+                  disabled={favoriting || !content || !String(content).trim()}
+                  className="flex items-center gap-1.5 rounded-lg border border-blue-200 px-3 py-1.5 text-[12.5px] font-medium text-blue-600 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
                   <Flag className="h-4 w-4" />
-                  收藏到话术库
+                  {favoriting ? "收藏中..." : "收藏到话术库"}
                 </button>
               </div>
             </div>
