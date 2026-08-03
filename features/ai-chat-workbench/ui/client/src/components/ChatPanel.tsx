@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { NOTES, PLATFORMS } from "../config/workbench";
 import type { ChatMessage } from "../types";
 import { Chev, Check, Spark, Help, Tick } from "./icons";
@@ -12,6 +12,7 @@ type Props = {
   generating: boolean;
   error: string;
   onGenerate: () => void;
+  isCurStepGenerated: boolean; // 新增：当前步骤是否已经生成
 };
 
 function formatMessageTime(value?: string) {
@@ -31,31 +32,51 @@ export default function ChatPanel({
   generating,
   error,
   onGenerate,
+  isCurStepGenerated,
 }: Props) {
-  const [open, setOpen] = useState(true);
-  const currentPlatform = PLATFORMS.find((platform) => platform.id === platformId) ?? PLATFORMS[1];
+  const [open, setOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const currentPlatform = PLATFORMS.find((platform) => platform.id === platformId);
+
+  // 点击空白关闭下拉逻辑
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
+
+  // 动态按钮文字
+  const btnText = isCurStepGenerated ? "重新生成AI回复" : "生成AI回复";
 
   return (
     <section className="flex min-h-0 flex-col">
       <div className="relative z-30 mb-4 flex items-center gap-4 rounded-2xl border border-slate-200/80 bg-white px-5 py-3.5 shadow-sm">
         <span className="text-[14px] font-medium text-slate-500">服务平台</span>
-        <div className="relative w-[360px]">
+        <div className="relative w-[360px]" ref={dropdownRef}>
           <button
-            type="button"
-            onClick={() => setOpen((value) => !value)}
-            className="flex w-full items-center justify-between rounded-xl border border-slate-200 px-3 py-2.5 transition-colors hover:border-blue-300"
-          >
-            <span className="flex items-center gap-2.5">
-              <span
-                className="grid h-7 w-7 place-items-center rounded-lg text-[13px] font-bold text-white"
-                style={{ background: currentPlatform.color }}
-              >
-                {currentPlatform.shortName}
-              </span>
-              <span className="text-[14px] font-medium text-slate-800">{currentPlatform.name}</span>
-            </span>
-            <Chev className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
-          </button>
+  type="button"
+  onClick={() => setOpen((value) => !value)}
+  className="flex w-full items-center justify-between rounded-xl border border-slate-200 px-3 py-2.5 transition-colors hover:border-blue-300"
+>
+  {currentPlatform ? (
+    <span className="flex items-center gap-2.5">
+      <span
+        className="grid h-7 w-7 place-items-center rounded-lg text-[13px] font-bold text-white"
+        style={{ background: currentPlatform.color }}
+      >
+        {currentPlatform.shortName}
+      </span>
+      <span className="text-[14px] font-medium text-slate-800">{currentPlatform.name}</span>
+    </span>
+  ) : (
+    <span className="text-[14px] text-slate-400">请选择服务平台</span>
+  )}
+  <Chev className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+</button>
 
           {open && (
             <div className="pop absolute left-0 top-[calc(100%+6px)] w-[230px] rounded-2xl border border-slate-100 bg-white p-2 shadow-2xl shadow-slate-300/40">
@@ -133,11 +154,11 @@ export default function ChatPanel({
         <button
           type="button"
           onClick={onGenerate}
-          disabled={generating || !text.trim()}
+          disabled={generating || !text.trim() || !currentPlatform}
           className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-500 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-blue-500/25 transition-all hover:bg-blue-600 active:scale-[.99] disabled:opacity-60"
         >
           <Spark className={`h-5 w-5 ${generating ? "spin" : ""}`} />
-          {generating ? "正在生成并保存…" : messages.length > 0 ? "继续生成 AI 回复" : "生成 AI 回复"}
+          {generating ? "正在生成并保存…" : btnText}
         </button>
 
         <div className="mt-3 space-y-2 rounded-xl bg-blue-50/60 p-3.5 text-[12.5px] text-blue-700/90">

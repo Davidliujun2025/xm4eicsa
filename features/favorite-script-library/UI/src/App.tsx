@@ -94,7 +94,33 @@ const getAppLinks = (): Record<string, string> => {
 };
 
 const App: React.FC = () => {
-  const [dashboardOpen, setDashboardOpen] = useState(true);
+  // ========== 完全对齐Sidebar的状态持久化逻辑 ==========
+  const [expandState, setExpandState] = useState<Record<string, boolean>>(() => {
+    const saved = localStorage.getItem("sidebar_expand");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return {};
+      }
+    }
+    return { dashboard: true };
+  });
+  const dashboardOpen = expandState.dashboard ?? true;
+
+  // 状态同步存入localStorage
+  useEffect(() => {
+    localStorage.setItem("sidebar_expand", JSON.stringify(expandState));
+  }, [expandState]);
+
+  // 切换函数和Sidebar保持一致
+  const toggleDashboard = () => {
+    setExpandState(prev => ({
+      ...prev,
+      dashboard: !prev.dashboard
+    }));
+  };
+
   const [displayName, setDisplayName] = useState('客服');
   const appLinks = getAppLinks();
 
@@ -118,46 +144,55 @@ const App: React.FC = () => {
         <div className="script-brand">
           <img src="/logo.png" alt="CarePilot AI" className="script-logo" />
         </div>
-        <nav className="script-nav" aria-label="主导航">
-          {navItems.map(({ Icon, label }, index) => {
-            const active = index === 2;
-            return (
-              <button
-                key={label}
-                className={`script-nav-item${active ? ' active' : ''}`}
-                type="button"
-                onClick={() => {
-                  const target = appLinks[label];
-                  if (target) window.location.href = target;
-                }}
-              >
-                <Icon className="script-nav-icon" />
-                <span>{label}</span>
-              </button>
-            );
-          })}
-          <button className="script-nav-item script-nav-item-fold" type="button" onClick={() => setDashboardOpen((v) => !v)}>
-            <span className="script-nav-item-main">
-              <Chart className="script-nav-icon" />
-              <span>数据看板</span>
-            </span>
-            <span className={`script-fold-arrow${dashboardOpen ? '' : ' collapsed'}`}>▼</span>
-          </button>
-          <button
-            className={`script-nav-item script-nav-child-item${dashboardOpen ? '' : ' hidden'}`}
-            type="button"
-            onClick={() => {
-              window.location.href = appLinks['Token统计'];
-            }}
-          >
-            <span>Token统计</span>
-          </button>
-          <button className="script-nav-item settings-item" type="button">
-            <Settings className="script-nav-icon" />
-            <span>设置</span>
-          </button>
-        </nav>
-      </aside>
+<nav className="script-nav" aria-label="主导航">
+  {navItems.map(({ Icon, label }, index) => {
+    const active = index === 2;
+    return (
+      <button
+        key={label}
+        className={`script-nav-item${active ? ' active' : ''}`}
+        type="button"
+        onClick={() => {
+          const target = appLinks[label];
+          if (target) window.location.href = target;
+        }}
+      >
+        <Icon className="script-nav-icon" />
+        <span>{label}</span>
+      </button>
+    );
+  })}
+
+  {/* 数据看板父菜单 */}
+  <button className="script-nav-item script-nav-item-fold" type="button" onClick={toggleDashboard}>
+    <span className="script-nav-item-main">
+      <Chart className="script-nav-icon" />
+      <span>数据看板</span>
+    </span>
+    <Chev
+      className={`script-fold-arrow script-chev-icon ${dashboardOpen ? 'rotate-180' : ''}`}
+    />
+  </button>
+
+  {/* Token统计 文字前增加两个空格 */}
+  {dashboardOpen && (
+    <button
+      className="script-nav-item pl-8"
+      type="button"
+      onClick={() => {
+        window.location.href = appLinks['Token统计'];
+      }}
+    >
+      <span>&nbsp;&nbsp;&nbsp;&nbsp;Token统计</span>
+    </button>
+  )}
+
+  <button className="script-nav-item settings-item" type="button">
+    <Settings className="script-nav-icon" />
+    <span>设置</span>
+  </button>
+</nav>     
+ </aside>
 
       <div className="script-main-shell">
         <header className="script-topbar">

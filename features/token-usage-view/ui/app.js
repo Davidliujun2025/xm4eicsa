@@ -13,6 +13,65 @@ let currentPage = 1;
 let itemsPerPage = 10;
 let filteredRecords = [];
 
+// ===================== 【新增：和Sidebar.tsx完全一致的侧边栏状态】 =====================
+let expandState = {};
+// 初始化读取共享存储 key:sidebar_expand
+function initExpandState() {
+    try {
+        const saved = localStorage.getItem("sidebar_expand");
+        if (saved) {
+            expandState = JSON.parse(saved);
+        } else {
+            expandState = { dashboard: true };
+        }
+    } catch (e) {
+        expandState = { dashboard: true };
+    }
+}
+function toggleExpand(parentId) {
+    expandState[parentId] = !expandState[parentId];
+    localStorage.setItem("sidebar_expand", JSON.stringify(expandState));
+    applySidebarRender();
+}
+
+
+// 获取dashboard展开状态
+function getDashboardOpen() {
+    return expandState.dashboard ?? true;
+}
+// 渲染侧边栏箭头、Token统计显隐
+// 渲染侧边栏箭头、Token统计显隐
+function applySidebarRender() {
+    const dashboardOpen = getDashboardOpen();
+    const dashboardToggle = document.getElementById('dashboardSectionToggle');
+    const tokenStatsMenuItem = document.getElementById('tokenStatsMenuItem');
+    const chevIcon = dashboardToggle?.querySelector('.chev-icon');
+
+    if (!dashboardToggle || !tokenStatsMenuItem) return;
+
+    // 控制Token统计子菜单显示/隐藏
+    tokenStatsMenuItem.style.display = dashboardOpen ? 'block' : 'none';
+
+    // =========【新增】自动激活高亮（当前页面匹配则添加active类）=========
+    const tokenUrl = customerNavMap['Token统计'];
+    // 判断当前地址是否为Token统计页面
+    if (window.location.href.startsWith(tokenUrl)) {
+        tokenStatsMenuItem.classList.add('active');
+    } else {
+        tokenStatsMenuItem.classList.remove('active');
+    }
+
+    // 箭头旋转逻辑保持不变
+    if (chevIcon) {
+        if (dashboardOpen) {
+            chevIcon.classList.add('rotate-180');
+        } else {
+            chevIcon.classList.remove('rotate-180');
+        }
+    }
+}
+// =================================================================================
+
 function getCustomerId() {
     return new URLSearchParams(window.location.search).get('customerId') || localStorage.getItem('customerId') || 'demo-customer';
 }
@@ -322,6 +381,7 @@ function getDashboardStats() {
 
 async function initApp() {
     try {
+        initExpandState(); // 初始化侧边栏状态
         await loadCurrentUser();
         // Load today/summary/trend/records from backend when available
         tokenUsageInfo = await loadTokenUsageInfo();
@@ -332,6 +392,7 @@ async function initApp() {
         renderChart();
         renderTable();
         bindEvents();
+        applySidebarRender(); // 初次渲染侧边栏状态
         // Start SSE only when records came from the backend. In local mock mode,
         // the static server has no /api/v1 stream endpoint.
         if (tokenData?.fromServer) {
@@ -821,63 +882,6 @@ function showDetail(id) {
     const modal = document.getElementById('detailModal');
     const modalBody = document.getElementById('modalBody');
     
-    const display = (rec) => {
-        modalBody.innerHTML = `
-        <div class="detail-row">
-            <span class="detail-label">记录ID</span>
-            <span class="detail-value">${record.id}</span>
-        </div>
-        <div class="detail-row">
-            <span class="detail-label">调用时间</span>
-            <span class="detail-value">${record.callTime}</span>
-        </div>
-        <div class="detail-row">
-            <span class="detail-label">模型名称</span>
-            <span class="detail-value">${record.modelName}</span>
-        </div>
-        <div class="detail-row">
-            <span class="detail-label">会话ID</span>
-            <span class="detail-value">${record.sessionId}</span>
-        </div>
-        <div class="detail-row">
-            <span class="detail-label">用户ID</span>
-            <span class="detail-value">${record.userId}</span>
-        </div>
-        <div class="detail-row">
-            <span class="detail-label">输入Token</span>
-            <span class="detail-value">${record.inputToken.toLocaleString('zh-CN')}</span>
-        </div>
-        <div class="detail-row">
-            <span class="detail-label">输出Token</span>
-            <span class="detail-value">${record.outputToken.toLocaleString('zh-CN')}</span>
-        </div>
-        <div class="detail-row">
-            <span class="detail-label">总消耗</span>
-            <span class="detail-value">${record.totalToken.toLocaleString('zh-CN')}</span>
-        </div>
-        <div class="detail-row">
-            <span class="detail-label">响应时间</span>
-            <span class="detail-value">${record.responseTime}ms</span>
-        </div>
-        <div class="detail-row">
-            <span class="detail-label">状态</span>
-            <span class="detail-value">
-                <span class="status-badge ${record.status}">
-                    ${record.status === 'success' ? '✓ 成功' : record.status === 'failed' ? '✗ 失败' : '⏳ 处理中'}
-                </span>
-            </span>
-        </div>
-        <div class="detail-row">
-            <span class="detail-label">用户输入</span>
-            <span class="detail-value" style="text-align: right; max-width: 60%; word-break: break-all;">${record.prompt}</span>
-        </div>
-        <div class="detail-row">
-            <span class="detail-label">模型响应</span>
-            <span class="detail-value" style="text-align: right; max-width: 60%; word-break: break-all;">${record.response}</span>
-        </div>
-    `;
-    };
-
     function displayDetail(rec) {
         if (!rec) return;
         const r = rec;
@@ -938,7 +942,6 @@ function showDetail(id) {
         modal.classList.add('active');
     }
 
-    // if we had fetched record earlier, display immediately
     if (record) displayDetail(record);
 }
 
@@ -950,37 +953,11 @@ function closeModal() {
 function bindEvents() {
     const dashboardToggle = document.getElementById('dashboardSectionToggle');
     const tokenStatsMenuItem = document.getElementById('tokenStatsMenuItem');
-    const dashboardFoldStateKey = 'tokenDashboardFoldCollapsed';
-    let dashboardCollapsed = false;
 
-    const applyDashboardFoldState = () => {
-        if (!dashboardToggle || !tokenStatsMenuItem) return;
-        dashboardToggle.classList.toggle('collapsed', dashboardCollapsed);
-        tokenStatsMenuItem.classList.toggle('hidden', dashboardCollapsed);
-        dashboardToggle.classList.add('active');
-        if (dashboardCollapsed) {
-            tokenStatsMenuItem.classList.remove('active');
-        } else {
-            tokenStatsMenuItem.classList.add('active');
-        }
-    };
-
-    if (dashboardToggle && tokenStatsMenuItem) {
-        try {
-            dashboardCollapsed = window.localStorage.getItem(dashboardFoldStateKey) === '1';
-        } catch (e) {
-            dashboardCollapsed = false;
-        }
-        applyDashboardFoldState();
-
+    // ============【重点改造：绑定折叠事件，调用统一toggleExpand】============
+    if (dashboardToggle) {
         dashboardToggle.addEventListener('click', function() {
-            dashboardCollapsed = !dashboardCollapsed;
-            applyDashboardFoldState();
-            try {
-                window.localStorage.setItem(dashboardFoldStateKey, dashboardCollapsed ? '1' : '0');
-            } catch (e) {
-                // ignore localStorage write errors
-            }
+            toggleExpand("dashboard");
         });
     }
 
@@ -1087,14 +1064,7 @@ function bindEvents() {
             }
 
             document.querySelectorAll('.sidebar .menu-item').forEach(i => i.classList.remove('active'));
-            if (dashboardToggle) {
-                dashboardToggle.classList.add('active');
-            }
             this.classList.add('active');
-            if (this.id === 'tokenStatsMenuItem') {
-                dashboardCollapsed = false;
-                applyDashboardFoldState();
-            }
         });
     });
 }

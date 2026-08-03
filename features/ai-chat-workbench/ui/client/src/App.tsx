@@ -28,7 +28,7 @@ function getLoginUrl() {
 }
 
 export default function App() {
-  const [platformId, setPlatformId] = useState("tm");
+  const [platformId, setPlatformId] = useState("");
   const [isAuthenticatedCustomerService, setIsAuthenticatedCustomerService] = useState(false);
   const [authError, setAuthError] = useState("");
   const [authRetryKey, setAuthRetryKey] = useState(0);
@@ -41,8 +41,28 @@ export default function App() {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState("");
   const [viewport, setViewport] = useState(() => ({ width: window.innerWidth, height: window.innerHeight }));
+  const [isUserManualSelect, setIsUserManualSelect] = useState(false);
 
-  const currentPlatform = PLATFORMS.find((platform) => platform.id === platformId) ?? PLATFORMS[1];
+  // ============ 新增：五步生成器全局状态 ============
+  const [currentStep, setCurrentStep] = useState(1);
+  // key:步骤号，value：该步骤是否已经执行生成
+  const [stepGeneratedMap, setStepGeneratedMap] = useState<Record<number, boolean>>({});
+  // 当前步骤是否已生成
+  const isCurStepGenerated = !!stepGeneratedMap[currentStep];
+
+  // 切换下一步回调（传给AssistantPanel）
+  const handleNextStep = () => {
+    const next = Math.min(5, currentStep + 1);
+    setCurrentStep(next);
+    // 切换步骤，不需要主动重置，stepGeneratedMap保持，只有当前步骤标记生效
+  };
+
+  // 标记当前步骤已经生成
+  const markCurStepGenerated = () => {
+    setStepGeneratedMap(prev => ({ ...prev, [currentStep]: true }));
+  };
+
+  const currentPlatform = PLATFORMS.find((platform) => platform.id === platformId);
   const view = getWorkbenchView();
   const activeItem: SidebarItemId = view;
   const desktopWidth = 1440;
@@ -91,12 +111,6 @@ export default function App() {
       ]);
       setConversations(loadedConversations);
       setTokenInfo(loadedTokenInfo);
-      const first = loadedConversations[0] ?? null;
-      setSelectedConversation(first);
-      if (first) {
-        setPlatformId(platformFor(first.platform).id);
-        setDraft(first.messages?.at(-1)?.question ?? "");
-      }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "工作台数据加载失败");
     } finally {
@@ -110,6 +124,38 @@ export default function App() {
     }
   }, [isAuthenticatedCustomerService, loadWorkbench, view]);
 
+  const handleChangePlatform = (newPlatformId: string) => {
+    setIsUserManualSelect(false);
+    setPlatformId(newPlatformId);
+  };
+
+  useEffect(() => {
+    if (!platformId) {
+      setSelectedConversation(null);
+      setDraft("");
+      return;
+    }
+    if (!conversations.length) return;
+    if (isUserManualSelect) return;
+
+    const targetPlatform = PLATFORMS.find(p => p.id === platformId);
+    if (!targetPlatform) return;
+
+    const samePlatformConvs = conversations.filter(conv => {
+      const convPlatform = platformFor(conv.platform);
+      return convPlatform.id === platformId;
+    });
+
+    if (samePlatformConvs.length > 0) {
+      const latestConv = samePlatformConvs[0];
+      setSelectedConversation(latestConv);
+      setDraft(latestConv.messages?.at(-1)?.question ?? "");
+    } else {
+      setSelectedConversation(null);
+      setDraft("");
+    }
+  }, [platformId, conversations, isUserManualSelect]);
+
   useEffect(() => {
     const syncViewport = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
     window.addEventListener("resize", syncViewport);
@@ -117,6 +163,7 @@ export default function App() {
   }, []);
 
   const selectConversation = async (conversation: Conversation) => {
+    setIsUserManualSelect(true);
     setSelectedConversation(conversation);
     setPlatformId(platformFor(conversation.platform).id);
     setDraft(conversation.messages?.at(-1)?.question ?? "");
@@ -137,11 +184,16 @@ export default function App() {
     setSelectedConversation(null);
     setDraft("");
     setError("");
+    setPlatformId("");
+    setIsUserManualSelect(false);
+    // 新建对话，重置步骤和生成标记
+    setCurrentStep(1);
+    setStepGeneratedMap({});
   };
 
   const generateReply = async () => {
     const question = draft.trim();
-    if (!question || generating) return;
+    if (!question || generating || !currentPlatform) return;
     setGenerating(true);
     setError("");
     const input = {
@@ -161,6 +213,8 @@ export default function App() {
         ...current.filter((item) => item.conversationId !== updated.conversationId),
       ]);
       setTokenInfo(await workbenchApi.getTokenUsage());
+      // ✅ 生成成功，标记当前步骤已生成
+      markCurStepGenerated();
     } catch (generationError) {
       setError(generationError instanceof Error ? generationError.message : "AI 回复生成失败");
     } finally {
@@ -240,19 +294,22 @@ export default function App() {
               />
               <ChatPanel
                 platformId={platformId}
-                onPlatformChange={setPlatformId}
+                onPlatformChange={handleChangePlatform}
                 messages={selectedConversation?.messages ?? []}
                 text={draft}
                 onTextChange={setDraft}
                 generating={generating}
                 error={error}
                 onGenerate={() => void generateReply()}
+                isCurStepGenerated={isCurStepGenerated}
               />
               <AssistantPanel
-                platformName={currentPlatform.name}
+                platformName={currentPlatform?.name ?? ""}
                 messages={selectedConversation?.messages ?? []}
                 tokenInfo={tokenInfo}
                 generating={generating}
+                step={currentStep}
+                onNextStep={handleNextStep}
               />
             </main>
           )}

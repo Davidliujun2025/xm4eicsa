@@ -103,3 +103,53 @@ button,input,select,textarea{font:inherit}
 
 /* push page content to the right */
 @media (max-width:1100px){.container{padding:0 18px}}
+
+/* 和Sidebar箭头旋转逻辑保持统一 180°翻转 */
+/* ===================== 【标准：侧边导航菜单折叠箭头（和话术库完全一致）】 ===================== */
+.script-fold-arrow {
+  font-size: 12px;
+  line-height: 1;
+  transition: transform 0.2s ease;
+  transform-origin: center; /* 强制中心点旋转，防止偏移 */
+}
+.script-fold-arrow.collapsed {
+  transform: rotate(-90deg);
+}
+
+/* ===================== 【通用下拉箭头（头像下拉、筛选下拉，独立逻辑不变）】 ===================== */
+.chev-icon {
+    width: 16px;
+    height: 16px;
+    color: #94a3b8;
+    transition: transform 0.2s ease;
+    transform-origin: center;
+}
+.chev-icon.rotate-180 {
+    transform: rotate(180deg);
+}
+
+
+/* 完全对齐Sidebar.tsx Token统计子菜单样式 */
+.sidebar-submenu-token {
+    width: 100%;
+    text-align: left;
+    font-size: 15px;          /* 统一字号 */
+    font-weight: 500;         /* font-medium */
+    padding: 12px 16px;
+    padding-left: 32px;       /* pl-8 缩进！关键对齐参数 */
+    border-radius: 12px;
+    color: #64748b;           /* text-slate-500 */
+    background: transparent;
+    transition: all 0.2s ease;
+    border: none;
+    cursor: pointer;
+}
+.sidebar-submenu-token:hover {
+    background-color: #f8fafc;/* hover:bg-slate-50 */
+    color: #1e293b;           /* hover:text-slate-800 */
+}
+/* 当前页面激活态（Token统计页面高亮） */
+.sidebar-submenu-token.active {
+    background-color: #eff6ff;/* bg-blue-50 */
+    color: #2563eb;           /* text-blue-600 */
+}

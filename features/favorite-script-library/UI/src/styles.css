@@ -272,3 +272,8 @@ textarea {
     padding: 16px 24px;
   }
 }
+
+/* 和Sidebar箭头旋转逻辑保持统一 180°翻转 */
+.script-fold-arrow.rotate-180 {
+  transform: rotate(180deg);
+}

@@ -17,44 +17,62 @@ type Props = {
   messages: ChatMessage[];
   tokenInfo?: TokenInfo;
   generating: boolean;
+  step: number; // 由父组件App传入
+  onNextStep: () => void; // 切换下一步回调
 };
 
-export default function AssistantPanel({ platformName, messages, tokenInfo, generating }: Props) {
+export default function AssistantPanel({ platformName, messages, tokenInfo, generating, step, onNextStep }: Props) {
   const latestMessage = messages.at(-1);
-  const [step, setStep] = useState(1);
   const usedToday = useCountUp(tokenInfo?.usedToday ?? 0);
   const totalLimit = tokenInfo?.totalLimit ?? 0;
   const usagePercent = Math.min(100, Math.max(0, tokenInfo?.usagePercent ?? 0));
   const content = latestMessage?.[STEP_FIELDS[step - 1]];
 
-  useEffect(() => {
-    setStep(1);
-  }, [generating, latestMessage?.id, latestMessage?.dialogRound]);
-
-  const advance = () => setStep((current) => Math.min(5, current + 1));
+  const advance = () => onNextStep();
 
   return (
     <section className="flex min-h-0 flex-col gap-4">
-      <div className="flex items-center gap-3 rounded-2xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-sm">
-        <span className="grid h-7 w-7 place-items-center rounded-full bg-blue-50 text-blue-600">
-          <Spark className="h-4 w-4" />
-        </span>
-        <span className="whitespace-nowrap text-[13px] font-medium text-slate-600">今日 Token 消耗</span>
-        <span className="text-[15px] font-bold text-slate-900">{usedToday.toLocaleString()}</span>
-        <span className="text-[12px] text-slate-400">/ {totalLimit.toLocaleString()}</span>
-        <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100">
-          <div className="h-full rounded-full bg-blue-500 transition-all duration-1000" style={{ width: `${usagePercent}%` }} />
-        </div>
-        <span className="text-[12.5px] font-semibold text-blue-600">{usagePercent.toFixed(0)}%</span>
-        <button
-          type="button"
-          onClick={() => window.location.assign(import.meta.env.VITE_TOKEN_USAGE_URL || "/token-usage/")}
-          className="ml-auto flex items-center gap-0.5 whitespace-nowrap text-[12.5px] font-medium text-blue-600 hover:opacity-70"
-        >
-          查看明细
-          <Arrow className="h-3.5 w-3.5" />
-        </button>
-      </div>
+      <div className="flex items-center rounded-2xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-sm">
+  {/* 图标 */}
+  <span className="grid h-7 w-7 place-items-center rounded-full bg-blue-50 text-blue-600 shrink-0">
+    <Spark className="h-4 w-4" />
+  </span>
+
+  {/* gap-2.5 */}
+  <div className="w-[10px] shrink-0"></div>
+
+  {/* 今日 Token 消耗 */}
+  <span className="whitespace-nowrap text-[13px] font-medium text-slate-600 shrink-0">今日 Token 消耗</span>
+
+  {/* gap-2.5 */}
+  <div className="w-[10px] shrink-0"></div>
+
+  {/* 4,823 / 50,000 */}
+  <div className="flex items-center gap-1 shrink-0">
+    <span className="text-[15px] font-bold text-slate-900">{usedToday.toLocaleString()}</span>
+    <span className="text-[14px] text-slate-400">/</span>
+    <span className="text-[14px] text-slate-500">{totalLimit.toLocaleString()}</span>
+  </div>
+
+  {/* gap-2 */}
+  <div className="w-[8px] shrink-0"></div>
+
+  {/* 10% */}
+  <span className="text-[12.5px] font-semibold text-blue-600 shrink-0">{usagePercent.toFixed(0)}%</span>
+
+  {/* gap-2 */}
+  <div className="w-[8px] shrink-0"></div>
+
+  {/* 查看明细 */}
+  <button
+    type="button"
+    onClick={() => window.location.assign(import.meta.env.VITE_TOKEN_USAGE_URL || "/token-usage/")}
+    className="flex items-center gap-0.5 whitespace-nowrap text-[12.5px] font-medium text-blue-600 hover:opacity-70 shrink-0"
+  >
+    查看明细
+    <Arrow className="h-3.5 w-3.5" />
+  </button>
+</div>
 
       <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-slate-200/80 bg-white shadow-sm">
         <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4">

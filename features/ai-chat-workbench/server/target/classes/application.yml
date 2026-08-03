@@ -30,9 +30,9 @@ spring:
     activate:
       on-profile: local
   datasource:
-    url: ${XM4_MYSQL_URL:jdbc:mysql://REPLACE_WITH_XM4_HOST:3306/xm4?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=true&requireSSL=true&enabledTLSProtocols=TLSv1.3&verifyServerCertificate=true}
-    username: ${XM4_MYSQL_USERNAME:REPLACE_WITH_XM4_USERNAME}
-    password: ${XM4_MYSQL_PASSWORD:REPLACE_WITH_XM4_PASSWORD}
+    url: jdbc:mysql://127.0.0.1:3307/xm4?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
