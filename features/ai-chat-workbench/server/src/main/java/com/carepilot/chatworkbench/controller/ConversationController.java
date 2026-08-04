@@ -87,6 +87,32 @@ public class ConversationController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    @PostMapping("/{id}/dialogs/{dialogRound}/steps/{stepNo}/regenerate")
+    public ResponseEntity<ApiResponse<ConversationResponse>> regenerateStep(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable("id") String conversationId,
+            @PathVariable Integer dialogRound,
+            @PathVariable Integer stepNo) {
+        String customerId = user.id().toString();
+        log.info("Regenerate conversation step: customerId={}, conversationId={}, dialogRound={}, stepNo={}",
+                customerId, conversationId, dialogRound, stepNo);
+        return ResponseEntity.ok(ApiResponse.success(
+                aiService.regenerateStep(customerId, conversationId, dialogRound, stepNo)));
+    }
+
+    @PostMapping("/{id}/dialogs/{dialogRound}/steps/{stepNo}/generate")
+    public ResponseEntity<ApiResponse<ConversationResponse>> generateStep(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable("id") String conversationId,
+            @PathVariable Integer dialogRound,
+            @PathVariable Integer stepNo) {
+        String customerId = user.id().toString();
+        log.info("Generate conversation step: customerId={}, conversationId={}, dialogRound={}, stepNo={}",
+                customerId, conversationId, dialogRound, stepNo);
+        return ResponseEntity.ok(ApiResponse.success(
+                aiService.generateStep(customerId, conversationId, dialogRound, stepNo)));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteConversation(
             @AuthenticationPrincipal AuthenticatedUser user,

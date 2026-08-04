@@ -9,10 +9,18 @@ import AssistantPanel from "./components/AssistantPanel";
 import ConversationHistoryPage from "./components/ConversationHistoryPage";
 import MyEvaluationPage from "./components/MyEvaluationPage";
 import type { SidebarItemId } from "./components/Sidebar";
-import type { Conversation, TokenInfo } from "./types";
+import type { ChatMessage, Conversation, TokenInfo } from "./types";
 import { getLoginUrl } from "./utils/auth";
 
 type WorkbenchView = "conversation" | "history" | "evaluation";
+
+const STEP_FIELDS: Array<keyof ChatMessage> = [
+  "intentRecognition",
+  "replyStrategy",
+  "recommendedScript",
+  "hookGuidance",
+  "successClose",
+];
 
 function getWorkbenchView(): WorkbenchView {
   const requestedView = new URLSearchParams(window.location.search).get("view");
@@ -35,42 +43,48 @@ export default function App() {
   const [viewport, setViewport] = useState(() => ({ width: window.innerWidth, height: window.innerHeight }));
   const [isUserManualSelect, setIsUserManualSelect] = useState(false);
 
-  // ============ 新增：五步生成器全局状态 ============
   const [currentStep, setCurrentStep] = useState(1);
-  // key:步骤号，value：该步骤是否已经执行生成
-  const [stepGeneratedMap, setStepGeneratedMap] = useState<Record<number, boolean>>({});
-  // 当前步骤是否已生成
-  const isCurStepGenerated = !!stepGeneratedMap[currentStep];
+  const latestMessage = selectedConversation?.messages?.at(-1);
+  const currentStepContent = latestMessage?.[STEP_FIELDS[currentStep - 1]];
+  const isCurStepGenerated = typeof currentStepContent === "string" && currentStepContent.trim().length > 0;
 
-  // 切换下一步回调（传给AssistantPanel）
-  const handleNextStep = () => {
+  // 确认当前步骤后，调用 DeepSeek 生成下一步并立即写入数据库。
+  const handleNextStep = async () => {
     const next = Math.min(5, currentStep + 1);
-    setCurrentStep(next);
+    if (next === currentStep || generating || !selectedConversation || !latestMessage) return;
+
+    const existingContent = latestMessage[STEP_FIELDS[next - 1]];
+    if (typeof existingContent === "string" && existingContent.trim().length > 0) {
+      setCurrentStep(next);
+      return;
+    }
+
+    setGenerating(true);
+    setError("");
+    try {
+      const updated = await workbenchApi.generateStep(
+        selectedConversation.conversationId,
+        latestMessage.dialogRound,
+        next,
+      );
+      setSelectedConversation(updated);
+      setConversations((current) => [
+        updated,
+        ...current.filter((item) => item.conversationId !== updated.conversationId),
+      ]);
+      setTokenInfo(await workbenchApi.getTokenUsage());
+      setCurrentStep(next);
+    } catch (generationError) {
+      setError(generationError instanceof Error ? generationError.message : "AI 下一步骤生成失败");
+    } finally {
+      setGenerating(false);
+    }
   };
 
   // 跳转到指定步骤
   const handleJumpStep = (targetStep: number) => {
     const safeStep = Math.max(1, Math.min(5, targetStep));
     setCurrentStep(safeStep);
-  };
-
-  // 标记当前步骤已经生成
-  const markCurStepGenerated = () => {
-    setStepGeneratedMap(prev => ({ ...prev, [currentStep]: true }));
-  };
-
-  // 重新生成当前步骤（【你后续补充后端接口逻辑】）
-  const handleRegenerateCurrentStep = () => {
-    // 示例：清空当前步骤标记，调用生成接口
-    setStepGeneratedMap(prev => ({ ...prev, [currentStep]: false }));
-    // TODO: 在这里调用重新生成当前步骤API
-    console.log("重新生成第", currentStep, "步");
-  };
-
-  // 编辑按钮回调（预留弹窗）
-  const handleOpenEditModal = () => {
-    // TODO: 打开编辑弹窗，修改当前步骤内容
-    console.log("打开编辑，当前步骤：", currentStep);
   };
 
   const currentPlatform = PLATFORMS.find((platform) => platform.id === platformId);
@@ -179,9 +193,7 @@ export default function App() {
     setPlatformId(platformFor(conversation.platform).id);
     setDraft(conversation.messages?.at(-1)?.question ?? "");
     setError("");
-    // 切换会话重置五步生成状态
     setCurrentStep(1);
-    setStepGeneratedMap({});
     try {
       const detail = await workbenchApi.getConversation(conversation.conversationId);
       setSelectedConversation(detail);
@@ -200,9 +212,7 @@ export default function App() {
     setError("");
     setPlatformId("");
     setIsUserManualSelect(false);
-    // 新建对话，重置步骤和生成标记
     setCurrentStep(1);
-    setStepGeneratedMap({});
   };
 
   const generateReply = async () => {
@@ -216,9 +226,32 @@ export default function App() {
       customerType: selectedConversation?.messages?.at(-1)?.customerType || "直接咨询",
     };
     try {
-      const updated = selectedConversation
-        ? await workbenchApi.addMessage(selectedConversation.conversationId, input)
-        : await workbenchApi.createConversation(input);
+      const sameQuestion = Boolean(
+        selectedConversation
+        && latestMessage
+        && latestMessage.question.trim() === question,
+      );
+      let updated: Conversation;
+      if (selectedConversation && latestMessage && sameQuestion) {
+        updated = isCurStepGenerated
+          ? await workbenchApi.regenerateStep(
+            selectedConversation.conversationId,
+            latestMessage.dialogRound,
+            currentStep,
+          )
+          : await workbenchApi.generateStep(
+            selectedConversation.conversationId,
+            latestMessage.dialogRound,
+            currentStep,
+          );
+      } else if (currentStep === 1) {
+        updated = selectedConversation
+          ? await workbenchApi.addMessage(selectedConversation.conversationId, input)
+          : await workbenchApi.createConversation(input);
+        setCurrentStep(1);
+      } else {
+        throw new Error("输入新的客户问题前，请先切换回第1步");
+      }
       setSelectedConversation(updated);
       setPlatformId(platformFor(updated.platform).id);
       setDraft(question);
@@ -227,8 +260,6 @@ export default function App() {
         ...current.filter((item) => item.conversationId !== updated.conversationId),
       ]);
       setTokenInfo(await workbenchApi.getTokenUsage());
-      // ✅ 生成成功，标记当前步骤已生成
-      markCurStepGenerated();
     } catch (generationError) {
       setError(generationError instanceof Error ? generationError.message : "AI 回复生成失败");
     } finally {
@@ -311,12 +342,16 @@ export default function App() {
                 onPlatformChange={handleChangePlatform}
                 messages={selectedConversation?.messages ?? []}
                 text={draft}
-                onTextChange={setDraft}
+                onTextChange={(value) => {
+                  setDraft(value);
+                  if (latestMessage && value.trim() !== latestMessage.question.trim()) {
+                    setCurrentStep(1);
+                  }
+                }}
                 generating={generating}
                 error={error}
                 onGenerate={() => void generateReply()}
                 isCurStepGenerated={isCurStepGenerated}
-                step={currentStep}
               />
               <AssistantPanel
                 platformName={currentPlatform?.name ?? ""}
@@ -324,10 +359,8 @@ export default function App() {
                 tokenInfo={tokenInfo}
                 generating={generating}
                 step={currentStep}
-                onNextStep={handleNextStep}
+                onNextStep={() => void handleNextStep()}
                 onJumpStep={handleJumpStep}
-                onRegenerate={handleRegenerateCurrentStep}
-                onEdit={handleOpenEditModal}
               />
             </main>
           )}

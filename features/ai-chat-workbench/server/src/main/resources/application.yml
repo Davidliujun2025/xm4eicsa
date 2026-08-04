@@ -18,9 +18,12 @@ spring:
 
 app:
   ai:
-    timeout-seconds: 15
-    api-key: ${AI_API_KEY:sk-your-api-key}
-    base-url: ${AI_BASE_URL:https://api.openai.com/v1}
+    timeout-seconds: ${AI_TIMEOUT_SECONDS:60}
+    api-key: ${DEEPSEEK_API_KEY:${AI_API_KEY:}}
+    base-url: ${AI_BASE_URL:https://api.deepseek.com}
+    model: ${AI_MODEL:deepseek-v4-flash}
+    max-tokens: ${AI_MAX_TOKENS:1400}
+    thinking-enabled: ${AI_THINKING_ENABLED:false}
   token:
     daily-limit: 50000
 

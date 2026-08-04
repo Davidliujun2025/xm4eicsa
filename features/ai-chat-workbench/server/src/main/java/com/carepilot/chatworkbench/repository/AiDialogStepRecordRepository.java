@@ -18,6 +18,9 @@ public interface AiDialogStepRecordRepository extends JpaRepository<AiDialogStep
     List<AiDialogStepRecord> findBySessionTaskIdAndIsDeleteOrderByDialogRoundAscStepNoAscStepRoundAsc(
             Long sessionTaskId, Byte isDelete);
 
+    List<AiDialogStepRecord> findBySessionTaskIdAndDialogRoundAndStepNoAndIsDeleteOrderByStepRoundDesc(
+            Long sessionTaskId, Integer dialogRound, Byte stepNo, Byte isDelete);
+
     @Query("SELECT COALESCE(MAX(r.dialogRound), 0) FROM AiDialogStepRecord r WHERE r.sessionTaskId = :sessionTaskId")
     Integer findMaxDialogRound(@Param("sessionTaskId") Long sessionTaskId);
 

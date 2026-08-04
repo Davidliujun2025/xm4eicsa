@@ -14,8 +14,6 @@ type Props = {
   onGenerate: () => void;
   isCurStepGenerated: boolean;
   readOnly?: boolean;
-  // ✅新增：接收当前步骤，用来控制按钮置灰
-  step: number;
 };
 
 function formatMessageTime(value?: string) {
@@ -37,7 +35,6 @@ export default function ChatPanel({
   onGenerate,
   isCurStepGenerated,
   readOnly,
-  step,
 }: Props) {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -47,8 +44,7 @@ export default function ChatPanel({
   const noPlatformSelected = !currentPlatform;
   const btnText = isCurStepGenerated ? "重新生成AI回复" : "生成AI回复";
 
-  // ✅核心规则：step >=2 按钮强制禁用（2、3、4、5步置灰；仅step=1可用）
-  const disableGenerateBtn = generating || !text.trim() || !currentPlatform || readOnly || step > 1;
+  const disableGenerateBtn = generating || !text.trim() || !currentPlatform || readOnly;
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {

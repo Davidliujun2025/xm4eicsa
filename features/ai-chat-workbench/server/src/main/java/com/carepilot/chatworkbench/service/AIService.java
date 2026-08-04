@@ -11,10 +11,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -33,13 +31,14 @@ public class AIService {
     private final DialogContextBuilder dialogContextBuilder;
     private final ConversationService conversationService;
     private final TokenService tokenService;
+    private final DeepSeekClient deepSeekClient;
+    private final IntentRecognitionPromptService promptService;
 
     @Value("${app.ai.timeout-seconds:15}")
     private Integer timeoutSeconds;
 
     private final ExecutorService executorService = Executors.newFixedThreadPool(4);
 
-    @Transactional
     public ConversationResponse createConversation(String customerId, String question,
                                                     String platform, String customerType) {
         assertTokenQuota(customerId);
@@ -52,12 +51,27 @@ public class AIService {
                 .build();
         conversationRepository.saveAndFlush(conversation);
 
-        AIResponseResult result = generateAIResponse(question, platform);
-        saveGeneration(conversation, customerId, question, customerType, result);
+        List<AiDialogStepRecord> historyRecords = loadHistory(conversation.getId());
+        int dialogRound = stepRecordRepository.findMaxDialogRound(conversation.getId()) + 1;
+        String extraJson = stepAssembler.createExtraJson(
+                customerType,
+                "意图识别阶段仅做分析，不直接回复客户。",
+                "请确认意图识别结果后再进入下一步骤。");
+        try {
+            StepGenerationResult result = generateCurrentStep(
+                    1, question, platform, dialogRound, historyRecords, null);
+            saveSuccessfulStep(
+                    conversation, customerId, question, dialogRound, 1, 1,
+                    extraJson, result);
+        } catch (RuntimeException exception) {
+            saveFailedStep(
+                    conversation, customerId, question, dialogRound, 1, 1,
+                    extraJson, exception);
+            throw exception;
+        }
         return conversationService.getConversationById(customerId, conversation.getConversationId());
     }
 
-    @Transactional
     public ConversationResponse addMessage(String customerId, String conversationId,
                                            String question, String customerType) {
         assertTokenQuota(customerId);
@@ -68,88 +82,341 @@ public class AIService {
             throw new SecurityException("Access to this conversation is forbidden");
         }
 
-        AIResponseResult result = generateAIResponse(question, conversation.getPlatform());
-        saveGeneration(conversation, customerId, question, customerType, result);
+        List<AiDialogStepRecord> historyRecords = loadHistory(conversation.getId());
+        int dialogRound = stepRecordRepository.findMaxDialogRound(conversation.getId()) + 1;
+        String extraJson = stepAssembler.createExtraJson(
+                customerType,
+                "意图识别阶段仅做分析，不直接回复客户。",
+                "请确认意图识别结果后再进入下一步骤。");
+        try {
+            StepGenerationResult result = generateCurrentStep(
+                    1, question, conversation.getPlatform(), dialogRound, historyRecords, null);
+            saveSuccessfulStep(
+                    conversation, customerId, question, dialogRound, 1, 1,
+                    extraJson, result);
+        } catch (RuntimeException exception) {
+            saveFailedStep(
+                    conversation, customerId, question, dialogRound, 1, 1,
+                    extraJson, exception);
+            throw exception;
+        }
         conversation.setUpdatedAt(LocalDateTime.now());
         conversationRepository.save(conversation);
         return conversationService.getConversationById(customerId, conversationId);
     }
 
-    private void saveGeneration(Conversation conversation, String customerId, String question,
-                                String customerType, AIResponseResult result) {
-        int dialogRound = stepRecordRepository.findMaxDialogRound(conversation.getId()) + 1;
-        LocalDateTime triggerAt = LocalDateTime.now();
-        LocalDateTime replyAt = LocalDateTime.now();
-        String traceId = UUID.randomUUID().toString();
-        String extraJson = stepAssembler.createExtraJson(
-                customerType, result.riskWarning(), result.riskSuggestion());
-        List<String> contents = List.of(
-                result.intentRecognition(),
-                result.replyStrategy(),
-                result.recommendedScript(),
-                result.hookGuidance(),
-                result.successClose());
-        List<AiDialogStepRecord> historyRecords = stepRecordRepository
-                .findBySessionTaskIdAndIsEffectiveAndIsDeleteOrderByDialogRoundAscStepNoAsc(
-                        conversation.getId(), (byte) 1, (byte) 0);
-        List<String> contexts = dialogContextBuilder.buildStepContexts(historyRecords, question, contents);
-
-        List<AiDialogStepRecord> records = new ArrayList<>(5);
-        for (int index = 0; index < contents.size(); index++) {
-            int stepNo = index + 1;
-            boolean tokenOwner = stepNo == 1;
-            records.add(AiDialogStepRecord.builder()
-                    .sessionTaskId(conversation.getId())
-                    .platformId(platformId(conversation.getPlatform()))
-                    .customerDialog(question)
-                    .dialogContext(contexts.get(index))
-                    .dialogRound(dialogRound)
-                    .stepNo((byte) stepNo)
-                    .stepRound(1)
-                    .aiContent(contents.get(index))
-                    .extraJson(extraJson)
-                    .isManualEdit((byte) 0)
-                    .isEffective((byte) 1)
-                    .triggerAt(triggerAt)
-                    .llmReplyAt(replyAt)
-                    .generateStatus((byte) 1)
-                    .operatorId(Long.valueOf(customerId))
-                    .traceId(traceId)
-                    .isDelete((byte) 0)
-                    .promptTokens(tokenOwner ? result.promptTokens() : 0)
-                    .completionTokens(tokenOwner ? result.completionTokens() : 0)
-                    .totalTokens(tokenOwner ? result.totalTokens() : 0)
-                    .build());
+    public ConversationResponse generateStep(String customerId, String conversationId,
+                                             Integer dialogRound, Integer stepNo) {
+        assertTokenQuota(customerId);
+        validateDialogStep(dialogRound, stepNo);
+        if (stepNo == 1) {
+            throw new IllegalArgumentException("第1步必须通过提交新的客户问题触发");
         }
-        stepRecordRepository.saveAll(records);
+
+        Conversation conversation = requireOwnedConversation(customerId, conversationId);
+        List<AiDialogStepRecord> versions = stepRecordRepository
+                .findBySessionTaskIdAndDialogRoundAndStepNoAndIsDeleteOrderByStepRoundDesc(
+                        conversation.getId(), dialogRound, stepNo.byteValue(), (byte) 0);
+        boolean alreadyGenerated = versions.stream()
+                .anyMatch(record -> Byte.valueOf((byte) 1).equals(record.getIsEffective()));
+        if (alreadyGenerated) {
+            throw new IllegalStateException("该步骤已生成，请使用重新生成功能");
+        }
+
+        int stepRound = versions.stream()
+                .map(AiDialogStepRecord::getStepRound)
+                .filter(value -> value != null)
+                .max(Integer::compareTo)
+                .orElse(0) + 1;
+        List<AiDialogStepRecord> historyRecords = loadHistory(conversation.getId());
+        AiDialogStepRecord previousStep = historyRecords.stream()
+                .filter(record -> dialogRound.equals(record.getDialogRound()))
+                .filter(record -> record.getStepNo() != null
+                        && record.getStepNo().intValue() == stepNo - 1)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("请先生成并确认上一步内容"));
+
+        try {
+            StepGenerationResult result = generateCurrentStep(
+                    stepNo, previousStep.getCustomerDialog(), conversation.getPlatform(),
+                    dialogRound, historyRecords, null);
+            saveSuccessfulStep(
+                    conversation, customerId, previousStep.getCustomerDialog(), dialogRound,
+                    stepNo, stepRound, previousStep.getExtraJson(), result);
+        } catch (RuntimeException exception) {
+            saveFailedStep(
+                    conversation, customerId, previousStep.getCustomerDialog(), dialogRound,
+                    stepNo, stepRound, previousStep.getExtraJson(), exception);
+            throw exception;
+        }
+
+        conversation.setUpdatedAt(LocalDateTime.now());
+        conversationRepository.save(conversation);
+        return conversationService.getConversationById(customerId, conversationId);
     }
 
-    private AIResponseResult generateAIResponse(String question, String platform) {
-        CompletableFuture<AIResponseResult> future = CompletableFuture.supplyAsync(
-                () -> simulateAIResponse(question, platform), executorService);
+    public ConversationResponse regenerateStep(String customerId, String conversationId,
+                                               Integer dialogRound, Integer stepNo) {
+        assertTokenQuota(customerId);
+        validateDialogStep(dialogRound, stepNo);
+        Conversation conversation = requireOwnedConversation(customerId, conversationId);
+
+        List<AiDialogStepRecord> versions = stepRecordRepository
+                .findBySessionTaskIdAndDialogRoundAndStepNoAndIsDeleteOrderByStepRoundDesc(
+                        conversation.getId(), dialogRound, stepNo.byteValue(), (byte) 0);
+        if (versions.isEmpty()) {
+            throw new IllegalArgumentException("当前对话轮次不存在该步骤的生成记录");
+        }
+
+        AiDialogStepRecord current = versions.stream()
+                .filter(record -> Byte.valueOf((byte) 1).equals(record.getIsEffective()))
+                .findFirst()
+                .orElse(versions.getFirst());
+        int nextStepRound = versions.stream()
+                .map(AiDialogStepRecord::getStepRound)
+                .filter(value -> value != null)
+                .max(Integer::compareTo)
+                .orElse(0) + 1;
+        List<AiDialogStepRecord> historyRecords = loadHistory(conversation.getId());
+
+        StepGenerationResult result;
+        try {
+            result = generateCurrentStep(
+                    stepNo, current.getCustomerDialog(), conversation.getPlatform(),
+                    dialogRound, historyRecords, current.getAiContent());
+        } catch (RuntimeException exception) {
+            saveFailedStep(
+                    conversation, customerId, current.getCustomerDialog(), current.getDialogRound(),
+                    current.getStepNo().intValue(), nextStepRound,
+                    current.getExtraJson(), exception);
+            throw exception;
+        }
+
+        current.setIsEffective((byte) 0);
+        AiDialogStepRecord regenerated = copyRegeneratedRecord(
+                conversation, customerId, current, nextStepRound, result);
+        stepRecordRepository.saveAll(List.of(current, regenerated));
+        conversation.setUpdatedAt(LocalDateTime.now());
+        conversationRepository.save(conversation);
+        return conversationService.getConversationById(customerId, conversationId);
+    }
+
+    private void saveSuccessfulStep(Conversation conversation, String customerId, String question,
+                                    int dialogRound, int stepNo, int stepRound, String extraJson,
+                                    StepGenerationResult result) {
+        LocalDateTime now = LocalDateTime.now();
+        String storedContext = dialogContextBuilder.buildStoredStepContext(
+                loadStoredContextHistory(conversation.getId()),
+                question, dialogRound, stepNo, stepRound, result.content());
+        stepRecordRepository.save(AiDialogStepRecord.builder()
+                .sessionTaskId(conversation.getId())
+                .platformId(platformId(conversation.getPlatform()))
+                .customerDialog(question)
+                .dialogContext(storedContext)
+                .dialogRound(dialogRound)
+                .stepNo((byte) stepNo)
+                .stepRound(stepRound)
+                .aiContent(result.content())
+                .extraJson(extraJson)
+                .isManualEdit((byte) 0)
+                .isEffective((byte) 1)
+                .triggerAt(now)
+                .llmReplyAt(now)
+                .generateStatus((byte) 1)
+                .operatorId(Long.valueOf(customerId))
+                .traceId(result.requestId() == null || result.requestId().isBlank()
+                        ? UUID.randomUUID().toString()
+                        : truncate(result.requestId(), 128))
+                .isDelete((byte) 0)
+                .promptTokens(result.promptTokens())
+                .completionTokens(result.completionTokens())
+                .totalTokens(result.totalTokens())
+                .build());
+    }
+
+    private StepGenerationResult generateCurrentStep(Integer stepNo, String question, String platform,
+                                                     Integer dialogRound,
+                                                     List<AiDialogStepRecord> historyRecords,
+                                                     String previousContent) {
+        CompletableFuture<StepGenerationResult> future = CompletableFuture.supplyAsync(() -> {
+            if (stepNo == 1) {
+                String prompt = promptService.render(
+                        platform,
+                        extractKeywords(question),
+                        question,
+                        dialogContextBuilder.buildConversationContext(historyRecords));
+                DeepSeekClient.DeepSeekResult response = deepSeekClient.recognizeIntent(prompt);
+                promptService.validateOutput(response.content());
+                return StepGenerationResult.from(response);
+            }
+
+            String generationContext = buildStepGenerationContext(
+                    dialogRound, stepNo, historyRecords, previousContent);
+            DeepSeekClient.DeepSeekResult response = deepSeekClient.complete(
+                    stepSystemPrompt(stepNo),
+                    "服务平台：" + platform + "\n\n客户当前问题：" + question
+                            + "\n\n当前对话及前序步骤：\n" + generationContext
+                            + "\n\n请重新生成第" + stepNo + "步内容，只输出本步骤正文。"
+            );
+            if (response.content() == null || response.content().isBlank()) {
+                throw new DeepSeekClient.DeepSeekApiException("DeepSeek 返回了空的步骤生成结果");
+            }
+            return StepGenerationResult.from(response);
+        }, executorService);
+
         try {
             return future.get(timeoutSeconds, TimeUnit.SECONDS);
         } catch (Exception exception) {
             future.cancel(true);
-            log.error("AI generation timeout or failure after {} seconds", timeoutSeconds, exception);
-            throw new RuntimeException("AI generation failed", exception);
+            log.error("Step {} regeneration timeout or failure after {} seconds",
+                    stepNo, timeoutSeconds, exception);
+            Throwable cause = exception.getCause() == null ? exception : exception.getCause();
+            if (cause instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw new RuntimeException("当前步骤重新生成失败", cause);
         }
     }
 
-    private AIResponseResult simulateAIResponse(String question, String platform) {
-        int promptTokens = (question.length() + 500) / 4;
-        int completionTokens = 300 + (int) (Math.random() * 200);
-        return new AIResponseResult(
-                "客户意图：售前咨询\n关键词：" + extractKeywords(question),
-                "先明确客户需求，再根据平台规则给出专业建议，最后引导客户继续咨询或下单。",
-                String.format("您好！感谢您的咨询。针对您提出的“%s”问题，在%s平台上我们会为您提供专业服务支持。",
-                        truncate(question, 30), platform),
-                "可补充当前活动优惠和售后保障，增强客户下单信心。",
-                "您可以放心咨询，如果后续有任何问题，我们也会继续协助您处理。",
-                "当前平台：" + platform,
-                "建议使用中性描述，并在回复前核对平台最新规则。",
-                promptTokens,
-                completionTokens);
+    private AiDialogStepRecord copyRegeneratedRecord(Conversation conversation, String customerId,
+                                                      AiDialogStepRecord current, int nextStepRound,
+                                                      StepGenerationResult result) {
+        LocalDateTime now = LocalDateTime.now();
+        String storedContext = dialogContextBuilder.buildStoredStepContext(
+                loadStoredContextHistory(conversation.getId()),
+                current.getCustomerDialog(), current.getDialogRound(),
+                current.getStepNo().intValue(), nextStepRound, result.content());
+        return AiDialogStepRecord.builder()
+                .sessionTaskId(conversation.getId())
+                .platformId(current.getPlatformId())
+                .customerDialog(current.getCustomerDialog())
+                .dialogContext(storedContext)
+                .dialogRound(current.getDialogRound())
+                .stepNo(current.getStepNo())
+                .stepRound(nextStepRound)
+                .aiContent(result.content())
+                .extraJson(current.getExtraJson())
+                .isManualEdit((byte) 0)
+                .isEffective((byte) 1)
+                .triggerAt(now)
+                .llmReplyAt(now)
+                .generateStatus((byte) 1)
+                .operatorId(Long.valueOf(customerId))
+                .traceId(result.requestId() == null || result.requestId().isBlank()
+                        ? UUID.randomUUID().toString()
+                        : truncate(result.requestId(), 128))
+                .isDelete((byte) 0)
+                .promptTokens(result.promptTokens())
+                .completionTokens(result.completionTokens())
+                .totalTokens(result.totalTokens())
+                .build();
+    }
+
+    private void saveFailedStep(Conversation conversation, String customerId, String question,
+                                int dialogRound, int stepNo, int stepRound,
+                                String extraJson, RuntimeException exception) {
+        try {
+            String storedContext = dialogContextBuilder.buildStoredStepContext(
+                    loadStoredContextHistory(conversation.getId()),
+                    question, dialogRound, stepNo, stepRound, null);
+            AiDialogStepRecord failed = AiDialogStepRecord.builder()
+                    .sessionTaskId(conversation.getId())
+                    .platformId(platformId(conversation.getPlatform()))
+                    .customerDialog(question)
+                    .dialogContext(storedContext)
+                    .dialogRound(dialogRound)
+                    .stepNo((byte) stepNo)
+                    .stepRound(stepRound)
+                    .extraJson(extraJson)
+                    .isManualEdit((byte) 0)
+                    .isEffective((byte) 0)
+                    .triggerAt(LocalDateTime.now())
+                    .generateStatus((byte) 2)
+                    .failMsg(truncate(errorMessage(exception), 255))
+                    .operatorId(Long.valueOf(customerId))
+                    .traceId(UUID.randomUUID().toString())
+                    .isDelete((byte) 0)
+                    .promptTokens(0)
+                    .completionTokens(0)
+                    .totalTokens(0)
+                    .build();
+            stepRecordRepository.save(failed);
+        } catch (RuntimeException persistenceException) {
+            log.error("Failed to persist DeepSeek generation failure", persistenceException);
+        }
+    }
+
+    private String buildStepGenerationContext(Integer dialogRound, Integer stepNo,
+                                              List<AiDialogStepRecord> historyRecords,
+                                              String previousContent) {
+        StringBuilder context = new StringBuilder();
+        historyRecords.stream()
+                .filter(record -> dialogRound.equals(record.getDialogRound()))
+                .filter(record -> record.getStepNo() != null && record.getStepNo() < stepNo)
+                .sorted(java.util.Comparator.comparing(AiDialogStepRecord::getStepNo))
+                .forEach(record -> context.append("第").append(record.getStepNo())
+                        .append("步-").append(stepDescription(record.getStepNo()))
+                        .append("：").append(record.getAiContent()).append("\n"));
+        if (previousContent != null && !previousContent.isBlank()) {
+            context.append("上一次本步骤输出：").append(previousContent).append("\n")
+                    .append("本次需要在遵循事实的前提下给出不同且更优的版本。\n");
+        }
+        return context.isEmpty() ? "无" : context.toString().trim();
+    }
+
+    private String stepSystemPrompt(Integer stepNo) {
+        return switch (stepNo) {
+            case 2 -> "你是电商客服回复策略助手。根据客户问题和意图识别结果，生成简明、可执行的回复策略；只分析策略，不直接编造客户事实，不输出Markdown标题。";
+            case 3 -> "你是电商客服话术助手。根据客户问题、意图和回复策略，生成一段可直接发送给客户的专业友好话术；不得虚构优惠、库存、物流或售后承诺。";
+            case 4 -> "你是电商客服钩子引导助手。根据前序内容生成1至3个自然的引导问题，用于继续了解需求，不强推、不虚构事实。";
+            case 5 -> "你是电商客服成功收尾助手。根据完整上下文生成简洁、友好的收尾内容，明确下一步但不得作出未经证实的承诺。";
+            default -> throw new IllegalArgumentException("当前步骤不支持通用生成");
+        };
+    }
+
+    private String stepDescription(Byte stepNo) {
+        return switch (stepNo) {
+            case 1 -> "意图识别";
+            case 2 -> "回复策略";
+            case 3 -> "推荐话术";
+            case 4 -> "钩子引导";
+            case 5 -> "成功收尾";
+            default -> "未知步骤";
+        };
+    }
+
+    private List<AiDialogStepRecord> loadHistory(Long sessionTaskId) {
+        return stepRecordRepository
+                .findBySessionTaskIdAndIsEffectiveAndIsDeleteOrderByDialogRoundAscStepNoAsc(
+                        sessionTaskId, (byte) 1, (byte) 0);
+    }
+
+    private List<AiDialogStepRecord> loadStoredContextHistory(Long sessionTaskId) {
+        return stepRecordRepository
+                .findBySessionTaskIdAndIsDeleteOrderByDialogRoundAscStepNoAscStepRoundAsc(
+                        sessionTaskId, (byte) 0)
+                .stream()
+                .filter(record -> Byte.valueOf((byte) 1).equals(record.getGenerateStatus()))
+                .filter(record -> record.getAiContent() != null && !record.getAiContent().isBlank())
+                .toList();
+    }
+
+    private void validateDialogStep(Integer dialogRound, Integer stepNo) {
+        if (dialogRound == null || dialogRound < 1) {
+            throw new IllegalArgumentException("dialogRound 必须大于 0");
+        }
+        if (stepNo == null || stepNo < 1 || stepNo > 5) {
+            throw new IllegalArgumentException("stepNo 必须在 1 到 5 之间");
+        }
+    }
+
+    private Conversation requireOwnedConversation(String customerId, String conversationId) {
+        Conversation conversation = conversationRepository.findByConversationId(conversationId)
+                .orElseThrow(() -> new IllegalArgumentException("Conversation does not exist"));
+        if (!customerId.equals(conversation.getCustomerId())) {
+            throw new SecurityException("Access to this conversation is forbidden");
+        }
+        return conversation;
     }
 
     private void assertTokenQuota(String customerId) {
@@ -171,28 +438,36 @@ public class AIService {
     }
 
     private String extractKeywords(String question) {
-        return question.length() < 10
-                ? question
-                : question.substring(0, Math.min(question.length(), 20)) + "...";
+        String normalized = question
+                .replaceAll("[\\p{Punct}，。！？、；：\\s]+", " ")
+                .trim();
+        return normalized.isBlank() ? "未提取到明确关键词" : truncate(normalized, 100);
+    }
+
+    private String errorMessage(Throwable throwable) {
+        return throwable.getMessage() == null || throwable.getMessage().isBlank()
+                ? throwable.getClass().getSimpleName()
+                : throwable.getMessage();
     }
 
     private String truncate(String text, int maxLength) {
         return text.length() <= maxLength ? text : text.substring(0, maxLength) + "...";
     }
 
-    private record AIResponseResult(
-            String intentRecognition,
-            String replyStrategy,
-            String recommendedScript,
-            String hookGuidance,
-            String successClose,
-            String riskWarning,
-            String riskSuggestion,
+    private record StepGenerationResult(
+            String content,
             Integer promptTokens,
-            Integer completionTokens
+            Integer completionTokens,
+            Integer totalTokens,
+            String requestId
     ) {
-        Integer totalTokens() {
-            return promptTokens + completionTokens;
+        static StepGenerationResult from(DeepSeekClient.DeepSeekResult response) {
+            return new StepGenerationResult(
+                    response.content(),
+                    response.promptTokens(),
+                    response.completionTokens(),
+                    response.totalTokens(),
+                    response.requestId());
         }
     }
 }

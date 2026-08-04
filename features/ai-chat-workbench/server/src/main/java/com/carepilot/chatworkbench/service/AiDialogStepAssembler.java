@@ -124,8 +124,10 @@ public class AiDialogStepAssembler {
     private String contentForStep(List<AiDialogStepRecord> records, int stepNo) {
         return records.stream()
                 .filter(record -> record.getStepNo() != null && record.getStepNo().intValue() == stepNo)
+                .max(java.util.Comparator.comparing(
+                        AiDialogStepRecord::getStepRound,
+                        java.util.Comparator.nullsFirst(Integer::compareTo)))
                 .map(AiDialogStepRecord::getAiContent)
-                .findFirst()
                 .orElse(null);
     }
 

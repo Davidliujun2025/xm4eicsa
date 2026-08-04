@@ -21,8 +21,6 @@ type Props = {
   step: number;
   onNextStep: () => void;
   onJumpStep: (targetStep: number) => void;
-  onRegenerate: () => void;
-  onEdit: () => void;
   onContentChange?: (text: string) => void;
 };
 
@@ -34,8 +32,6 @@ export default function AssistantPanel({
   step,
   onNextStep,
   onJumpStep,
-  onRegenerate,
-  onEdit,
   onContentChange,
 }: Props) {
   const latestMessage = messages.at(-1);

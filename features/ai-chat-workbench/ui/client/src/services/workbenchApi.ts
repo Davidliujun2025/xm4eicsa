@@ -102,6 +102,22 @@ export const workbenchApi = {
     );
   },
 
+  async regenerateStep(conversationId: string, dialogRound: number, stepNo: number) {
+    return mutate<Conversation>(
+      `/api/v1/conversations/${encodeURIComponent(conversationId)}`
+        + `/dialogs/${dialogRound}/steps/${stepNo}/regenerate`,
+      "POST",
+    );
+  },
+
+  async generateStep(conversationId: string, dialogRound: number, stepNo: number) {
+    return mutate<Conversation>(
+      `/api/v1/conversations/${encodeURIComponent(conversationId)}`
+        + `/dialogs/${dialogRound}/steps/${stepNo}/generate`,
+      "POST",
+    );
+  },
+
   async togglePersonalFavorite(input: PersonalFavoriteToggleInput) {
     return mutateJson<PersonalFavoriteToggleResponse>("/api/v1/script-favorites/toggle", "POST", input);
   },

@@ -50,4 +50,32 @@ class AiDialogStepAssemblerTest {
         assertThat(message.getCompletionTokens()).isEqualTo(380);
         assertThat(message.getTotalTokens()).isEqualTo(500);
     }
+
+    @Test
+    void usesTheHighestStepRoundWhenVersionHistoryIsPresent() {
+        List<AiDialogStepRecord> records = List.of(
+                AiDialogStepRecord.builder()
+                        .recordId(1L)
+                        .sessionTaskId(10L)
+                        .customerDialog("客户问题")
+                        .dialogRound(3)
+                        .stepNo((byte) 2)
+                        .stepRound(1)
+                        .aiContent("第一次回复策略")
+                        .build(),
+                AiDialogStepRecord.builder()
+                        .recordId(2L)
+                        .sessionTaskId(10L)
+                        .customerDialog("客户问题")
+                        .dialogRound(3)
+                        .stepNo((byte) 2)
+                        .stepRound(2)
+                        .aiContent("第二次回复策略")
+                        .build()
+        );
+
+        ChatMessageResponse message = assembler.toMessages(records).getFirst();
+
+        assertThat(message.getReplyStrategy()).isEqualTo("第二次回复策略");
+    }
 }

@@ -13,6 +13,86 @@ import java.util.Map;
 @Component
 public class DialogContextBuilder {
 
+    public String buildConversationContext(List<AiDialogStepRecord> historyRecords) {
+        List<AiDialogStepRecord> sortedRecords = sortedRecords(historyRecords);
+        Map<Integer, String> questionHistory = new LinkedHashMap<>();
+        Map<Integer, String> intentHistory = new LinkedHashMap<>();
+
+        for (AiDialogStepRecord record : sortedRecords) {
+            Integer dialogRound = record.getDialogRound();
+            if (dialogRound == null || dialogRound <= 0) {
+                continue;
+            }
+            if (record.getCustomerDialog() != null && !record.getCustomerDialog().isBlank()) {
+                questionHistory.putIfAbsent(dialogRound, record.getCustomerDialog());
+            }
+            if (Byte.valueOf((byte) 1).equals(record.getStepNo())
+                    && record.getAiContent() != null && !record.getAiContent().isBlank()) {
+                intentHistory.put(dialogRound, record.getAiContent());
+            }
+        }
+
+        return formatContext(questionHistory, intentHistory, "意图识别");
+    }
+
+    /**
+     * Builds the database value for ai_dialog_step_record.dialog_context.
+     * This context deliberately excludes prompts, keywords and other model-only instructions.
+     */
+    public String buildStoredStepContext(List<AiDialogStepRecord> historyRecords,
+                                         String currentQuestion,
+                                         int currentDialogRound,
+                                         int currentStepNo,
+                                         int currentStepRound,
+                                         String currentAiContent) {
+        ScriptStepEnum[] steps = ScriptStepEnum.values();
+        if (currentStepNo < 1 || currentStepNo > steps.length) {
+            throw new IllegalArgumentException("Current step number is outside configured steps");
+        }
+
+        List<AiDialogStepRecord> sortedRecords = sortedRecords(historyRecords);
+        Map<Integer, String> questionHistory = new LinkedHashMap<>();
+        List<AiDialogStepRecord> sameStepHistory = new ArrayList<>();
+
+        for (AiDialogStepRecord record : sortedRecords) {
+            Integer dialogRound = record.getDialogRound();
+            if (dialogRound == null || dialogRound <= 0) {
+                continue;
+            }
+            if (record.getCustomerDialog() != null && !record.getCustomerDialog().isBlank()) {
+                questionHistory.putIfAbsent(dialogRound, record.getCustomerDialog());
+            }
+            if (record.getStepNo() != null
+                    && record.getStepNo().intValue() == currentStepNo
+                    && record.getAiContent() != null
+                    && !record.getAiContent().isBlank()) {
+                sameStepHistory.add(record);
+            }
+        }
+
+        if (currentQuestion != null && !currentQuestion.isBlank()) {
+            questionHistory.put(currentDialogRound, currentQuestion);
+        }
+
+        StringBuilder builder = new StringBuilder("用户问题历史：");
+        appendHistory(builder, questionHistory);
+        builder.append("\n\n")
+                .append(steps[currentStepNo - 1].getDescription())
+                .append("历史：");
+        for (AiDialogStepRecord record : sameStepHistory) {
+            appendStepOutput(builder, record.getDialogRound(), record.getStepRound(), record.getAiContent());
+        }
+        if (currentAiContent != null && !currentAiContent.isBlank()) {
+            appendStepOutput(
+                    builder, currentDialogRound, currentStepRound, currentAiContent);
+        }
+        if (sameStepHistory.isEmpty()
+                && (currentAiContent == null || currentAiContent.isBlank())) {
+            builder.append("\n无");
+        }
+        return builder.toString();
+    }
+
     public List<String> buildStepContexts(List<AiDialogStepRecord> historyRecords,
                                           String currentQuestion,
                                           List<String> currentStepContents) {
@@ -21,12 +101,7 @@ public class DialogContextBuilder {
             throw new IllegalArgumentException("Current step content size does not match configured steps");
         }
 
-        List<AiDialogStepRecord> sortedRecords = historyRecords.stream()
-                .sorted(Comparator
-                        .comparing(AiDialogStepRecord::getDialogRound, Comparator.nullsLast(Integer::compareTo))
-                        .thenComparing(AiDialogStepRecord::getStepNo, Comparator.nullsLast(Byte::compareTo))
-                        .thenComparing(AiDialogStepRecord::getStepRound, Comparator.nullsLast(Integer::compareTo)))
-                .toList();
+        List<AiDialogStepRecord> sortedRecords = sortedRecords(historyRecords);
 
         Map<Integer, String> questionHistory = new LinkedHashMap<>();
         Map<Integer, Map<Integer, String>> stepHistory = new LinkedHashMap<>();
@@ -73,6 +148,15 @@ public class DialogContextBuilder {
         return contexts;
     }
 
+    private List<AiDialogStepRecord> sortedRecords(List<AiDialogStepRecord> historyRecords) {
+        return historyRecords.stream()
+                .sorted(Comparator
+                        .comparing(AiDialogStepRecord::getDialogRound, Comparator.nullsLast(Integer::compareTo))
+                        .thenComparing(AiDialogStepRecord::getStepNo, Comparator.nullsLast(Byte::compareTo))
+                        .thenComparing(AiDialogStepRecord::getStepRound, Comparator.nullsLast(Integer::compareTo)))
+                .toList();
+    }
+
     private String formatContext(Map<Integer, String> questionHistory,
                                  Map<Integer, String> stepHistory,
                                  String stepDescription) {
@@ -91,5 +175,14 @@ public class DialogContextBuilder {
         }
         history.forEach((dialogRound, content) ->
                 builder.append("\n第").append(dialogRound).append("轮：").append(content));
+    }
+
+    private void appendStepOutput(StringBuilder builder, Integer dialogRound,
+                                  Integer stepRound, String content) {
+        builder.append("\n第").append(dialogRound).append("轮");
+        if (stepRound != null && stepRound > 1) {
+            builder.append("（第").append(stepRound).append("次生成）");
+        }
+        builder.append("：").append(content);
     }
 }
