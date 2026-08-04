@@ -30,6 +30,7 @@ public class AIService {
     private final ConversationRepository conversationRepository;
     private final AiDialogStepRecordRepository stepRecordRepository;
     private final AiDialogStepAssembler stepAssembler;
+    private final DialogContextBuilder dialogContextBuilder;
     private final ConversationService conversationService;
     private final TokenService tokenService;
 
@@ -88,6 +89,10 @@ public class AIService {
                 result.recommendedScript(),
                 result.hookGuidance(),
                 result.successClose());
+        List<AiDialogStepRecord> historyRecords = stepRecordRepository
+                .findBySessionTaskIdAndIsEffectiveAndIsDeleteOrderByDialogRoundAscStepNoAsc(
+                        conversation.getId(), (byte) 1, (byte) 0);
+        List<String> contexts = dialogContextBuilder.buildStepContexts(historyRecords, question, contents);
 
         List<AiDialogStepRecord> records = new ArrayList<>(5);
         for (int index = 0; index < contents.size(); index++) {
@@ -97,6 +102,7 @@ public class AIService {
                     .sessionTaskId(conversation.getId())
                     .platformId(platformId(conversation.getPlatform()))
                     .customerDialog(question)
+                    .dialogContext(contexts.get(index))
                     .dialogRound(dialogRound)
                     .stepNo((byte) stepNo)
                     .stepRound(1)

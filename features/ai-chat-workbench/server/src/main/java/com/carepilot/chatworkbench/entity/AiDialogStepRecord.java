@@ -48,6 +48,9 @@ public class AiDialogStepRecord {
     @Column(name = "customer_dialog", nullable = false, columnDefinition = "TEXT")
     private String customerDialog;
 
+    @Column(name = "dialog_context", columnDefinition = "TEXT")
+    private String dialogContext;
+
     @Column(name = "dialog_round", nullable = false)
     @Builder.Default
     private Integer dialogRound = 1;

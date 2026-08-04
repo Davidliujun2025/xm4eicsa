@@ -84,6 +84,7 @@ public class AiDialogStepAssembler {
                 .sessionTaskId(record.getSessionTaskId())
                 .platformId(record.getPlatformId())
                 .customerDialog(record.getCustomerDialog())
+                .dialogContext(record.getDialogContext())
                 .dialogRound(record.getDialogRound())
                 .stepNo(record.getStepNo())
                 .stepRound(record.getStepRound())

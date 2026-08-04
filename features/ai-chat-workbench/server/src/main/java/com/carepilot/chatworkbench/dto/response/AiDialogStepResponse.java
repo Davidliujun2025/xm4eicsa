@@ -10,6 +10,7 @@ public record AiDialogStepResponse(
         Long sessionTaskId,
         Long platformId,
         String customerDialog,
+        String dialogContext,
         Integer dialogRound,
         Byte stepNo,
         Integer stepRound,
