@@ -176,16 +176,16 @@ const App: React.FC = () => {
 
   {/* Token统计 文字前增加两个空格 */}
   {dashboardOpen && (
-    <button
-      className="script-nav-item pl-8"
-      type="button"
-      onClick={() => {
-        window.location.href = appLinks['Token统计'];
-      }}
-    >
-      <span>&nbsp;&nbsp;&nbsp;&nbsp;Token统计</span>
-    </button>
-  )}
+  <button
+    className="script-nav-item script-nav-child-item"
+    type="button"
+    onClick={() => {
+      window.location.href = appLinks['Token统计'];
+    }}
+  >
+    Token统计
+  </button>
+)}
 
   <button className="script-nav-item settings-item" type="button">
     <Settings className="script-nav-icon" />

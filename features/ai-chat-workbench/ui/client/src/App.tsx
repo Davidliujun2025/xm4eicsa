@@ -46,12 +46,31 @@ export default function App() {
   const handleNextStep = () => {
     const next = Math.min(5, currentStep + 1);
     setCurrentStep(next);
-    // 切换步骤，不需要主动重置，stepGeneratedMap保持，只有当前步骤标记生效
+  };
+
+  // 跳转到指定步骤
+  const handleJumpStep = (targetStep: number) => {
+    const safeStep = Math.max(1, Math.min(5, targetStep));
+    setCurrentStep(safeStep);
   };
 
   // 标记当前步骤已经生成
   const markCurStepGenerated = () => {
     setStepGeneratedMap(prev => ({ ...prev, [currentStep]: true }));
+  };
+
+  // 重新生成当前步骤（【你后续补充后端接口逻辑】）
+  const handleRegenerateCurrentStep = () => {
+    // 示例：清空当前步骤标记，调用生成接口
+    setStepGeneratedMap(prev => ({ ...prev, [currentStep]: false }));
+    // TODO: 在这里调用重新生成当前步骤API
+    console.log("重新生成第", currentStep, "步");
+  };
+
+  // 编辑按钮回调（预留弹窗）
+  const handleOpenEditModal = () => {
+    // TODO: 打开编辑弹窗，修改当前步骤内容
+    console.log("打开编辑，当前步骤：", currentStep);
   };
 
   const currentPlatform = PLATFORMS.find((platform) => platform.id === platformId);
@@ -160,6 +179,9 @@ export default function App() {
     setPlatformId(platformFor(conversation.platform).id);
     setDraft(conversation.messages?.at(-1)?.question ?? "");
     setError("");
+    // 切换会话重置五步生成状态
+    setCurrentStep(1);
+    setStepGeneratedMap({});
     try {
       const detail = await workbenchApi.getConversation(conversation.conversationId);
       setSelectedConversation(detail);
@@ -294,6 +316,7 @@ export default function App() {
                 error={error}
                 onGenerate={() => void generateReply()}
                 isCurStepGenerated={isCurStepGenerated}
+                step={currentStep}
               />
               <AssistantPanel
                 platformName={currentPlatform?.name ?? ""}
@@ -302,6 +325,9 @@ export default function App() {
                 generating={generating}
                 step={currentStep}
                 onNextStep={handleNextStep}
+                onJumpStep={handleJumpStep}
+                onRegenerate={handleRegenerateCurrentStep}
+                onEdit={handleOpenEditModal}
               />
             </main>
           )}

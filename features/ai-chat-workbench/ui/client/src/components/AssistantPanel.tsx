@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { STEPS } from "../config/workbench";
 import { useCountUp } from "../hooks/useCountUp";
 import type { ChatMessage, TokenInfo } from "../types";
-import { Spark, Check, Flag, Arrow } from "./icons";
+import { Spark, Check, Flag } from "./icons";
 import { workbenchApi } from "../services/workbenchApi";
 
 const STEP_FIELDS: Array<keyof ChatMessage> = [
@@ -18,21 +18,44 @@ type Props = {
   messages: ChatMessage[];
   tokenInfo?: TokenInfo;
   generating: boolean;
-  step: number; // 由父组件App传入
-  onNextStep: () => void; // 切换下一步回调
+  step: number;
+  onNextStep: () => void;
+  onJumpStep: (targetStep: number) => void;
+  onRegenerate: () => void;
+  onEdit: () => void;
+  onContentChange?: (text: string) => void;
 };
 
-export default function AssistantPanel({ platformName, messages, tokenInfo, generating, step, onNextStep }: Props) {
+export default function AssistantPanel({
+  platformName,
+  messages,
+  tokenInfo,
+  generating,
+  step,
+  onNextStep,
+  onJumpStep,
+  onRegenerate,
+  onEdit,
+  onContentChange,
+}: Props) {
   const latestMessage = messages.at(-1);
   const usedToday = useCountUp(tokenInfo?.usedToday ?? 0);
   const totalLimit = tokenInfo?.totalLimit ?? 0;
   const usagePercent = Math.min(100, Math.max(0, tokenInfo?.usagePercent ?? 0));
-  const content = latestMessage?.[STEP_FIELDS[step - 1]];
+  const originContent = latestMessage?.[STEP_FIELDS[step - 1]];
+  const [editContent, setEditContent] = useState("");
+  const MAX_CONTENT_LENGTH = 500;
+
   const [favoriteMessage, setFavoriteMessage] = useState("");
   const [favoriteError, setFavoriteError] = useState("");
   const [favoriting, setFavoriting] = useState(false);
 
   const advance = () => onNextStep();
+
+  useEffect(() => {
+    const text = typeof originContent === "string" ? originContent : "";
+    setEditContent(text);
+  }, [originContent, latestMessage?.id, step]);
 
   useEffect(() => {
     setFavoriteMessage("");
@@ -55,22 +78,14 @@ export default function AssistantPanel({ platformName, messages, tokenInfo, gene
   };
 
   const buildGeneratedAt = () => {
-    if (!latestMessage?.createdAt) {
-      return undefined;
-    }
-
+    if (!latestMessage?.createdAt) return undefined;
     const parsed = new Date(latestMessage.createdAt);
-    if (Number.isNaN(parsed.getTime())) {
-      return undefined;
-    }
-
+    if (Number.isNaN(parsed.getTime())) return undefined;
     return parsed.toISOString();
   };
 
   const handleFavorite = async () => {
-    if (!latestMessage || typeof content !== "string" || !content.trim() || favoriting) {
-      return;
-    }
+    if (!latestMessage || typeof editContent !== "string" || !editContent.trim() || favoriting) return;
 
     setFavoriting(true);
     setFavoriteMessage("");
@@ -79,7 +94,7 @@ export default function AssistantPanel({ platformName, messages, tokenInfo, gene
     try {
       const response = await workbenchApi.togglePersonalFavorite({
         sourceTalkId: `msg-${latestMessage.id}-round-${latestMessage.dialogRound}-step-${step}`,
-        content: content.trim(),
+        content: editContent.trim(),
         scenario: `${platformName}-${latestMessage.customerType || "通用"}-${STEPS[step - 1]}`.slice(0, 100),
         generatedAt: buildGeneratedAt(),
         tags: buildFavoriteTags(),
@@ -92,49 +107,31 @@ export default function AssistantPanel({ platformName, messages, tokenInfo, gene
     }
   };
 
+  const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value;
+    if (val.length <= MAX_CONTENT_LENGTH) {
+      setEditContent(val);
+      onContentChange?.(val);
+    }
+  };
+
   return (
     <section className="flex min-h-0 flex-col gap-4">
-      <div className="flex items-center rounded-2xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-sm">
-  {/* 图标 */}
-  <span className="grid h-7 w-7 place-items-center rounded-full bg-blue-50 text-blue-600 shrink-0">
-    <Spark className="h-4 w-4" />
-  </span>
-
-  {/* gap-2.5 */}
-  <div className="w-[10px] shrink-0"></div>
-
-  {/* 今日 Token 消耗 */}
-  <span className="whitespace-nowrap text-[13px] font-medium text-slate-600 shrink-0">今日 Token 消耗</span>
-
-  {/* gap-2.5 */}
-  <div className="w-[10px] shrink-0"></div>
-
-  {/* 4,823 / 50,000 */}
-  <div className="flex items-center gap-1 shrink-0">
-    <span className="text-[15px] font-bold text-slate-900">{usedToday.toLocaleString()}</span>
-    <span className="text-[14px] text-slate-400">/</span>
-    <span className="text-[14px] text-slate-500">{totalLimit.toLocaleString()}</span>
-  </div>
-
-  {/* gap-2 */}
-  <div className="w-[8px] shrink-0"></div>
-
-  {/* 10% */}
-  <span className="text-[12.5px] font-semibold text-blue-600 shrink-0">{usagePercent.toFixed(0)}%</span>
-
-  {/* gap-2 */}
-  <div className="w-[8px] shrink-0"></div>
-
-  {/* 查看明细 */}
-  <button
-    type="button"
-    onClick={() => window.location.assign(import.meta.env.VITE_TOKEN_USAGE_URL || "/token-usage/")}
-    className="flex items-center gap-0.5 whitespace-nowrap text-[12.5px] font-medium text-blue-600 hover:opacity-70 shrink-0"
-  >
-    查看明细
-    <Arrow className="h-3.5 w-3.5" />
-  </button>
-</div>
+      {/* Token消耗卡片，移除查看明细 */}
+      <div className="flex items-center gap-2.5 rounded-2xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-sm">
+        <span className="grid h-7 w-7 place-items-center rounded-full bg-blue-50 text-blue-600 shrink-0">
+          <Spark className="h-4 w-4" />
+        </span>
+        <span className="whitespace-nowrap text-[13px] font-medium text-slate-600 shrink-0">今日 Token 消耗</span>
+        <div className="flex items-center gap-1 min-w-0 flex-1">
+          <span className="text-[15px] font-bold text-slate-900 whitespace-nowrap">{usedToday.toLocaleString()}</span>
+          <span className="text-[14px] text-slate-400">/</span>
+          <span className="text-[14px] text-slate-500 whitespace-nowrap">{totalLimit.toLocaleString()}</span>
+        </div>
+        <span className="min-w-[42px] text-[12.5px] font-semibold text-blue-600 text-right shrink-0">
+          {usagePercent.toFixed(0)}%
+        </span>
+      </div>
 
       <div className="flex min-h-0 flex-1 flex-col rounded-2xl border border-slate-200/80 bg-white shadow-sm">
         <div className="flex items-start justify-between border-b border-slate-100 px-5 py-4">
@@ -156,14 +153,14 @@ export default function AssistantPanel({ platformName, messages, tokenInfo, gene
                   <div className="flex w-full items-center">
                     <button
                       type="button"
-                      disabled
+                      onClick={() => onJumpStep(number)}
                       aria-current={current && latestMessage ? "step" : undefined}
                       className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-bold transition-all duration-300 ${
                         completed
                           ? "bg-blue-600 text-white"
                           : current && latestMessage
                             ? "bg-blue-600 text-white ring-4 ring-blue-100"
-                            : "bg-white text-slate-400 ring-1 ring-slate-200"
+                            : "bg-white text-slate-400 ring-1 ring-slate-200 hover:border-blue-300 hover:ring-blue-200"
                       }`}
                     >
                       {completed ? <Check className="h-4 w-4" /> : number}
@@ -196,7 +193,7 @@ export default function AssistantPanel({ platformName, messages, tokenInfo, gene
               </div>
 
               <div className="mt-3 text-[12.5px] text-slate-400">适用场景与语气</div>
-              <div className="mt-2 flex gap-2">
+              <div className="mt-2 flex gap-2 flex-wrap">
                 <span className="rounded-lg bg-blue-100 px-3 py-1.5 text-[12.5px] font-medium text-blue-700">{platformName}</span>
                 <span className="rounded-lg bg-emerald-100 px-3 py-1.5 text-[12.5px] font-medium text-emerald-700">
                   {latestMessage.customerType || "专业友好"}
@@ -204,8 +201,16 @@ export default function AssistantPanel({ platformName, messages, tokenInfo, gene
               </div>
 
               <div className="mt-4 text-[12.5px] text-slate-400">{STEPS[step - 1]}</div>
-              <div className="mt-2 min-h-24 rounded-xl border border-slate-200 bg-white p-3.5 text-[13px] leading-relaxed text-slate-700">
-                {typeof content === "string" && content.trim() ? content : "该步骤暂无生成内容"}
+              <div className="mt-2 relative">
+                <textarea
+                  value={editContent}
+                  onChange={handleTextChange}
+                  placeholder="该步骤暂无生成内容"
+                  className="min-h-24 w-full rounded-xl border border-slate-200 bg-white p-3.5 pr-20 text-[13px] leading-relaxed text-slate-700 whitespace-pre-wrap outline-none focus:border-blue-400 resize-y"
+                />
+                <span className="absolute bottom-3.5 right-3.5 text-[11.5px] text-slate-400">
+                  {editContent.length}/{MAX_CONTENT_LENGTH}
+                </span>
               </div>
 
               <div className="mt-3 flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-[12.5px] text-emerald-700">
@@ -225,7 +230,7 @@ export default function AssistantPanel({ platformName, messages, tokenInfo, gene
                 <button
                   type="button"
                   onClick={() => void handleFavorite()}
-                  disabled={favoriting || !content || !String(content).trim()}
+                  disabled={favoriting || !editContent || !String(editContent).trim()}
                   className="flex items-center gap-1.5 rounded-lg border border-blue-200 px-3 py-1.5 text-[12.5px] font-medium text-blue-600 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   <Flag className="h-4 w-4" />
@@ -236,20 +241,21 @@ export default function AssistantPanel({ platformName, messages, tokenInfo, gene
           )}
         </div>
 
+        {/* 底部单按钮，和截图样式统一 */}
         <div className="border-t border-slate-100 p-4">
-          <button
-            type="button"
-            onClick={advance}
-            disabled={!latestMessage || step >= 5}
-            className={`w-full rounded-xl py-3.5 text-[15px] font-semibold text-white shadow-lg transition-all active:scale-[.99] ${
-              latestMessage && step >= 5
-                ? "bg-emerald-500 shadow-emerald-500/25"
-                : "bg-blue-600 shadow-blue-600/25 hover:bg-blue-700 disabled:bg-slate-300 disabled:shadow-none"
-            }`}
-          >
-            {latestMessage && step >= 5 ? "已完成全部步骤 ✓" : "确认，查看下一步骤"}
-          </button>
-        </div>
+  <button
+    type="button"
+    onClick={advance}
+    disabled={!latestMessage || generating}
+    className={`w-full rounded-xl py-3 text-[14px] font-semibold text-white transition-all active:scale-[.99] ${
+      step >= 5
+        ? "bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300"
+        : "bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300"
+    }`}
+  >
+    {step >= 5 ? "已完成 ✓" : "确认，生成下一步"}
+  </button>
+</div>
       </div>
     </section>
   );
