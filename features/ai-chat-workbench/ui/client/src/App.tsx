@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { PLATFORMS, platformFor } from "./config/workbench";
 import { workbenchApi } from "./services/workbenchApi";
 import Sidebar from "./components/Sidebar";
@@ -22,6 +22,33 @@ const STEP_FIELDS: Array<keyof ChatMessage> = [
   "successClose",
 ];
 
+const CONFIRMED_EDITS_STORAGE_KEY = "assistant-panel-confirmed-edits";
+const CONVERSATION_STEPS_STORAGE_KEY = "assistant-panel-conversation-steps";
+
+type ConfirmedEdits = Record<string, string>;
+
+function confirmedEditKey(conversationId: string, messageId: number, field: keyof ChatMessage) {
+  return `${conversationId}:${messageId}:${String(field)}`;
+}
+
+function loadConfirmedEdits(): ConfirmedEdits {
+  try {
+    const saved = sessionStorage.getItem(CONFIRMED_EDITS_STORAGE_KEY);
+    return saved ? JSON.parse(saved) as ConfirmedEdits : {};
+  } catch {
+    return {};
+  }
+}
+
+function loadConversationSteps(): Record<string, number> {
+  try {
+    const saved = sessionStorage.getItem(CONVERSATION_STEPS_STORAGE_KEY);
+    return saved ? JSON.parse(saved) as Record<string, number> : {};
+  } catch {
+    return {};
+  }
+}
+
 function getWorkbenchView(): WorkbenchView {
   const requestedView = new URLSearchParams(window.location.search).get("view");
   return requestedView === "history" || requestedView === "evaluation" ? requestedView : "conversation";
@@ -42,11 +69,28 @@ export default function App() {
   const [error, setError] = useState("");
   const [viewport, setViewport] = useState(() => ({ width: window.innerWidth, height: window.innerHeight }));
   const [isUserManualSelect, setIsUserManualSelect] = useState(false);
+  const confirmedEditsRef = useRef<ConfirmedEdits>(loadConfirmedEdits());
+  const conversationStepsRef = useRef<Record<string, number>>(loadConversationSteps());
+  const selectedConversationIdRef = useRef<string | null>(null);
 
   const [currentStep, setCurrentStep] = useState(1);
   const latestMessage = selectedConversation?.messages?.at(-1);
   const currentStepContent = latestMessage?.[STEP_FIELDS[currentStep - 1]];
   const isCurStepGenerated = typeof currentStepContent === "string" && currentStepContent.trim().length > 0;
+
+  const applyConfirmedEdits = (conversation: Conversation): Conversation => ({
+    ...conversation,
+    messages: conversation.messages.map((message) => {
+      const editedFields = STEP_FIELDS.reduce<Partial<ChatMessage>>((result, field) => {
+        const key = confirmedEditKey(conversation.conversationId, message.id, field);
+        if (Object.prototype.hasOwnProperty.call(confirmedEditsRef.current, key)) {
+          result[field] = confirmedEditsRef.current[key] as never;
+        }
+        return result;
+      }, {});
+      return { ...message, ...editedFields };
+    }),
+  });
 
   // 确认当前步骤后，调用 DeepSeek 生成下一步并立即写入数据库。
   const handleNextStep = async () => {
@@ -62,11 +106,11 @@ export default function App() {
     setGenerating(true);
     setError("");
     try {
-      const updated = await workbenchApi.generateStep(
+      const updated = applyConfirmedEdits(await workbenchApi.generateStep(
         selectedConversation.conversationId,
         latestMessage.dialogRound,
         next,
-      );
+      ));
       setSelectedConversation(updated);
       setConversations((current) => [
         updated,
@@ -84,7 +128,37 @@ export default function App() {
   // 跳转到指定步骤
   const handleJumpStep = (targetStep: number) => {
     const safeStep = Math.max(1, Math.min(5, targetStep));
+    if (selectedConversation) {
+      conversationStepsRef.current = {
+        ...conversationStepsRef.current,
+        [selectedConversation.conversationId]: safeStep,
+      };
+      sessionStorage.setItem(CONVERSATION_STEPS_STORAGE_KEY, JSON.stringify(conversationStepsRef.current));
+    }
     setCurrentStep(safeStep);
+  };
+
+  const handleAssistantContentChange = (content: string) => {
+    if (!selectedConversation || !latestMessage) return;
+    const conversationId = selectedConversation.conversationId;
+    const messageId = latestMessage.id;
+    const field = STEP_FIELDS[currentStep - 1];
+    const editKey = confirmedEditKey(conversationId, messageId, field);
+    confirmedEditsRef.current = { ...confirmedEditsRef.current, [editKey]: content };
+    sessionStorage.setItem(CONFIRMED_EDITS_STORAGE_KEY, JSON.stringify(confirmedEditsRef.current));
+    const updateConversation = (conversation: Conversation): Conversation => ({
+      ...conversation,
+      messages: conversation.messages.map((message) =>
+        message.id === messageId ? { ...message, [field]: content } : message,
+      ),
+    });
+
+    setSelectedConversation((current) =>
+      current?.conversationId === conversationId ? updateConversation(current) : current,
+    );
+    setConversations((current) => current.map((conversation) =>
+      conversation.conversationId === conversationId ? updateConversation(conversation) : conversation,
+    ));
   };
 
   const currentPlatform = PLATFORMS.find((platform) => platform.id === platformId);
@@ -134,7 +208,7 @@ export default function App() {
         workbenchApi.listConversations(),
         workbenchApi.getTokenUsage(),
       ]);
-      setConversations(loadedConversations);
+      setConversations(loadedConversations.map(applyConfirmedEdits));
       setTokenInfo(loadedTokenInfo);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "工作台数据加载失败");
@@ -150,9 +224,15 @@ export default function App() {
   }, [isAuthenticatedCustomerService, loadWorkbench, view]);
 
   const handleChangePlatform = (newPlatformId: string) => {
-    setIsUserManualSelect(false);
+    // Selecting a platform while composing a new conversation must not auto-open
+    // the latest historical conversation for that platform.
+    setIsUserManualSelect(true);
     setPlatformId(newPlatformId);
   };
+
+  useEffect(() => {
+    selectedConversationIdRef.current = selectedConversation?.conversationId ?? null;
+  }, [selectedConversation?.conversationId]);
 
   useEffect(() => {
     if (!platformId) {
@@ -174,6 +254,7 @@ export default function App() {
     if (samePlatformConvs.length > 0) {
       const latestConv = samePlatformConvs[0];
       setSelectedConversation(latestConv);
+      setCurrentStep(conversationStepsRef.current[latestConv.conversationId] ?? 1);
       setDraft(latestConv.messages?.at(-1)?.question ?? "");
     } else {
       setSelectedConversation(null);
@@ -188,14 +269,24 @@ export default function App() {
   }, []);
 
   const selectConversation = async (conversation: Conversation) => {
+    if (selectedConversation) {
+      conversationStepsRef.current = {
+        ...conversationStepsRef.current,
+        [selectedConversation.conversationId]: currentStep,
+      };
+      sessionStorage.setItem(CONVERSATION_STEPS_STORAGE_KEY, JSON.stringify(conversationStepsRef.current));
+    }
+    const targetConversationId = conversation.conversationId;
+    selectedConversationIdRef.current = targetConversationId;
     setIsUserManualSelect(true);
     setSelectedConversation(conversation);
     setPlatformId(platformFor(conversation.platform).id);
     setDraft(conversation.messages?.at(-1)?.question ?? "");
     setError("");
-    setCurrentStep(1);
+    setCurrentStep(conversationStepsRef.current[targetConversationId] ?? 1);
     try {
-      const detail = await workbenchApi.getConversation(conversation.conversationId);
+      const detail = applyConfirmedEdits(await workbenchApi.getConversation(targetConversationId));
+      if (selectedConversationIdRef.current !== targetConversationId) return;
       setSelectedConversation(detail);
       setDraft(detail.messages?.at(-1)?.question ?? "");
       setConversations((current) => current.map((item) =>
@@ -207,11 +298,12 @@ export default function App() {
   };
 
   const newConversation = () => {
+    selectedConversationIdRef.current = null;
     setSelectedConversation(null);
     setDraft("");
     setError("");
     setPlatformId("");
-    setIsUserManualSelect(false);
+    setIsUserManualSelect(true);
     setCurrentStep(1);
   };
 
@@ -252,6 +344,7 @@ export default function App() {
       } else {
         throw new Error("输入新的客户问题前，请先切换回第1步");
       }
+      updated = applyConfirmedEdits(updated);
       setSelectedConversation(updated);
       setPlatformId(platformFor(updated.platform).id);
       setDraft(question);
@@ -329,7 +422,15 @@ export default function App() {
           ) : view === "evaluation" ? (
             <MyEvaluationPage />
           ) : (
-            <main className="workbench-grid grid min-h-0 flex-1 gap-5 overflow-hidden p-5">
+          
+          <main
+            className="min-h-0 flex-1 overflow-hidden p-5"
+            style={{
+                display: "grid",
+                gridTemplateColumns: "280px 1fr 1.2fr",
+                gap: "1.25rem",
+           }}
+          >
               <ConversationList
                 conversations={conversations}
                 activeConversationId={selectedConversation?.conversationId}
@@ -354,6 +455,7 @@ export default function App() {
                 isCurStepGenerated={isCurStepGenerated}
               />
               <AssistantPanel
+                conversationId={selectedConversation?.conversationId}
                 platformName={currentPlatform?.name ?? ""}
                 messages={selectedConversation?.messages ?? []}
                 tokenInfo={tokenInfo}
@@ -361,6 +463,7 @@ export default function App() {
                 step={currentStep}
                 onNextStep={() => void handleNextStep()}
                 onJumpStep={handleJumpStep}
+                onContentChange={handleAssistantContentChange}
               />
             </main>
           )}

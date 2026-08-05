@@ -86,7 +86,7 @@ export default function ChatPanel({
                 <span className="text-[14px] font-medium text-slate-800">{currentPlatform.name}</span>
               </span>
             ) : (
-              <span className="text-[14px] text-slate-400">请选择服务平台(先选择平台再进行AI对话)</span>
+              <span className="text-[14px] text-slate-400">请选择电商平台(先选择平台再进行AI对话)</span>
             )}
             <Chev className={`h-4 w-4 text-slate-400 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
           </button>
@@ -196,14 +196,7 @@ export default function ChatPanel({
             {generating ? "正在生成并保存…" : btnText}
           </button>
 
-          <div className="mt-3 space-y-2 rounded-xl bg-blue-50/60 p-3.5 text-[12.5px] text-blue-700/90">
-            {NOTES.map((note) => (
-              <div key={note} className="flex items-start gap-2">
-                <Tick className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" />
-                <span>{note}</span>
-              </div>
-            ))}
-          </div>
+          
         </div>
       )}
     </section>

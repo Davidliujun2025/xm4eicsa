@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { STEPS } from "../config/workbench";
 import { useCountUp } from "../hooks/useCountUp";
 import type { ChatMessage, TokenInfo } from "../types";
@@ -14,6 +14,7 @@ const STEP_FIELDS: Array<keyof ChatMessage> = [
 ];
 
 type Props = {
+  conversationId?: string;
   platformName: string;
   messages: ChatMessage[];
   tokenInfo?: TokenInfo;
@@ -25,6 +26,7 @@ type Props = {
 };
 
 export default function AssistantPanel({
+  conversationId,
   platformName,
   messages,
   tokenInfo,
@@ -40,6 +42,14 @@ export default function AssistantPanel({
   const usagePercent = Math.min(100, Math.max(0, tokenInfo?.usagePercent ?? 0));
   const originContent = latestMessage?.[STEP_FIELDS[step - 1]];
   const [editContent, setEditContent] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
+  const editContentRef = useRef("");
+  const dirtyRef = useRef(false);
+  const draftKeyRef = useRef("");
+  const onContentChangeRef = useRef(onContentChange);
   const MAX_CONTENT_LENGTH = 500;
 
   const [favoriteMessage, setFavoriteMessage] = useState("");
@@ -48,10 +58,63 @@ export default function AssistantPanel({
 
   const advance = () => onNextStep();
 
+  const commitCurrentEdit = () => {
+    if (!dirtyRef.current) return;
+    onContentChangeRef.current?.(editContentRef.current);
+    if (draftKeyRef.current) sessionStorage.removeItem(draftKeyRef.current);
+    dirtyRef.current = false;
+    setDirty(false);
+    setEditing(false);
+  };
+
+  const stashCurrentEdit = () => {
+    if (!dirtyRef.current || !draftKeyRef.current) return;
+    sessionStorage.setItem(draftKeyRef.current, editContentRef.current);
+  };
+
   useEffect(() => {
     const text = typeof originContent === "string" ? originContent : "";
-    setEditContent(text);
-  }, [originContent, latestMessage?.id, step]);
+    const draftKey = `assistant-panel-draft:${conversationId ?? "none"}:${latestMessage?.id ?? "none"}:${latestMessage?.dialogRound ?? 0}:${step}`;
+    const stashedContent = sessionStorage.getItem(draftKey);
+    const restoredContent = stashedContent ?? text;
+    const restoredDirty = stashedContent !== null && stashedContent !== text;
+    draftKeyRef.current = draftKey;
+    setEditContent(restoredContent);
+    editContentRef.current = restoredContent;
+    setEditing(restoredDirty);
+    setDirty(restoredDirty);
+    dirtyRef.current = restoredDirty;
+  }, [conversationId, originContent, latestMessage?.dialogRound, latestMessage?.id, step]);
+
+  useEffect(() => {
+    onContentChangeRef.current = onContentChange;
+  }, [onContentChange]);
+
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  }, [editContent]);
+
+  useEffect(() => {
+    const saveBeforeExternalNavigation = (event: PointerEvent) => {
+      if (!dirtyRef.current) return;
+      const target = event.target instanceof Element ? event.target : null;
+      const navigationControl = target?.closest("a[href], button");
+      if (!navigationControl || panelRef.current?.contains(navigationControl)) return;
+      stashCurrentEdit();
+    };
+    const saveBeforePageLeave = () => stashCurrentEdit();
+
+    document.addEventListener("pointerdown", saveBeforeExternalNavigation, true);
+    window.addEventListener("pagehide", saveBeforePageLeave);
+    return () => {
+      document.removeEventListener("pointerdown", saveBeforeExternalNavigation, true);
+      window.removeEventListener("pagehide", saveBeforePageLeave);
+      stashCurrentEdit();
+    };
+  }, []);
 
   useEffect(() => {
     setFavoriteMessage("");
@@ -105,14 +168,29 @@ export default function AssistantPanel({
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const val = e.target.value;
-    if (val.length <= MAX_CONTENT_LENGTH) {
+    const isWithinLimit = val.length <= MAX_CONTENT_LENGTH;
+    const isReducingOrReplacingExistingContent = val.length <= editContentRef.current.length;
+    if (isWithinLimit || isReducingOrReplacingExistingContent) {
       setEditContent(val);
-      onContentChange?.(val);
+      editContentRef.current = val;
+      const changed = val !== (typeof originContent === "string" ? originContent : "");
+      dirtyRef.current = changed;
+      setDirty(changed);
+      if (!changed && draftKeyRef.current) sessionStorage.removeItem(draftKeyRef.current);
     }
   };
 
+  const saveEditedContent = () => {
+    commitCurrentEdit();
+  };
+
+  const jumpStep = (targetStep: number) => {
+    stashCurrentEdit();
+    onJumpStep(targetStep);
+  };
+
   return (
-    <section className="flex min-h-0 flex-col gap-4">
+    <section ref={panelRef} className="flex min-h-0 flex-col gap-4">
       {/* Token消耗卡片，移除查看明细 */}
       <div className="flex items-center gap-2.5 rounded-2xl border border-slate-200/80 bg-white px-4 py-3.5 shadow-sm">
         <span className="grid h-7 w-7 place-items-center rounded-full bg-blue-50 text-blue-600 shrink-0">
@@ -145,11 +223,14 @@ export default function AssistantPanel({
               const completed = Boolean(latestMessage) && number < step;
               const current = number === step;
               return (
-                <div key={label} className="flex flex-1 flex-col items-center last:flex-none">
-                  <div className="flex w-full items-center">
+                <div key={label} className="relative flex flex-1 flex-col items-center">
+                  {index < STEPS.length - 1 && (
+                    <div className={`absolute left-1/2 top-3.5 h-[3px] w-full -translate-y-1/2 ${completed ? "bg-blue-600" : "bg-slate-200"}`} />
+                  )}
+                  <div className="relative z-10 flex items-center justify-center">
                     <button
                       type="button"
-                      onClick={() => onJumpStep(number)}
+                      onClick={() => jumpStep(number)}
                       aria-current={current && latestMessage ? "step" : undefined}
                       className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-[12px] font-bold transition-all duration-300 ${
                         completed
@@ -161,11 +242,8 @@ export default function AssistantPanel({
                     >
                       {completed ? <Check className="h-4 w-4" /> : number}
                     </button>
-                    {index < STEPS.length - 1 && (
-                      <div className={`mx-1 h-[3px] flex-1 rounded-full ${completed ? "bg-blue-600" : "bg-slate-200"}`} />
-                    )}
                   </div>
-                  <span className={`mt-2 whitespace-nowrap text-[11.5px] ${
+                  <span className={`mt-2 w-full whitespace-nowrap text-center text-[11.5px] ${
                     current && latestMessage ? "font-semibold text-blue-600" : completed ? "text-blue-600" : "text-slate-400"
                   }`}>
                     {label}
@@ -196,23 +274,33 @@ export default function AssistantPanel({
                 </span>
               </div>
 
-              <div className="mt-4 text-[12.5px] text-slate-400">{STEPS[step - 1]}</div>
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <span className="text-[12.5px] text-slate-400">{STEPS[step - 1]}</span>
+                {editing ? (
+                  <span className="rounded-md bg-amber-50 px-2.5 py-1 text-[11.5px] font-medium text-amber-600">
+                    编辑中
+                  </span>
+                ) : null}
+              </div>
               <div className="mt-2 relative">
                 <textarea
+                  ref={textareaRef}
                   value={editContent}
                   onChange={handleTextChange}
+                  onFocus={() => setEditing(true)}
+                  aria-label={`${STEPS[step - 1]}生成结果`}
                   placeholder="该步骤暂无生成内容"
-                  className="min-h-24 w-full rounded-xl border border-slate-200 bg-white p-3.5 pr-20 text-[13px] leading-relaxed text-slate-700 whitespace-pre-wrap outline-none focus:border-blue-400 resize-y"
+                  className={`min-h-40 w-full overflow-hidden rounded-xl border bg-white p-3.5 pb-8 text-[13px] leading-relaxed text-slate-700 whitespace-pre-wrap outline-none resize-none ${
+                    editing
+                      ? "border-blue-300 ring-2 ring-blue-50 focus:border-blue-400"
+                      : "cursor-text border-slate-200"
+                  }`}
                 />
-                <span className="absolute bottom-3.5 right-3.5 text-[11.5px] text-slate-400">
+                <span className={`absolute bottom-3.5 right-3.5 text-[11.5px] ${
+                  editContent.length > MAX_CONTENT_LENGTH ? "text-amber-500" : "text-slate-400"
+                }`}>
                   {editContent.length}/{MAX_CONTENT_LENGTH}
                 </span>
-              </div>
-
-              <div className="mt-3 flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-[12.5px] text-emerald-700">
-                <Check className="mt-0.5 h-4 w-4 shrink-0" />
-                {latestMessage.riskWarning || "未发现高风险表达"}
-                {latestMessage.riskSuggestion ? `；${latestMessage.riskSuggestion}` : ""}
               </div>
 
               <div className="mt-3 flex items-center justify-between">
@@ -241,15 +329,17 @@ export default function AssistantPanel({
         <div className="border-t border-slate-100 p-4">
   <button
     type="button"
-    onClick={advance}
+    onClick={dirty ? saveEditedContent : advance}
     disabled={!latestMessage || generating}
     className={`w-full rounded-xl py-3 text-[14px] font-semibold text-white transition-all active:scale-[.99] ${
-      step >= 5
+      dirty
+        ? "bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300"
+        : step >= 5
         ? "bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300"
         : "bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300"
     }`}
   >
-    {step >= 5 ? "已完成 ✓" : "确认，生成下一步"}
+    {dirty ? "保存已编辑内容" : step >= 5 ? "已完成，结束此次对话" : "确认，生成下一步"}
   </button>
 </div>
       </div>
