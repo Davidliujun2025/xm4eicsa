@@ -332,7 +332,7 @@ if (Test-PortInUse -Port $TokenUsagePort) {
     $tokenErr = Join-Path $projectRoot "features\token-usage-view\ui\local-integration.err.log"
     $tokenUsage = Start-Process `
         -FilePath $npm `
-        -ArgumentList @("exec", "--", "vite", (Join-Path $projectRoot "features\token-usage-view\ui"), "--config", (Join-Path $projectRoot "features\ai-chat-workbench\ui\client\vite.config.ts"), "--host", "127.0.0.1", "--port", [string]$TokenUsagePort, "--strictPort") `
+        -ArgumentList @("exec", "--", "vite", (Join-Path $projectRoot "features\token-usage-view\ui"), "--config", (Join-Path $projectRoot "features\token-usage-view\ui\vite.config.js"), "--host", "127.0.0.1", "--port", [string]$TokenUsagePort, "--strictPort") `
         -WorkingDirectory (Join-Path $projectRoot "features\ai-chat-workbench\ui\client") `
         -RedirectStandardOutput $tokenOut `
         -RedirectStandardError $tokenErr `

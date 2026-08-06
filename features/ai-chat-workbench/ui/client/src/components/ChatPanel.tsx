@@ -13,6 +13,7 @@ type Props = {
   error: string;
   onGenerate: () => void;
   isCurStepGenerated: boolean;
+  generationDisabledReason?: string;
   readOnly?: boolean;
 };
 
@@ -34,6 +35,7 @@ export default function ChatPanel({
   error,
   onGenerate,
   isCurStepGenerated,
+  generationDisabledReason,
   readOnly,
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -44,7 +46,7 @@ export default function ChatPanel({
   const noPlatformSelected = !currentPlatform;
   const btnText = isCurStepGenerated ? "重新生成AI回复" : "生成AI回复";
 
-  const disableGenerateBtn = generating || !text.trim() || !currentPlatform || readOnly;
+  const disableGenerateBtn = generating || !text.trim() || !currentPlatform || readOnly || Boolean(generationDisabledReason);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -186,15 +188,17 @@ export default function ChatPanel({
             当前生成结果将保存到数据库，并计入当前客服的 Token 用量。
           </div>
 
-          <button
-            type="button"
-            onClick={onGenerate}
-            disabled={disableGenerateBtn}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-500 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-blue-500/25 transition-all hover:bg-blue-600 active:scale-[.99] disabled:opacity-60"
-          >
-            <Spark className={`h-5 w-5 ${generating ? "spin" : ""}`} />
-            {generating ? "正在生成并保存…" : btnText}
-          </button>
+          <div className="mt-3" title={generationDisabledReason}>
+            <button
+              type="button"
+              onClick={onGenerate}
+              disabled={disableGenerateBtn}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-blue-500 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-blue-500/25 transition-all hover:bg-blue-600 active:scale-[.99] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <Spark className={`h-5 w-5 ${generating ? "spin" : ""}`} />
+              {generating ? "正在生成并保存…" : btnText}
+            </button>
+          </div>
 
           
         </div>

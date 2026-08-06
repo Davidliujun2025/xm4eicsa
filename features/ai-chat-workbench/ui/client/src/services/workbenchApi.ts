@@ -8,6 +8,13 @@ type ConversationInput = {
 
 type StepGenerationInput = {
   carrierName?: string;
+  intentRecognition?: string;
+  customerQuestion?: string;
+  platform?: string;
+};
+
+type StepContentUpdateInput = {
+  content: string;
 };
 
 type PersonalFavoriteToggleInput = {
@@ -34,8 +41,8 @@ async function parseResponse<T>(response: Response): Promise<T> {
   return payload.data;
 }
 
-async function csrfToken() {
-  const response = await fetch("/api/v1/auth/csrf", { credentials: "include" });
+async function csrfToken(signal?: AbortSignal) {
+  const response = await fetch("/api/v1/auth/csrf", { credentials: "include", signal });
   const payload = await response.json() as { data?: { token?: string }; message?: string };
   if (!response.ok || !payload.data?.token) {
     throw new Error(payload.message || "无法获取安全令牌");
@@ -43,8 +50,8 @@ async function csrfToken() {
   return payload.data.token;
 }
 
-async function mutate<T>(url: string, method: "POST" | "DELETE", body?: unknown) {
-  const token = await csrfToken();
+async function mutate<T>(url: string, method: "POST" | "PUT" | "DELETE", body?: unknown, signal?: AbortSignal) {
+  const token = await csrfToken(signal);
   return parseResponse<T>(await fetch(url, {
     method,
     credentials: "include",
@@ -53,6 +60,7 @@ async function mutate<T>(url: string, method: "POST" | "DELETE", body?: unknown)
       "X-XSRF-TOKEN": token,
     },
     body: body === undefined ? undefined : JSON.stringify(body),
+    signal,
   }));
 }
 
@@ -106,20 +114,31 @@ export const workbenchApi = {
     );
   },
 
-  async regenerateStep(conversationId: string, dialogRound: number, stepNo: number, input?: StepGenerationInput) {
+  async regenerateStep(conversationId: string, dialogRound: number, stepNo: number, input?: StepGenerationInput, signal?: AbortSignal) {
     return mutate<Conversation>(
       `/api/v1/conversations/${encodeURIComponent(conversationId)}`
         + `/dialogs/${dialogRound}/steps/${stepNo}/regenerate`,
       "POST",
       input,
+      signal,
     );
   },
 
-  async generateStep(conversationId: string, dialogRound: number, stepNo: number, input?: StepGenerationInput) {
+  async generateStep(conversationId: string, dialogRound: number, stepNo: number, input?: StepGenerationInput, signal?: AbortSignal) {
     return mutate<Conversation>(
       `/api/v1/conversations/${encodeURIComponent(conversationId)}`
         + `/dialogs/${dialogRound}/steps/${stepNo}/generate`,
       "POST",
+      input,
+      signal,
+    );
+  },
+
+  async updateStepContent(conversationId: string, dialogRound: number, stepNo: number, input: StepContentUpdateInput) {
+    return mutate<Conversation>(
+      `/api/v1/conversations/${encodeURIComponent(conversationId)}`
+        + `/dialogs/${dialogRound}/steps/${stepNo}/content`,
+      "PUT",
       input,
     );
   },

@@ -15,19 +15,21 @@ let filteredRecords = [];
 
 function getCustomerNavMap() {
     const local = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
-    const localUrl = (port, path = '/') => `${window.location.protocol}//${window.location.hostname}:${port}${path}`;
-    return local ? {
-        '智能对话': localUrl(5174),
-        '对话记录': localUrl(5174, '/?view=history'),
-        '个人话术库': localUrl(5178),
-        '我的评估': localUrl(5174, '/?view=evaluation'),
-        'Token统计': localUrl(5180)
-    } : {
-        '智能对话': `${window.location.origin}/workbench/`,
-        '对话记录': `${window.location.origin}/workbench/?view=history`,
-        '个人话术库': `${window.location.origin}/favorite-script-library/`,
-        '我的评估': `${window.location.origin}/workbench/?view=evaluation`,
-        'Token统计': `${window.location.origin}/token-usage/`
+    const runtimeConfig = window.__APP_NAV_CONFIG__ || {};
+    const workbenchUrl = runtimeConfig.workbenchUrl
+        || (local ? `${window.location.protocol}//${window.location.hostname}:15174/` : `${window.location.origin}/workbench/`);
+    const favoriteScriptUrl = runtimeConfig.favoriteScriptUrl
+        || (local ? `${window.location.protocol}//${window.location.hostname}:15278/` : `${window.location.origin}/favorite-script-library/`);
+    const tokenUsageUrl = runtimeConfig.tokenUsageUrl
+        || (local ? `${window.location.protocol}//${window.location.hostname}:15280/` : `${window.location.origin}/token-usage/`);
+    const normalizedWorkbenchUrl = workbenchUrl.endsWith('/') ? workbenchUrl : `${workbenchUrl}/`;
+
+    return {
+        '智能对话': normalizedWorkbenchUrl,
+        '对话记录': `${normalizedWorkbenchUrl}?view=history`,
+        '个人话术库': favoriteScriptUrl,
+        '我的评估': `${normalizedWorkbenchUrl}?view=evaluation`,
+        'Token统计': tokenUsageUrl
     };
 }
 

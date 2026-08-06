@@ -19,10 +19,13 @@ type Props = {
   messages: ChatMessage[];
   tokenInfo?: TokenInfo;
   generating: boolean;
+  strategyGenerating?: boolean;
+  strategyGenerationError?: string;
   step: number;
   onNextStep: () => void;
+  onRetryStrategy?: () => void;
   onJumpStep: (targetStep: number) => void;
-  onContentChange?: (text: string) => void;
+  onContentChange?: (text: string) => void | Promise<void>;
 };
 
 export default function AssistantPanel({
@@ -31,8 +34,11 @@ export default function AssistantPanel({
   messages,
   tokenInfo,
   generating,
+  strategyGenerating = false,
+  strategyGenerationError = "",
   step,
   onNextStep,
+  onRetryStrategy,
   onJumpStep,
   onContentChange,
 }: Props) {
@@ -55,16 +61,27 @@ export default function AssistantPanel({
   const [favoriteMessage, setFavoriteMessage] = useState("");
   const [favoriteError, setFavoriteError] = useState("");
   const [favoriting, setFavoriting] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editSaveError, setEditSaveError] = useState("");
+  const [strategyWaitingLong, setStrategyWaitingLong] = useState(false);
 
   const advance = () => onNextStep();
 
-  const commitCurrentEdit = () => {
+  const commitCurrentEdit = async () => {
     if (!dirtyRef.current) return;
-    onContentChangeRef.current?.(editContentRef.current);
-    if (draftKeyRef.current) sessionStorage.removeItem(draftKeyRef.current);
-    dirtyRef.current = false;
-    setDirty(false);
-    setEditing(false);
+    setSavingEdit(true);
+    setEditSaveError("");
+    try {
+      await onContentChangeRef.current?.(editContentRef.current);
+      if (draftKeyRef.current) sessionStorage.removeItem(draftKeyRef.current);
+      dirtyRef.current = false;
+      setDirty(false);
+      setEditing(false);
+    } catch (saveError) {
+      setEditSaveError(saveError instanceof Error ? saveError.message : "编辑内容保存失败，请重试");
+    } finally {
+      setSavingEdit(false);
+    }
   };
 
   const stashCurrentEdit = () => {
@@ -96,6 +113,13 @@ export default function AssistantPanel({
     textarea.style.height = "auto";
     textarea.style.height = `${textarea.scrollHeight}px`;
   }, [editContent]);
+
+  useEffect(() => {
+    setStrategyWaitingLong(false);
+    if (!strategyGenerating) return;
+    const timer = window.setTimeout(() => setStrategyWaitingLong(true), 5_000);
+    return () => window.clearTimeout(timer);
+  }, [strategyGenerating]);
 
   useEffect(() => {
     const saveBeforeExternalNavigation = (event: PointerEvent) => {
@@ -181,13 +205,17 @@ export default function AssistantPanel({
   };
 
   const saveEditedContent = () => {
-    commitCurrentEdit();
+    void commitCurrentEdit();
   };
 
   const jumpStep = (targetStep: number) => {
     stashCurrentEdit();
     onJumpStep(targetStep);
   };
+
+  const intentRecognitionComplete = typeof latestMessage?.intentRecognition === "string"
+    && latestMessage.intentRecognition.trim().length > 0;
+  const intentRequired = step === 1 && !dirty && !intentRecognitionComplete;
 
   return (
     <section ref={panelRef} className="flex min-h-0 flex-col gap-4">
@@ -321,26 +349,60 @@ export default function AssistantPanel({
                   {favoriting ? "收藏中..." : "收藏到话术库"}
                 </button>
               </div>
+              {editSaveError && (
+                <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-[12.5px] text-red-600">
+                  {editSaveError}
+                </div>
+              )}
+              {strategyGenerating && step <= 2 && (
+                <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2.5 text-[12.5px] text-blue-700">
+                  {strategyWaitingLong ? "AI正在努力生成策略，请稍候" : "生成中"}
+                </div>
+              )}
+              {strategyGenerationError && step <= 2 && !strategyGenerating && (
+                <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-[12.5px] text-red-600">
+                  <span>{strategyGenerationError}</span>
+                  <button type="button" onClick={onRetryStrategy} className="shrink-0 font-medium text-blue-600 hover:text-blue-700">
+                    重试
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
 
         {/* 底部单按钮，和截图样式统一 */}
         <div className="border-t border-slate-100 p-4">
-  <button
-    type="button"
-    onClick={dirty ? saveEditedContent : advance}
-    disabled={!latestMessage || generating}
-    className={`w-full rounded-xl py-3 text-[14px] font-semibold text-white transition-all active:scale-[.99] ${
-      dirty
-        ? "bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300"
-        : step >= 5
-        ? "bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300"
-        : "bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300"
-    }`}
-  >
-    {dirty ? "保存已编辑内容" : step >= 5 ? "已完成，结束此次对话" : "确认，生成下一步"}
-  </button>
+  <div title={intentRequired ? "请先完成意图识别" : undefined}>
+    <button
+      type="button"
+      onClick={dirty
+        ? saveEditedContent
+        : strategyGenerationError && step <= 2
+          ? onRetryStrategy
+          : advance}
+      disabled={!latestMessage || generating || savingEdit || intentRequired}
+      className={`w-full rounded-xl py-3 text-[14px] font-semibold text-white transition-all active:scale-[.99] ${
+        dirty
+          ? "bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300"
+          : step >= 5
+          ? "bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-300"
+          : "bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300"
+      }`}
+    >
+      {savingEdit
+        ? "保存中..."
+        : strategyGenerating && step <= 2
+          ? "生成中"
+          : dirty
+            ? "保存已编辑内容"
+            : strategyGenerationError && step <= 2
+              ? "重试生成回复策略"
+              : step >= 5
+                ? "已完成，结束此次对话"
+                : "确认，生成下一步"}
+    </button>
+  </div>
 </div>
       </div>
     </section>

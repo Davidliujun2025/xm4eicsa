@@ -25,6 +25,7 @@ const STEP_FIELDS: Array<keyof ChatMessage> = [
 
 const CONFIRMED_EDITS_STORAGE_KEY = "assistant-panel-confirmed-edits";
 const CONVERSATION_STEPS_STORAGE_KEY = "assistant-panel-conversation-steps";
+const STRATEGY_GENERATION_TIMEOUT_MS = 15_000;
 
 type ConfirmedEdits = Record<string, string>;
 
@@ -80,11 +81,31 @@ export default function App() {
   const selectedConversationIdRef = useRef<string | null>(null);
   const [carrierDialogMode, setCarrierDialogMode] = useState<CarrierDialogMode | null>(null);
   const [carrierName, setCarrierName] = useState("");
+  const [strategyGenerating, setStrategyGenerating] = useState(false);
+  const [strategyGenerationError, setStrategyGenerationError] = useState("");
 
   const [currentStep, setCurrentStep] = useState(1);
   const latestMessage = selectedConversation?.messages?.at(-1);
   const currentStepContent = latestMessage?.[STEP_FIELDS[currentStep - 1]];
   const isCurStepGenerated = typeof currentStepContent === "string" && currentStepContent.trim().length > 0;
+
+  const runStrategyGeneration = async (request: (signal: AbortSignal) => Promise<Conversation>) => {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), STRATEGY_GENERATION_TIMEOUT_MS);
+    setStrategyGenerating(true);
+    setStrategyGenerationError("");
+    try {
+      return await request(controller.signal);
+    } catch (requestError) {
+      if (requestError instanceof Error && requestError.name === "AbortError") {
+        throw new Error("生成失败，请稍后重试");
+      }
+      throw requestError;
+    } finally {
+      window.clearTimeout(timeout);
+      setStrategyGenerating(false);
+    }
+  };
 
   const applyConfirmedEdits = (conversation: Conversation): Conversation => ({
     ...conversation,
@@ -111,6 +132,11 @@ export default function App() {
       return;
     }
 
+    const confirmedIntent = typeof latestMessage.intentRecognition === "string"
+      ? latestMessage.intentRecognition.trim()
+      : "";
+    if (next === 2 && !confirmedIntent) return;
+
     if (next === 2 && requiresCarrierName(latestMessage) && !selectedCarrierName?.trim()) {
       setCarrierName("");
       setCarrierDialogMode("next");
@@ -120,12 +146,22 @@ export default function App() {
     setGenerating(true);
     setError("");
     try {
-      const updated = applyConfirmedEdits(await workbenchApi.generateStep(
-        selectedConversation.conversationId,
-        latestMessage.dialogRound,
-        next,
-        next === 2 ? { carrierName: selectedCarrierName?.trim() } : undefined,
-      ));
+      const request = (signal?: AbortSignal) => workbenchApi.generateStep(
+          selectedConversation.conversationId,
+          latestMessage.dialogRound,
+          next,
+          next === 2 ? {
+            carrierName: selectedCarrierName?.trim(),
+            intentRecognition: confirmedIntent,
+            customerQuestion: latestMessage.question,
+            platform: currentPlatform?.name,
+          } : undefined,
+          signal,
+        );
+      const response = next === 2
+        ? await runStrategyGeneration((signal) => request(signal))
+        : await request();
+      const updated = applyConfirmedEdits(response);
       setSelectedConversation(updated);
       setConversations((current) => [
         updated,
@@ -134,7 +170,11 @@ export default function App() {
       setTokenInfo(await workbenchApi.getTokenUsage());
       setCurrentStep(next);
     } catch (generationError) {
-      setError(generationError instanceof Error ? generationError.message : "AI 下一步骤生成失败");
+      const message = generationError instanceof Error ? generationError.message : "生成失败，请稍后重试";
+      if (next === 2) setStrategyGenerationError(
+        message.includes("当前客户信息不足") ? message : "生成失败，请稍后重试",
+      );
+      setError(message);
     } finally {
       setGenerating(false);
     }
@@ -153,11 +193,17 @@ export default function App() {
     setCurrentStep(safeStep);
   };
 
-  const handleAssistantContentChange = (content: string) => {
+  const handleAssistantContentChange = async (content: string) => {
     if (!selectedConversation || !latestMessage) return;
     const conversationId = selectedConversation.conversationId;
     const messageId = latestMessage.id;
     const field = STEP_FIELDS[currentStep - 1];
+    const persisted = applyConfirmedEdits(await workbenchApi.updateStepContent(
+      conversationId,
+      latestMessage.dialogRound,
+      currentStep,
+      { content },
+    ));
     const editKey = confirmedEditKey(conversationId, messageId, field);
     confirmedEditsRef.current = { ...confirmedEditsRef.current, [editKey]: content };
     sessionStorage.setItem(CONFIRMED_EDITS_STORAGE_KEY, JSON.stringify(confirmedEditsRef.current));
@@ -168,9 +214,9 @@ export default function App() {
       ),
     });
 
-    setSelectedConversation((current) =>
-      current?.conversationId === conversationId ? updateConversation(current) : current,
-    );
+    setSelectedConversation((current) => current?.conversationId === conversationId
+      ? updateConversation(persisted)
+      : current);
     setConversations((current) => current.map((conversation) =>
       conversation.conversationId === conversationId ? updateConversation(conversation) : conversation,
     ));
@@ -330,6 +376,10 @@ export default function App() {
       && latestMessage
       && latestMessage.question.trim() === question,
     );
+    const confirmedIntent = typeof latestMessage?.intentRecognition === "string"
+      ? latestMessage.intentRecognition.trim()
+      : "";
+    if (sameQuestion && currentStep === 2 && !confirmedIntent) return;
     if (sameQuestion && currentStep === 2 && !isCurStepGenerated
         && requiresCarrierName(latestMessage) && !selectedCarrierName?.trim()) {
       setCarrierName("");
@@ -347,18 +397,30 @@ export default function App() {
     try {
       let updated: Conversation;
       if (selectedConversation && latestMessage && sameQuestion) {
-        updated = isCurStepGenerated
-          ? await workbenchApi.regenerateStep(
-            selectedConversation.conversationId,
-            latestMessage.dialogRound,
-            currentStep,
-          )
-          : await workbenchApi.generateStep(
-            selectedConversation.conversationId,
-            latestMessage.dialogRound,
-            currentStep,
-            currentStep === 2 ? { carrierName: selectedCarrierName?.trim() } : undefined,
-          );
+        const strategyInput = currentStep === 2 ? {
+          carrierName: selectedCarrierName?.trim(),
+          intentRecognition: confirmedIntent,
+          customerQuestion: latestMessage.question,
+          platform: currentPlatform.name,
+        } : undefined;
+        const request = (signal?: AbortSignal) => isCurStepGenerated
+          ? workbenchApi.regenerateStep(
+              selectedConversation.conversationId,
+              latestMessage.dialogRound,
+              currentStep,
+              strategyInput,
+              signal,
+            )
+          : workbenchApi.generateStep(
+              selectedConversation.conversationId,
+              latestMessage.dialogRound,
+              currentStep,
+              strategyInput,
+              signal,
+            );
+        updated = currentStep === 2
+          ? await runStrategyGeneration((signal) => request(signal))
+          : await request();
       } else if (currentStep === 1) {
         updated = selectedConversation
           ? await workbenchApi.addMessage(selectedConversation.conversationId, input)
@@ -377,7 +439,11 @@ export default function App() {
       ]);
       setTokenInfo(await workbenchApi.getTokenUsage());
     } catch (generationError) {
-      setError(generationError instanceof Error ? generationError.message : "AI 回复生成失败");
+      const message = generationError instanceof Error ? generationError.message : "生成失败，请稍后重试";
+      if (currentStep === 2) setStrategyGenerationError(
+        message.includes("当前客户信息不足") ? message : "生成失败，请稍后重试",
+      );
+      setError(message);
     } finally {
       setGenerating(false);
     }
@@ -476,6 +542,9 @@ export default function App() {
                 error={error}
                 onGenerate={() => void generateReply()}
                 isCurStepGenerated={isCurStepGenerated}
+                generationDisabledReason={currentStep === 2 && !latestMessage?.intentRecognition?.trim()
+                  ? "请先完成意图识别"
+                  : undefined}
               />
               <AssistantPanel
                 conversationId={selectedConversation?.conversationId}
@@ -483,8 +552,14 @@ export default function App() {
                 messages={selectedConversation?.messages ?? []}
                 tokenInfo={tokenInfo}
                 generating={generating}
+                strategyGenerating={strategyGenerating}
+                strategyGenerationError={strategyGenerationError}
                 step={currentStep}
                 onNextStep={() => void handleNextStep()}
+                onRetryStrategy={() => {
+                  if (currentStep === 1) void handleNextStep();
+                  else void generateReply();
+                }}
                 onJumpStep={handleJumpStep}
                 onContentChange={handleAssistantContentChange}
               />
