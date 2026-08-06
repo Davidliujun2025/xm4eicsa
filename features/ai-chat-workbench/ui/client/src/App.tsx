@@ -13,6 +13,7 @@ import type { ChatMessage, Conversation, TokenInfo } from "./types";
 import { getLoginUrl } from "./utils/auth";
 
 type WorkbenchView = "conversation" | "history" | "evaluation";
+type CarrierDialogMode = "next" | "current";
 
 const STEP_FIELDS: Array<keyof ChatMessage> = [
   "intentRecognition",
@@ -54,6 +55,11 @@ function getWorkbenchView(): WorkbenchView {
   return requestedView === "history" || requestedView === "evaluation" ? requestedView : "conversation";
 }
 
+function requiresCarrierName(message?: ChatMessage) {
+  if (!message) return false;
+  return /快递|物流|配送|发货|派送|送货|运送/.test(`${message.question || ""}\n${message.intentRecognition || ""}`);
+}
+
 export default function App() {
   const [platformId, setPlatformId] = useState("");
   const [isAuthenticatedCustomerService, setIsAuthenticatedCustomerService] = useState(false);
@@ -72,6 +78,8 @@ export default function App() {
   const confirmedEditsRef = useRef<ConfirmedEdits>(loadConfirmedEdits());
   const conversationStepsRef = useRef<Record<string, number>>(loadConversationSteps());
   const selectedConversationIdRef = useRef<string | null>(null);
+  const [carrierDialogMode, setCarrierDialogMode] = useState<CarrierDialogMode | null>(null);
+  const [carrierName, setCarrierName] = useState("");
 
   const [currentStep, setCurrentStep] = useState(1);
   const latestMessage = selectedConversation?.messages?.at(-1);
@@ -93,13 +101,19 @@ export default function App() {
   });
 
   // 确认当前步骤后，调用 DeepSeek 生成下一步并立即写入数据库。
-  const handleNextStep = async () => {
+  const handleNextStep = async (selectedCarrierName?: string) => {
     const next = Math.min(5, currentStep + 1);
     if (next === currentStep || generating || !selectedConversation || !latestMessage) return;
 
     const existingContent = latestMessage[STEP_FIELDS[next - 1]];
     if (typeof existingContent === "string" && existingContent.trim().length > 0) {
       setCurrentStep(next);
+      return;
+    }
+
+    if (next === 2 && requiresCarrierName(latestMessage) && !selectedCarrierName?.trim()) {
+      setCarrierName("");
+      setCarrierDialogMode("next");
       return;
     }
 
@@ -110,6 +124,7 @@ export default function App() {
         selectedConversation.conversationId,
         latestMessage.dialogRound,
         next,
+        next === 2 ? { carrierName: selectedCarrierName?.trim() } : undefined,
       ));
       setSelectedConversation(updated);
       setConversations((current) => [
@@ -307,9 +322,21 @@ export default function App() {
     setCurrentStep(1);
   };
 
-  const generateReply = async () => {
+  const generateReply = async (selectedCarrierName?: string) => {
     const question = draft.trim();
     if (!question || generating || !currentPlatform) return;
+    const sameQuestion = Boolean(
+      selectedConversation
+      && latestMessage
+      && latestMessage.question.trim() === question,
+    );
+    if (sameQuestion && currentStep === 2 && !isCurStepGenerated
+        && requiresCarrierName(latestMessage) && !selectedCarrierName?.trim()) {
+      setCarrierName("");
+      setCarrierDialogMode("current");
+      return;
+    }
+
     setGenerating(true);
     setError("");
     const input = {
@@ -318,11 +345,6 @@ export default function App() {
       customerType: selectedConversation?.messages?.at(-1)?.customerType || "直接咨询",
     };
     try {
-      const sameQuestion = Boolean(
-        selectedConversation
-        && latestMessage
-        && latestMessage.question.trim() === question,
-      );
       let updated: Conversation;
       if (selectedConversation && latestMessage && sameQuestion) {
         updated = isCurStepGenerated
@@ -335,6 +357,7 @@ export default function App() {
             selectedConversation.conversationId,
             latestMessage.dialogRound,
             currentStep,
+            currentStep === 2 ? { carrierName: selectedCarrierName?.trim() } : undefined,
           );
       } else if (currentStep === 1) {
         updated = selectedConversation
@@ -468,6 +491,43 @@ export default function App() {
             </main>
           )}
         </div>
+        {carrierDialogMode && (
+          <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/35 p-5">
+            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+              <h2 className="text-lg font-bold text-slate-800">填写本次合作快递</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                已识别到客户存在物流顾虑。填写具体快递后，AI 才能生成准确的物流保障策略。
+              </p>
+              <label className="mt-5 block text-sm font-medium text-slate-700" htmlFor="carrier-name">合作快递名称</label>
+              <input
+                id="carrier-name"
+                value={carrierName}
+                onChange={(event) => setCarrierName(event.target.value)}
+                placeholder="例如：顺丰、中通、圆通"
+                maxLength={30}
+                autoFocus
+                className="mt-2 w-full rounded-xl border border-slate-300 px-3.5 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+              <div className="mt-5 flex justify-end gap-3">
+                <button type="button" className="rounded-lg px-4 py-2 text-sm text-slate-600 hover:bg-slate-100" onClick={() => setCarrierDialogMode(null)}>取消</button>
+                <button
+                  type="button"
+                  disabled={!carrierName.trim() || generating}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  onClick={() => {
+                    const confirmedCarrier = carrierName.trim();
+                    const mode = carrierDialogMode;
+                    setCarrierDialogMode(null);
+                    if (mode === "next") void handleNextStep(confirmedCarrier);
+                    else void generateReply(confirmedCarrier);
+                  }}
+                >
+                  确认并生成
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -54,7 +54,8 @@ class AIServiceRegenerationTest {
                 conversationService,
                 tokenService,
                 deepSeekClient,
-                new IntentRecognitionPromptService());
+                new IntentRecognitionPromptService(),
+                new ReplyStrategyRuleService());
         ReflectionTestUtils.setField(service, "timeoutSeconds", 5);
     }
 

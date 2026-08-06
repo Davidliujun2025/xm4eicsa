@@ -33,6 +33,7 @@ public class AIService {
     private final TokenService tokenService;
     private final DeepSeekClient deepSeekClient;
     private final IntentRecognitionPromptService promptService;
+    private final ReplyStrategyRuleService replyStrategyRuleService;
 
     @Value("${app.ai.timeout-seconds:15}")
     private Integer timeoutSeconds;
@@ -59,7 +60,7 @@ public class AIService {
                 "请确认意图识别结果后再进入下一步骤。");
         try {
             StepGenerationResult result = generateCurrentStep(
-                    1, question, platform, dialogRound, historyRecords, null);
+                    1, question, platform, dialogRound, historyRecords, null, null);
             saveSuccessfulStep(
                     conversation, customerId, question, dialogRound, 1, 1,
                     extraJson, result);
@@ -90,7 +91,7 @@ public class AIService {
                 "请确认意图识别结果后再进入下一步骤。");
         try {
             StepGenerationResult result = generateCurrentStep(
-                    1, question, conversation.getPlatform(), dialogRound, historyRecords, null);
+                    1, question, conversation.getPlatform(), dialogRound, historyRecords, null, null);
             saveSuccessfulStep(
                     conversation, customerId, question, dialogRound, 1, 1,
                     extraJson, result);
@@ -107,6 +108,11 @@ public class AIService {
 
     public ConversationResponse generateStep(String customerId, String conversationId,
                                              Integer dialogRound, Integer stepNo) {
+        return generateStep(customerId, conversationId, dialogRound, stepNo, null);
+    }
+
+    public ConversationResponse generateStep(String customerId, String conversationId,
+                                             Integer dialogRound, Integer stepNo, String carrierName) {
         assertTokenQuota(customerId);
         validateDialogStep(dialogRound, stepNo);
         if (stepNo == 1) {
@@ -139,10 +145,12 @@ public class AIService {
         try {
             StepGenerationResult result = generateCurrentStep(
                     stepNo, previousStep.getCustomerDialog(), conversation.getPlatform(),
-                    dialogRound, historyRecords, null);
+                    dialogRound, historyRecords, null, carrierName);
+            String carrierMetadata = replyStrategyRuleService.carrierMetadata(carrierName);
             saveSuccessfulStep(
                     conversation, customerId, previousStep.getCustomerDialog(), dialogRound,
-                    stepNo, stepRound, previousStep.getExtraJson(), result);
+                    stepNo, stepRound, stepNo == 2 && carrierMetadata != null
+                            ? carrierMetadata : previousStep.getExtraJson(), result);
         } catch (RuntimeException exception) {
             saveFailedStep(
                     conversation, customerId, previousStep.getCustomerDialog(), dialogRound,
@@ -157,6 +165,11 @@ public class AIService {
 
     public ConversationResponse regenerateStep(String customerId, String conversationId,
                                                Integer dialogRound, Integer stepNo) {
+        return regenerateStep(customerId, conversationId, dialogRound, stepNo, null);
+    }
+
+    public ConversationResponse regenerateStep(String customerId, String conversationId,
+                                               Integer dialogRound, Integer stepNo, String carrierName) {
         assertTokenQuota(customerId);
         validateDialogStep(dialogRound, stepNo);
         Conversation conversation = requireOwnedConversation(customerId, conversationId);
@@ -180,10 +193,13 @@ public class AIService {
         List<AiDialogStepRecord> historyRecords = loadHistory(conversation.getId());
 
         StepGenerationResult result;
+        String rememberedCarrier = carrierName == null || carrierName.isBlank()
+                ? replyStrategyRuleService.carrierFromMetadata(current.getExtraJson())
+                : carrierName;
         try {
             result = generateCurrentStep(
                     stepNo, current.getCustomerDialog(), conversation.getPlatform(),
-                    dialogRound, historyRecords, current.getAiContent());
+                    dialogRound, historyRecords, current.getAiContent(), rememberedCarrier);
         } catch (RuntimeException exception) {
             saveFailedStep(
                     conversation, customerId, current.getCustomerDialog(), current.getDialogRound(),
@@ -193,8 +209,10 @@ public class AIService {
         }
 
         current.setIsEffective((byte) 0);
+        String carrierMetadata = replyStrategyRuleService.carrierMetadata(rememberedCarrier);
         AiDialogStepRecord regenerated = copyRegeneratedRecord(
-                conversation, customerId, current, nextStepRound, result);
+                conversation, customerId, current, nextStepRound, result,
+                stepNo == 2 && carrierMetadata != null ? carrierMetadata : current.getExtraJson());
         stepRecordRepository.saveAll(List.of(current, regenerated));
         conversation.setUpdatedAt(LocalDateTime.now());
         conversationRepository.save(conversation);
@@ -237,7 +255,7 @@ public class AIService {
     private StepGenerationResult generateCurrentStep(Integer stepNo, String question, String platform,
                                                      Integer dialogRound,
                                                      List<AiDialogStepRecord> historyRecords,
-                                                     String previousContent) {
+                                                     String previousContent, String carrierName) {
         CompletableFuture<StepGenerationResult> future = CompletableFuture.supplyAsync(() -> {
             if (stepNo == 1) {
                 String prompt = promptService.render(
@@ -252,6 +270,31 @@ public class AIService {
 
             String generationContext = buildStepGenerationContext(
                     dialogRound, stepNo, historyRecords, previousContent);
+            if (stepNo == 2) {
+                String intentRecognition = historyRecords.stream()
+                        .filter(record -> dialogRound.equals(record.getDialogRound()))
+                        .filter(record -> record.getStepNo() != null && record.getStepNo().intValue() == 1)
+                        .map(AiDialogStepRecord::getAiContent)
+                        .findFirst().orElse("");
+                ReplyStrategyRuleService.ReplyStrategyPlan plan = replyStrategyRuleService.plan(
+                        platform, question, intentRecognition, carrierName);
+                DeepSeekClient.DeepSeekResult response = deepSeekClient.complete(plan.prompt(),
+                        "服务平台：" + platform + "\n\n客户当前问题：" + question
+                                + "\n\n意图识别及上下文：\n" + generationContext
+                                + "\n\n请只输出第2步回复策略正文。");
+                ReplyStrategyRuleService.ValidationResult validation = replyStrategyRuleService.validate(response.content(), plan);
+                if (!validation.valid()) {
+                    response = deepSeekClient.complete(plan.prompt() + "\n上次输出未通过校验："
+                                    + validation.message() + "。请严格修正后重新输出。",
+                            "服务平台：" + platform + "\n\n客户当前问题：" + question
+                                    + "\n\n意图识别及上下文：\n" + generationContext);
+                    validation = replyStrategyRuleService.validate(response.content(), plan);
+                }
+                if (!validation.valid()) {
+                    throw new IllegalStateException("回复策略未通过业务校验：" + validation.message());
+                }
+                return StepGenerationResult.from(response);
+            }
             DeepSeekClient.DeepSeekResult response = deepSeekClient.complete(
                     stepSystemPrompt(stepNo),
                     "服务平台：" + platform + "\n\n客户当前问题：" + question
@@ -280,7 +323,7 @@ public class AIService {
 
     private AiDialogStepRecord copyRegeneratedRecord(Conversation conversation, String customerId,
                                                       AiDialogStepRecord current, int nextStepRound,
-                                                      StepGenerationResult result) {
+                                                      StepGenerationResult result, String extraJson) {
         LocalDateTime now = LocalDateTime.now();
         String storedContext = dialogContextBuilder.buildStoredStepContext(
                 loadStoredContextHistory(conversation.getId()),
@@ -295,7 +338,7 @@ public class AIService {
                 .stepNo(current.getStepNo())
                 .stepRound(nextStepRound)
                 .aiContent(result.content())
-                .extraJson(current.getExtraJson())
+                .extraJson(extraJson)
                 .isManualEdit((byte) 0)
                 .isEffective((byte) 1)
                 .triggerAt(now)

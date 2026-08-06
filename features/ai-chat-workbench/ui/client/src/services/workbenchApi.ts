@@ -6,6 +6,10 @@ type ConversationInput = {
   customerType?: string;
 };
 
+type StepGenerationInput = {
+  carrierName?: string;
+};
+
 type PersonalFavoriteToggleInput = {
   sourceTalkId?: string;
   content: string;
@@ -102,19 +106,21 @@ export const workbenchApi = {
     );
   },
 
-  async regenerateStep(conversationId: string, dialogRound: number, stepNo: number) {
+  async regenerateStep(conversationId: string, dialogRound: number, stepNo: number, input?: StepGenerationInput) {
     return mutate<Conversation>(
       `/api/v1/conversations/${encodeURIComponent(conversationId)}`
         + `/dialogs/${dialogRound}/steps/${stepNo}/regenerate`,
       "POST",
+      input,
     );
   },
 
-  async generateStep(conversationId: string, dialogRound: number, stepNo: number) {
+  async generateStep(conversationId: string, dialogRound: number, stepNo: number, input?: StepGenerationInput) {
     return mutate<Conversation>(
       `/api/v1/conversations/${encodeURIComponent(conversationId)}`
         + `/dialogs/${dialogRound}/steps/${stepNo}/generate`,
       "POST",
+      input,
     );
   },
 

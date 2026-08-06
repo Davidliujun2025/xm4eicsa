@@ -2,6 +2,7 @@ package com.carepilot.chatworkbench.controller;
 
 import com.acme.aicslogin.security.AuthenticatedUser;
 import com.carepilot.chatworkbench.dto.request.CreateConversationRequest;
+import com.carepilot.chatworkbench.dto.request.GenerateStepRequest;
 import com.carepilot.chatworkbench.dto.response.ApiResponse;
 import com.carepilot.chatworkbench.dto.response.AiDialogStepResponse;
 import com.carepilot.chatworkbench.dto.response.ConversationResponse;
@@ -92,12 +93,14 @@ public class ConversationController {
             @AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable("id") String conversationId,
             @PathVariable Integer dialogRound,
-            @PathVariable Integer stepNo) {
+            @PathVariable Integer stepNo,
+            @Valid @RequestBody(required = false) GenerateStepRequest request) {
         String customerId = user.id().toString();
         log.info("Regenerate conversation step: customerId={}, conversationId={}, dialogRound={}, stepNo={}",
                 customerId, conversationId, dialogRound, stepNo);
         return ResponseEntity.ok(ApiResponse.success(
-                aiService.regenerateStep(customerId, conversationId, dialogRound, stepNo)));
+                aiService.regenerateStep(customerId, conversationId, dialogRound, stepNo,
+                        request == null ? null : request.getCarrierName())));
     }
 
     @PostMapping("/{id}/dialogs/{dialogRound}/steps/{stepNo}/generate")
@@ -105,12 +108,14 @@ public class ConversationController {
             @AuthenticationPrincipal AuthenticatedUser user,
             @PathVariable("id") String conversationId,
             @PathVariable Integer dialogRound,
-            @PathVariable Integer stepNo) {
+            @PathVariable Integer stepNo,
+            @Valid @RequestBody(required = false) GenerateStepRequest request) {
         String customerId = user.id().toString();
         log.info("Generate conversation step: customerId={}, conversationId={}, dialogRound={}, stepNo={}",
                 customerId, conversationId, dialogRound, stepNo);
         return ResponseEntity.ok(ApiResponse.success(
-                aiService.generateStep(customerId, conversationId, dialogRound, stepNo)));
+                aiService.generateStep(customerId, conversationId, dialogRound, stepNo,
+                        request == null ? null : request.getCarrierName())));
     }
 
     @DeleteMapping("/{id}")
