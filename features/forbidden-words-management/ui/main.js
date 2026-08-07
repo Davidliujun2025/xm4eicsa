@@ -595,6 +595,94 @@ function bindSidebarNavigation() {
   });
 }
 
+
+// ===== account dropdown + logout (unified with workbench) =====
+let userMenuOpen = false;
+let accountModalType = "";
+let accountSubmitting = false;
+
+function bindAccountMenu() {
+  const wrap = qs("currentUserWrap");
+  const button = qs("currentUserButton");
+  const dropdown = qs("userDropdown");
+  const modal = qs("accountConfirmModal");
+  const arrow = button ? button.querySelector(".current-user-arrow") : null;
+  if (!button || !dropdown || !modal) return;
+
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    userMenuOpen = !userMenuOpen;
+    dropdown.style.display = userMenuOpen ? "block" : "none";
+    if (arrow) arrow.classList.toggle("is-open", userMenuOpen);
+  });
+
+  document.addEventListener("click", () => {
+    userMenuOpen = false;
+    dropdown.style.display = "none";
+    if (arrow) arrow.classList.remove("is-open");
+  });
+
+  dropdown.querySelectorAll("button").forEach((item) => {
+    item.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const action = item.dataset.action;
+      if (action === "logout" || action === "switch") {
+        accountModalType = action;
+        qs("accountConfirmTitle").textContent =
+          action === "logout" ? "确认退出登录" : "确认切换账号";
+        modal.style.display = "flex";
+      }
+      userMenuOpen = false;
+      dropdown.style.display = "none";
+      if (arrow) arrow.classList.remove("is-open");
+    });
+  });
+
+  qs("accountConfirmCancel").addEventListener("click", () => {
+    modal.style.display = "none";
+  });
+
+  qs("accountConfirmOk").addEventListener("click", () => {
+    if (accountSubmitting) return;
+    accountSubmitting = true;
+    qs("accountConfirmOk").textContent = "处理中...";
+    logoutAndRedirect(window.location.href).finally(() => {
+      accountSubmitting = false;
+    });
+  });
+}
+
+function readCookie(name) {
+  const cookie = document.cookie.split("; ").find((item) => item.startsWith(`${name}=`));
+  return cookie ? decodeURIComponent(cookie.slice(name.length + 1)) : "";
+}
+
+async function ensureCsrfToken() {
+  if (readCookie("XSRF-TOKEN")) return readCookie("XSRF-TOKEN");
+  await fetch("/api/v1/public/login-config", { credentials: "include" });
+  return readCookie("XSRF-TOKEN");
+}
+
+function logoutAndRedirect(returnUrl) {
+  const isLocal = window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost";
+  const loginUrl = isLocal
+    ? `${window.location.protocol}//${window.location.hostname}:15173/`
+    : `${window.location.origin}/`;
+  return ensureCsrfToken()
+    .then((csrfToken) =>
+      fetch("/api/v1/auth/logout", {
+        method: "POST",
+        credentials: "include",
+        headers: csrfToken ? { "X-XSRF-TOKEN": csrfToken } : undefined,
+      }).catch(() => {})
+    )
+    .finally(() => {
+      const url = new URL(loginUrl, window.location.origin);
+      url.searchParams.set("returnUrl", returnUrl);
+      window.location.replace(url.toString());
+    });
+}
+
 async function loadCurrentUser() {
   const response = await fetch("/api/v1/auth/me", { credentials: "include" });
   if (response.status === 401) {
@@ -622,6 +710,7 @@ async function bootstrap() {
   bindDialogs();
   bindFilters();
   bindSidebarNavigation();
+  bindAccountMenu();
 
   await loadCurrentUser();
   await loadWords();

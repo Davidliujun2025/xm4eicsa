@@ -11,7 +11,7 @@
       <div class="brand-content">
         <div class="brand-header">
           <div class="brand-logo">
-            <img src="/logo.png" alt="CarePilot AI Logo" />
+            <img src="/logo.png" alt="ServicePilot Logo" />
           </div>
       
         </div>
@@ -488,7 +488,7 @@ onMounted(() => {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;  /* 在最大尺寸内保持比例 */
-  mix-blend-mode: multiply;   /* 添加此行，去除白色背景 */
+  mix-blend-mode: normal;   /* 添加此行，去除白色背景 */
 }
 
 

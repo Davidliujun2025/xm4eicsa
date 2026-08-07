@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CarePilot AI - 违禁词库管理</title>
-  <link rel="stylesheet" href="./styles.css?v=20260727-workbench-align2" />
+  <link rel="stylesheet" href="./styles.css?v=20260807-account-menu" />
 </head>
 <body>
   <div class="app-shell">
@@ -56,10 +56,17 @@
         </div>
         <div class="page-header__right">
           <div class="service-status"><span></span>AI服务正常</div>
-          <div class="current-user">
-            <div id="currentUserAvatar" class="current-user__avatar">?</div>
-            <span id="currentUserName">正在加载</span>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+          <div class="current-user-wrap" id="currentUserWrap">
+            <button type="button" class="current-user" id="currentUserButton" aria-label="账号菜单">
+              <div id="currentUserAvatar" class="current-user__avatar">?</div>
+              <span id="currentUserName">正在加载</span>
+              <svg class="current-user-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+            </button>
+
+            <div class="user-dropdown" id="userDropdown" style="display:none;">
+              <button type="button" data-action="switch">切换账号</button>
+              <button type="button" data-action="logout">退出登录</button>
+            </div>
           </div>
         </div>
       </header>
@@ -186,6 +193,16 @@
     <div id="csvPreview"></div>
   </dialog>
 
-  <script src="./main.js?v=20260802-auth-navigation"></script>
+  <div id="accountConfirmModal" class="confirm-overlay" style="display:none;">
+    <div class="confirm-box">
+      <h3 id="accountConfirmTitle">确认退出登录</h3>
+      <div class="confirm-actions">
+        <button type="button" class="confirm-cancel" id="accountConfirmCancel">否</button>
+        <button type="button" class="confirm-ok" id="accountConfirmOk">是</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="./main.js?v=20260807-account-menu"></script>
 </body>
 </html>

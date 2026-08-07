@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Token统计</title>
-  <link rel="stylesheet" href="styles.css?v=20260728-dashboard-fold1">
+  <link rel="stylesheet" href="styles.css?v=20260807-settings-icon">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     // 默认后端地址与当前页面同源，避免 127.0.0.1 与 localhost 的 CORS 问题。
@@ -51,15 +51,22 @@
               </span>
               <span class="message-badge">2</span>
             </button>
-            <button class="user-profile" type="button" aria-label="用户菜单">
-              <div class="avatar">客</div>
-              <span class="user-name">客服</span>
-              <span class="open-key" aria-hidden="true">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </span>
-            </button>
+            <div class="user-profile-wrap" id="userProfileWrap">
+              <button class="user-profile" type="button" aria-label="用户菜单" id="userProfileButton">
+                <div class="avatar">客</div>
+                <span class="user-name">客服</span>
+                <span class="open-key" aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>
+                </span>
+              </button>
+
+              <div class="user-dropdown" id="userDropdown" style="display:none;">
+                <button type="button" data-action="switch">切换账号</button>
+                <button type="button" data-action="logout">退出登录</button>
+              </div>
+            </div>
           </div>
         </div>
         <div class="header-row">
@@ -183,8 +190,8 @@
         <li class="menu-item settings-item"><span class="icon">
             <!-- settings gear outline -->
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </span><span class="label">设置</span></li>
     </ul>
@@ -196,6 +203,16 @@
   <script src="runtime-config.js?v=20260806-runtime-navigation"></script>
   <script src="mockData.js?v=20260801-remove-token-demo"></script>
   <script src="tokenApi.js?v=20260731-sidebar-integration"></script>
-  <script src="app.js?v=20260806-runtime-navigation"></script>
+  <div id="accountConfirmModal" class="confirm-overlay" style="display:none;">
+    <div class="confirm-box">
+      <h3 id="accountConfirmTitle">确认退出登录</h3>
+      <div class="confirm-actions">
+        <button type="button" class="confirm-cancel" id="accountConfirmCancel">否</button>
+        <button type="button" class="confirm-ok" id="accountConfirmOk">是</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js?v=20260807-account-menu"></script>
 </body>
 </html>

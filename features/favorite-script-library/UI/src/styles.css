@@ -27,18 +27,22 @@ textarea {
   flex: 0 0 232px;
   display: flex;
   flex-direction: column;
+  height: 100vh;
+  position: sticky;
+  top: 0;
   border-right: 1px solid rgba(226, 232, 240, 0.8);
   background: #fff;
 }
 
 .script-brand {
-  padding: 24px 20px;
+  padding: 20px 20px;
 }
 
 .script-logo {
   display: block;
-  width: 100%;
-  height: auto;
+  height: 64px;
+  width: auto;
+  max-width: 100%;
   object-fit: contain;
 }
 
@@ -79,6 +83,7 @@ textarea {
 }
 
 .script-nav-item.settings-item {
+  margin-top: 12px;
   color: #64748b;
 }
 
@@ -108,9 +113,7 @@ textarea {
 }
 
 .script-nav-child-item {
-  padding-top: 10px;
-  padding-bottom: 10px;
-  padding-left: 62px;
+  padding: 12px 16px 12px 64px;
   font-size: 13px;
 }
 
@@ -276,4 +279,116 @@ textarea {
 /* 和Sidebar箭头旋转逻辑保持统一 180°翻转 */
 .script-fold-arrow.rotate-180 {
   transform: rotate(180deg);
+}
+
+/* 右上角用户下拉菜单（与智能对话页面统一） */
+.script-user-menu {
+  position: relative;
+}
+
+.script-account-button {
+  cursor: pointer;
+}
+
+.script-chev-icon {
+  transition: transform 0.2s ease;
+}
+
+.script-chev-icon.is-open {
+  transform: rotate(180deg);
+}
+
+.script-user-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 50;
+  width: 120px;
+  padding: 8px 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+}
+
+.script-user-dropdown button {
+  width: 100%;
+  border: 0;
+  padding: 8px 16px;
+  background: transparent;
+  color: #475569;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.script-user-dropdown button:hover {
+  background: #f1f5f9;
+}
+
+.script-user-dropdown button:last-child:hover {
+  color: #ef4444;
+}
+
+/* 退出/切换账号确认弹窗（与智能对话页面统一） */
+.script-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.4);
+}
+
+.script-modal-box {
+  width: 360px;
+  padding: 24px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2);
+}
+
+.script-modal-box h3 {
+  margin: 0 0 24px;
+  font-size: 16px;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.script-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.script-modal-actions button {
+  padding: 8px 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  color: #475569;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.script-modal-actions button:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+
+.script-modal-actions button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.script-modal-actions button:last-child {
+  border-color: #3b82f6;
+  background: #3b82f6;
+  color: #fff;
+}
+
+.script-modal-actions button:last-child:hover:not(:disabled) {
+  background: #2563eb;
 }

@@ -12,7 +12,7 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   ApiError,
@@ -34,6 +34,7 @@ import type {
 } from "../types/user";
 import { validatePassword } from "../utils/validators";
 import { getUserStatistics } from "../api/userApi";
+import { logoutAndRedirect } from "../utils/auth";
 
 type RoleFilter = "ALL" | UserRole;
 type StatusFilter = "ALL" | UserStatus;
@@ -44,7 +45,7 @@ const isLocalDevelopment =
 const localUrl = (port: number) => `${window.location.protocol}//${window.location.hostname}:${port}/`;
 const LOGIN_URL =
   import.meta.env.VITE_LOGIN_URL ||
-  (isLocalDevelopment ? localUrl(5173) : `${window.location.origin}/`);
+  (isLocalDevelopment ? localUrl(15173) : `${window.location.origin}/`);
 
 const NAVIGATION_ITEMS = [
   { label: "管理看板", icon: Gauge },
@@ -104,6 +105,40 @@ export default function UserManagementPage() {
     );
     window.location.assign(loginUrl.toString());
   }, []);
+
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [accountModalType, setAccountModalType] = useState<"" | "logout" | "switch">("");
+  const [accountSubmitting, setAccountSubmitting] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
+
+  const openUserMenu = () => setUserMenuOpen((v) => !v);
+  const openSwitchModal = () => {
+    setUserMenuOpen(false);
+    setAccountModalType("switch");
+  };
+  const openLogoutModal = () => {
+    setUserMenuOpen(false);
+    setAccountModalType("logout");
+  };
+  const closeAccountModal = () => setAccountModalType("");
+  const confirmAccountAction = async () => {
+    setAccountSubmitting(true);
+    try {
+      await logoutAndRedirect(window.location.href);
+    } finally {
+      setAccountSubmitting(false);
+    }
+  };
 
   const loadUsers = useCallback(async () => {
     const response = await getCustomerServiceUsers({
@@ -453,10 +488,23 @@ export default function UserManagementPage() {
             </div>
             <div className="page-header__right">
               <div className="service-status"><span />AI服务正常</div>
-              <div className="current-user">
-                <div className="current-user__avatar">{currentUserName.slice(0, 1) || "?"}</div>
-                <span>{currentUserName || "正在加载"}</span>
-                <ChevronDown size={16} />
+              <div className="current-user-wrap" ref={userMenuRef}>
+                <button
+                  type="button"
+                  className="current-user"
+                  onClick={openUserMenu}
+                >
+                  <div className="current-user__avatar">{currentUserName.slice(0, 1) || "?"}</div>
+                  <span>{currentUserName || "正在加载"}</span>
+                  <ChevronDown size={16} className={`current-user-arrow${userMenuOpen ? " is-open" : ""}`} />
+                </button>
+
+                {userMenuOpen && (
+                  <div className="user-dropdown">
+                    <button type="button" onClick={openSwitchModal}>切换账号</button>
+                    <button type="button" onClick={openLogoutModal}>退出登录</button>
+                  </div>
+                )}
               </div>
             </div>
           </header>
@@ -746,6 +794,22 @@ export default function UserManagementPage() {
                 )}
               </div>
             </section>
+          </div>
+        )}
+
+        {accountModalType && (
+          <div className="confirm-overlay">
+            <div className="confirm-box">
+              <h3>{accountModalType === "logout" ? "确认退出登录" : "确认切换账号"}</h3>
+              <div className="confirm-actions">
+                <button type="button" className="confirm-cancel" onClick={closeAccountModal} disabled={accountSubmitting}>
+                  否
+                </button>
+                <button type="button" className="confirm-ok" onClick={() => void confirmAccountAction()} disabled={accountSubmitting}>
+                  {accountSubmitting ? "处理中..." : "是"}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

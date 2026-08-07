@@ -29,7 +29,8 @@ function getCustomerNavMap() {
         '对话记录': `${normalizedWorkbenchUrl}?view=history`,
         '个人话术库': favoriteScriptUrl,
         '我的评估': `${normalizedWorkbenchUrl}?view=evaluation`,
-        'Token统计': tokenUsageUrl
+        'Token统计': tokenUsageUrl,
+        '设置': `${normalizedWorkbenchUrl}?view=setting`
     };
 }
 
@@ -1143,8 +1144,97 @@ function hideErrorState() {
     document.querySelector('.page-content').style.display = 'block';
 }
 
+
+// ===== account dropdown + logout (unified with workbench) =====
+let userMenuOpen = false;
+let accountModalType = '';
+let accountSubmitting = false;
+
+function bindAccountMenu() {
+    const wrap = document.getElementById('userProfileWrap');
+    const button = document.getElementById('userProfileButton');
+    const dropdown = document.getElementById('userDropdown');
+    const modal = document.getElementById('accountConfirmModal');
+    const openKey = button ? button.querySelector('.open-key') : null;
+    if (!button || !dropdown || !modal) return;
+
+    button.addEventListener('click', function (event) {
+        event.stopPropagation();
+        userMenuOpen = !userMenuOpen;
+        dropdown.style.display = userMenuOpen ? 'block' : 'none';
+        if (openKey) openKey.classList.toggle('is-open', userMenuOpen);
+    });
+
+    document.addEventListener('click', function () {
+        userMenuOpen = false;
+        dropdown.style.display = 'none';
+        if (openKey) openKey.classList.remove('is-open');
+    });
+
+    dropdown.querySelectorAll('button').forEach(function (item) {
+        item.addEventListener('click', function (event) {
+            event.stopPropagation();
+            const action = item.dataset.action;
+            if (action === 'logout' || action === 'switch') {
+                accountModalType = action;
+                document.getElementById('accountConfirmTitle').textContent =
+                    action === 'logout' ? "确认退出登录" : "确认切换账号";
+                modal.style.display = 'flex';
+            }
+            userMenuOpen = false;
+            dropdown.style.display = 'none';
+            if (openKey) openKey.classList.remove('is-open');
+        });
+    });
+
+    document.getElementById('accountConfirmCancel').addEventListener('click', function () {
+        modal.style.display = 'none';
+    });
+
+    document.getElementById('accountConfirmOk').addEventListener('click', function () {
+        if (accountSubmitting) return;
+        accountSubmitting = true;
+        document.getElementById('accountConfirmOk').textContent = "处理中...";
+        logoutAndRedirect(window.location.href).finally(function () {
+            accountSubmitting = false;
+        });
+    });
+}
+
+function readCookie(name) {
+    const cookie = document.cookie.split('; ').find(function (item) { return item.startsWith(name + '='); });
+    return cookie ? decodeURIComponent(cookie.slice(name.length + 1)) : '';
+}
+
+async function ensureCsrfToken() {
+    if (readCookie('XSRF-TOKEN')) return readCookie('XSRF-TOKEN');
+    await fetch('/api/v1/public/login-config', { credentials: 'include' });
+    return readCookie('XSRF-TOKEN');
+}
+
+function logoutAndRedirect(returnUrl) {
+    const local = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
+    const loginUrl = local
+        ? window.location.protocol + '//' + window.location.hostname + ':15173/'
+        : window.location.origin + '/';
+    return ensureCsrfToken()
+        .then(function (csrfToken) {
+            return fetch('/api/v1/auth/logout', {
+                method: 'POST',
+                credentials: 'include',
+                headers: csrfToken ? { 'X-XSRF-TOKEN': csrfToken } : undefined
+            }).catch(function () {});
+        })
+        .finally(function () {
+            const url = new URL(loginUrl, window.location.origin);
+            url.searchParams.set('returnUrl', returnUrl);
+            window.location.replace(url.toString());
+        });
+}
+
 function startApp() {
     bindEvents();
+    bindAccountMenu();
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initApp);
     } else {

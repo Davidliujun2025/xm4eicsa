@@ -7,7 +7,7 @@
       <div class="brand-content">
         <div class="brand-header">
           <div class="brand-logo">
-            <img src="/logo.png" alt="CarePilot AI Logo" />
+            <img src="/logo.png" alt="ServicePilot Logo" />
           </div>
         </div>
         <div class="slogan-wrapper">

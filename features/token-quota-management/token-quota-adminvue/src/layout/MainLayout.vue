@@ -41,20 +41,38 @@
           <p>管理所有客服账号的每日 Token 配额</p>
         </div>
         <div class="header-actions">
-          <span class="service-status"><i></i>AI 服务正常</span>
-          <span class="current-user">
-            <b>{{ avatar }}</b>
-            {{ currentUser?.username || '正在加载' }}
-          </span>
+          <span class="service-status"><span></span>AI服务正常</span>
+          <div class="current-user-wrap" ref="userMenuRef">
+            <button type="button" class="current-user" @click="toggleUserMenu">
+              <div class="current-user__avatar">{{ avatar }}</div>
+              <span class="current-user-name">{{ currentUser?.username || '正在加载' }}</span>
+              <svg class="current-user-arrow" :class="{ 'is-open': userMenuOpen }" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+            </button>
+
+            <div v-if="userMenuOpen" class="user-dropdown">
+              <button type="button" @click="openSwitchModal">切换账号</button>
+              <button type="button" @click="openLogoutModal">退出登录</button>
+            </div>
+          </div>
         </div>
       </header>
       <main><slot /></main>
+
+      <div v-if="accountModalType" class="confirm-overlay">
+        <div class="confirm-box">
+          <h3>{{ accountModalType === 'logout' ? '确认退出登录' : '确认切换账号' }}</h3>
+          <div class="confirm-actions">
+            <button type="button" class="confirm-cancel" @click="closeAccountModal" :disabled="accountSubmitting">否</button>
+            <button type="button" class="confirm-ok" @click="confirmAccountAction" :disabled="accountSubmitting">{{ accountSubmitting ? '处理中...' : '是' }}</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 
 type CurrentUser = {
   userId: number
@@ -79,6 +97,84 @@ const links: Record<string, string> = {
 function go(key: string) {
   const target = links[key]
   if (target) window.location.href = target
+}
+
+// ===== account dropdown + logout (unified with workbench) =====
+const userMenuOpen = ref(false)
+const accountModalType = ref<'' | 'logout' | 'switch'>('')
+const accountSubmitting = ref(false)
+const userMenuRef = ref<HTMLElement | null>(null)
+
+function toggleUserMenu() {
+  userMenuOpen.value = !userMenuOpen.value
+}
+
+function handleClickOutside(e: MouseEvent) {
+  if (userMenuRef.value && !userMenuRef.value.contains(e.target as Node)) {
+    userMenuOpen.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
+
+function openSwitchModal() {
+  userMenuOpen.value = false
+  accountModalType.value = 'switch'
+}
+
+function openLogoutModal() {
+  userMenuOpen.value = false
+  accountModalType.value = 'logout'
+}
+
+function closeAccountModal() {
+  accountModalType.value = ''
+}
+
+function readCookie(name: string) {
+  const cookie = document.cookie.split('; ').find((item) => item.startsWith(`${name}=`))
+  return cookie ? decodeURIComponent(cookie.slice(name.length + 1)) : ''
+}
+
+async function ensureCsrfToken() {
+  if (readCookie('XSRF-TOKEN')) return readCookie('XSRF-TOKEN')
+  await fetch('/api/v1/public/login-config', { credentials: 'include' })
+  return readCookie('XSRF-TOKEN')
+}
+
+async function logoutAndRedirect(returnUrl: string) {
+  try {
+    const csrfToken = await ensureCsrfToken()
+    try {
+      await fetch('/api/v1/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+        headers: csrfToken ? { 'X-XSRF-TOKEN': csrfToken } : undefined,
+      })
+    } catch {
+      // ignore network errors and still redirect
+    }
+  } finally {
+    const loginUrl = import.meta.env.VITE_LOGIN_URL || (isLocalDevelopment ? localUrl(15173) : `${window.location.origin}/`)
+    const url = new URL(loginUrl, window.location.origin)
+    url.searchParams.set('returnUrl', returnUrl)
+    window.location.replace(url.toString())
+  }
+}
+
+async function confirmAccountAction() {
+  accountSubmitting.value = true
+  try {
+    await logoutAndRedirect(window.location.href)
+  } finally {
+    accountSubmitting.value = false
+  }
 }
 
 onMounted(async () => {
@@ -110,11 +206,28 @@ nav button.active { background: #eff6ff; color: #2563eb; font-weight: 600; }
 header { display: flex; min-height: 88px; align-items: center; justify-content: space-between; border-bottom: 1px solid #e5eaf2; background: #fff; padding: 0 32px; }
 h1 { margin: 0; font-size: 22px; }
 header p { margin: 5px 0 0; color: #667085; font-size: 13px; }
-.header-actions, .current-user, .service-status { display: flex; align-items: center; gap: 9px; }
+.header-actions, .current-user, .service-status { display: flex; align-items: center; }
 .header-actions { gap: 20px; }
-.service-status { color: #07883f; }
-.service-status i { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
-.current-user b { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: #eaf2ff; color: #1769f6; }
+.service-status { min-height: 40px; padding: 0 13px; gap: 8px; border: 1px solid #dde5f0; border-radius: 8px; background: #fff; color: #22b573; font-size: 13px; font-weight: 600; }
+.service-status span { width: 8px; height: 8px; border-radius: 50%; background: #22b573; }
+.current-user { gap: 8px; color: #0f1f3d; font-size: 14px; font-weight: 600; }
+.current-user__avatar { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: #eaf2ff; color: #1769f6; }
 main { padding: 24px; }
 @media (max-width: 800px) { .sidebar { display: none; } header { padding: 0 18px; } .service-status { display: none; } main { padding: 16px; } }
+.current-user-wrap { position: relative; display: flex; align-items: center; }
+.current-user { border: 0; background: transparent; cursor: pointer; padding: 4px 0; font-family: inherit; }
+.current-user-name { font-weight: 600; }
+.current-user-arrow { width: 16px; height: 16px; color: #94a3b8; transition: transform 0.2s ease; }
+.current-user-arrow.is-open { transform: rotate(180deg); }
+.user-dropdown { position: absolute; right: 0; top: calc(100% + 8px); z-index: 60; width: 120px; padding: 8px 0; border: 1px solid #e5eaf2; border-radius: 12px; background: #fff; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12); }
+.user-dropdown button { width: 100%; border: 0; padding: 8px 16px; background: transparent; color: #334155; font-size: 14px; text-align: left; cursor: pointer; }
+.user-dropdown button:hover { background: #f1f5f9; }
+.user-dropdown button:last-child:hover { color: #ef4444; }
+.confirm-overlay { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; background: rgba(15, 23, 42, 0.4); }
+.confirm-box { width: 360px; padding: 24px; border-radius: 12px; background: #fff; box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2); }
+.confirm-box h3 { margin: 0 0 24px; font-size: 16px; font-weight: 500; color: #1e293b; }
+.confirm-actions { display: flex; justify-content: flex-end; gap: 12px; }
+.confirm-actions button { padding: 8px 20px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; color: #475569; font-size: 14px; cursor: pointer; }
+.confirm-actions .confirm-ok { border-color: #3b82f6; background: #3b82f6; color: #fff; }
+.confirm-actions button:disabled { opacity: 0.6; cursor: default; }
 </style>

@@ -5,6 +5,16 @@
   box-sizing: border-box;
 }
 
+/* 与违禁词管理页一致：整页最小宽度 1440px，窄窗口时横向滚动而非收缩 */
+html {
+  min-width: 1440px;
+  overflow-x: auto;
+}
+
+body {
+  min-width: 1440px;
+}
+
 :root {
   font-family:
     'PingFang SC',

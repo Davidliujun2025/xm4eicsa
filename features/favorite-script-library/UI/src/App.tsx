@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import AiCustomer from './views/aiCustomer';
+import { logoutAndRedirect } from './utils/auth';
 
 type IconProps = { className?: string };
 
@@ -56,8 +57,8 @@ const Chev = (props: IconProps) => (
 
 const Settings = (props: IconProps) => (
   <svg viewBox="0 0 24 24" fill="none" className={props.className}>
-    <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33h.01a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.01a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.01a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
   </svg>
 );
 
@@ -81,6 +82,7 @@ const getAppLinks = (): Record<string, string> => {
       '个人话术库': window.location.href,
       '我的评估': `${workbenchUrl.replace(/\/$/, '')}/?view=evaluation`,
       'Token统计': tokenUsageUrl,
+      '设置': `${workbenchUrl.replace(/\/$/, '')}/?view=setting`,
     };
   }
 
@@ -90,6 +92,7 @@ const getAppLinks = (): Record<string, string> => {
     '个人话术库': `${window.location.origin}/favorite-script-library/`,
     '我的评估': `${window.location.origin}/workbench/?view=evaluation`,
     'Token统计': `${window.location.origin}/token-usage/`,
+    '设置': `${window.location.origin}/workbench/?view=setting`,
   };
 };
 
@@ -123,6 +126,40 @@ const App: React.FC = () => {
 
   const [displayName, setDisplayName] = useState('客服');
   const appLinks = getAppLinks();
+
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [accountModalType, setAccountModalType] = useState<'' | 'logout' | 'switch'>('');
+  const [accountSubmitting, setAccountSubmitting] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  const openUserMenu = () => setUserMenuOpen((v) => !v);
+  const openSwitchModal = () => {
+    setUserMenuOpen(false);
+    setAccountModalType('switch');
+  };
+  const openLogoutModal = () => {
+    setUserMenuOpen(false);
+    setAccountModalType('logout');
+  };
+  const closeAccountModal = () => setAccountModalType('');
+  const confirmAccountAction = async () => {
+    setAccountSubmitting(true);
+    try {
+      await logoutAndRedirect(window.location.href);
+    } finally {
+      setAccountSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     const loadCurrentUser = async () => {
@@ -187,7 +224,10 @@ const App: React.FC = () => {
   </button>
 )}
 
-  <button className="script-nav-item settings-item" type="button">
+  <button className="script-nav-item settings-item" type="button" onClick={() => {
+    const target = appLinks['设置'];
+    if (target) window.location.href = target;
+  }}>
     <Settings className="script-nav-icon" />
     <span>设置</span>
   </button>
@@ -210,11 +250,25 @@ const App: React.FC = () => {
               <Bell className="script-bell-icon" />
               <span>2</span>
             </button>
-            <button className="script-account-button" type="button" aria-label="账号菜单">
-              <span className="script-avatar">{displayName.trim().slice(0, 1) || '客'}</span>
-              <span className="script-account-name">{displayName}</span>
-              <Chev className="script-chev-icon" />
-            </button>
+            <div className="script-user-menu" ref={userMenuRef}>
+              <button
+                className="script-account-button"
+                type="button"
+                aria-label="账号菜单"
+                onClick={openUserMenu}
+              >
+                <span className="script-avatar">{displayName.trim().slice(0, 1) || '客'}</span>
+                <span className="script-account-name">{displayName}</span>
+                <Chev className={`script-chev-icon${userMenuOpen ? ' is-open' : ''}`} />
+              </button>
+
+              {userMenuOpen && (
+                <div className="script-user-dropdown">
+                  <button type="button" onClick={openSwitchModal}>切换账号</button>
+                  <button type="button" onClick={openLogoutModal}>退出登录</button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
@@ -222,6 +276,22 @@ const App: React.FC = () => {
           <AiCustomer />
         </main>
       </div>
+
+      {accountModalType && (
+        <div className="script-modal-overlay">
+          <div className="script-modal-box">
+            <h3>{accountModalType === 'logout' ? '确认退出登录' : '确认切换账号'}</h3>
+            <div className="script-modal-actions">
+              <button type="button" onClick={closeAccountModal} disabled={accountSubmitting}>
+                否
+              </button>
+              <button type="button" onClick={() => void confirmAccountAction()} disabled={accountSubmitting}>
+                {accountSubmitting ? '处理中...' : '是'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
