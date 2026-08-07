@@ -194,7 +194,7 @@ public class AIService {
 
         StepGenerationResult result;
         String rememberedCarrier = carrierName == null || carrierName.isBlank()
-                ? replyStrategyRuleService.carrierFromMetadata(current.getExtraJson())
+                ? resolveRememberedCarrier(conversation.getId(), current)
                 : carrierName;
         try {
             result = generateCurrentStep(
@@ -219,6 +219,58 @@ public class AIService {
         return conversationService.getConversationById(customerId, conversationId);
     }
 
+    public ConversationResponse updateStepContent(String customerId, String conversationId,
+                                                  Integer dialogRound, Integer stepNo, String content) {
+        validateDialogStep(dialogRound, stepNo);
+        if (content == null || content.isBlank()) {
+            throw new IllegalArgumentException("编辑内容不能为空");
+        }
+        Conversation conversation = requireOwnedConversation(customerId, conversationId);
+
+        List<AiDialogStepRecord> versions = stepRecordRepository
+                .findBySessionTaskIdAndDialogRoundAndStepNoAndIsDeleteOrderByStepRoundDesc(
+                        conversation.getId(), dialogRound, stepNo.byteValue(), (byte) 0);
+        AiDialogStepRecord current = versions.stream()
+                .filter(record -> Byte.valueOf((byte) 1).equals(record.getIsEffective()))
+                .findFirst()
+                .orElse(null);
+        if (current == null) {
+            throw new IllegalStateException("当前步骤尚无已生成内容，无法编辑");
+        }
+
+        current.setAiContent(content);
+        current.setIsManualEdit((byte) 1);
+        String storedContext = dialogContextBuilder.buildStoredStepContext(
+                loadStoredContextHistory(conversation.getId()),
+                current.getCustomerDialog(), current.getDialogRound(),
+                current.getStepNo().intValue(), current.getStepRound(), content);
+        current.setDialogContext(storedContext);
+        stepRecordRepository.save(current);
+        conversation.setUpdatedAt(LocalDateTime.now());
+        conversationRepository.save(conversation);
+        return conversationService.getConversationById(customerId, conversationId);
+    }
+
+    /**
+     * 重新生成第2步时找回合作快递：优先取当前生效记录，其次回退到该会话
+     * 历史轮次/历史版本第2步记录中保存过的合作快递元数据。
+     */
+    private String resolveRememberedCarrier(Long sessionTaskId, AiDialogStepRecord current) {
+        String remembered = replyStrategyRuleService.carrierFromMetadata(current.getExtraJson());
+        if (remembered != null) {
+            return remembered;
+        }
+        List<AiDialogStepRecord> stepTwoRecords = stepRecordRepository
+                .findBySessionTaskIdAndStepNoAndIsDeleteOrderByDialogRoundDescStepRoundDesc(
+                        sessionTaskId, (byte) 2, (byte) 0);
+        for (AiDialogStepRecord candidate : stepTwoRecords) {
+            String carrier = replyStrategyRuleService.carrierFromMetadata(candidate.getExtraJson());
+            if (carrier != null) {
+                return carrier;
+            }
+        }
+        return null;
+    }
     private void saveSuccessfulStep(Conversation conversation, String customerId, String question,
                                     int dialogRound, int stepNo, int stepRound, String extraJson,
                                     StepGenerationResult result) {
@@ -276,18 +328,21 @@ public class AIService {
                         .filter(record -> record.getStepNo() != null && record.getStepNo().intValue() == 1)
                         .map(AiDialogStepRecord::getAiContent)
                         .findFirst().orElse("");
+                validateIntentSufficiency(question, intentRecognition);
                 ReplyStrategyRuleService.ReplyStrategyPlan plan = replyStrategyRuleService.plan(
                         platform, question, intentRecognition, carrierName);
-                DeepSeekClient.DeepSeekResult response = deepSeekClient.complete(plan.prompt(),
-                        "服务平台：" + platform + "\n\n客户当前问题：" + question
-                                + "\n\n意图识别及上下文：\n" + generationContext
-                                + "\n\n请只输出第2步回复策略正文。");
+                String userPrompt = "服务平台：" + platform + "\n\n客户当前问题：" + question
+                        + "\n\n意图识别及上下文：\n" + generationContext
+                        + "\n\n请只输出第2步回复策略正文。";
+                DeepSeekClient.DeepSeekResult response = deepSeekClient.complete(plan.prompt(), userPrompt);
                 ReplyStrategyRuleService.ValidationResult validation = replyStrategyRuleService.validate(response.content(), plan);
-                if (!validation.valid()) {
-                    response = deepSeekClient.complete(plan.prompt() + "\n上次输出未通过校验："
-                                    + validation.message() + "。请严格修正后重新输出。",
-                            "服务平台：" + platform + "\n\n客户当前问题：" + question
-                                    + "\n\n意图识别及上下文：\n" + generationContext);
+                for (int attempt = 0; attempt < 2 && !validation.valid(); attempt++) {
+                    String retryPrompt = plan.prompt() + "\n上次输出未通过校验："
+                            + validation.message() + "。请严格修正后重新输出。";
+                    if (validation.message().contains("模糊快递")) {
+                        retryPrompt += "\n不要出现或否定任何模糊快递词，直接写“我们发" + plan.carrierName() + "”。";
+                    }
+                    response = deepSeekClient.complete(retryPrompt, userPrompt);
                     validation = replyStrategyRuleService.validate(response.content(), plan);
                 }
                 if (!validation.valid()) {
@@ -388,6 +443,45 @@ public class AIService {
             log.error("Failed to persist DeepSeek generation failure", persistenceException);
         }
     }
+
+    private void validateIntentSufficiency(String customerQuestion, String intentRecognition) {
+        String question = safe(customerQuestion).trim();
+        String intent = safe(intentRecognition).trim();
+        if (intent.isBlank()) {
+            throw new IllegalStateException("请先完成意图识别");
+        }
+        // 意图识别模板约定：五个维度有效意图少于3个时，结论中必须明确输出“有效意图少于3个，当前信息不足”。
+        // 只认这个显式标记，避免正常意图中维度级的“无法识别/尚无法确认/当前信息不足以判断…”被误判为信息不足。
+        boolean sparseIntent = intent.contains("有效意图少于3个");
+        boolean bareGreeting = question.length() <= 6
+                && question.matches(".*(在吗|你好|您好|hello|hi|在不在|有人吗|有人么).*");
+        // AC8：客户已表达具体商品/功能/价格/库存/场景等询问时，即使有效意图少于3个，
+        // 也应按“热情破冰+开放式场景提问”生成策略，不按 AC13 拦截。
+        boolean concreteInquiry = hasConcreteInquiry(question);
+        // 客户亲口表达物流顾虑时优先按 AC3 走物流策略；其余信息不足场景按 AC13 拦截
+        if ((sparseIntent || bareGreeting) && !hasLogisticsMarker(question) && !concreteInquiry) {
+            throw new IllegalStateException("当前客户信息不足，无法生成精准回复策略，建议先返回第一步补充澄清引导");
+        }
+    }
+
+    private boolean hasConcreteInquiry(String value) {
+        if (value == null) {
+            return false;
+        }
+        return java.util.regex.Pattern
+                .compile("商品|产品|这款|哪款|哪种|这个|那个|有货|还有吗|多少钱|价格|便宜|贵不贵|贵吗|划算|性价比|优惠|包邮|运费|折扣|怎么用|怎么操作|怎么样|如何|适合|适配|好不好|好用|耐用|质量|材质|尺寸|颜色|大小|型号|款式|容量|能不能|可不可以|是否|功能|效果|送人|送礼|生日|节日|自用|场景|下单|购买|拍下|退货|退款|退换|换货|售后|保修|正品|真假|对比|区别")
+                .matcher(value)
+                .find();
+    }
+
+    private boolean hasLogisticsMarker(String value) {
+        return value != null && java.util.regex.Pattern
+                .compile("快递|物流|配送|发货|派送|送货|运送")
+                .matcher(value)
+                .find();
+    }
+
+    private String safe(String value) { return value == null ? "" : value; }
 
     private String buildStepGenerationContext(Integer dialogRound, Integer stepNo,
                                               List<AiDialogStepRecord> historyRecords,

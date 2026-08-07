@@ -58,7 +58,8 @@ function getWorkbenchView(): WorkbenchView {
 
 function requiresCarrierName(message?: ChatMessage) {
   if (!message) return false;
-  return /快递|物流|配送|发货|派送|送货|运送/.test(`${message.question || ""}\n${message.intentRecognition || ""}`);
+  // 仅以客户原话判断物流顾虑，避免意图识别文本中“发货/物流”等泛化措辞误触发快递填写框
+  return /快递|物流|配送|发货|派送|送货|运送/.test(message.question || "");
 }
 
 export default function App() {
@@ -83,6 +84,7 @@ export default function App() {
   const [carrierName, setCarrierName] = useState("");
   const [strategyGenerating, setStrategyGenerating] = useState(false);
   const [strategyGenerationError, setStrategyGenerationError] = useState("");
+  const [confirmRegenerateOverwrite, setConfirmRegenerateOverwrite] = useState(false);
 
   const [currentStep, setCurrentStep] = useState(1);
   const latestMessage = selectedConversation?.messages?.at(-1);
@@ -135,7 +137,10 @@ export default function App() {
     const confirmedIntent = typeof latestMessage.intentRecognition === "string"
       ? latestMessage.intentRecognition.trim()
       : "";
-    if (next === 2 && !confirmedIntent) return;
+    if (next === 2 && !confirmedIntent) {
+      setStrategyGenerationError("请先完成意图识别");
+      return;
+    }
 
     if (next === 2 && requiresCarrierName(latestMessage) && !selectedCarrierName?.trim()) {
       setCarrierName("");
@@ -171,9 +176,17 @@ export default function App() {
       setCurrentStep(next);
     } catch (generationError) {
       const message = generationError instanceof Error ? generationError.message : "生成失败，请稍后重试";
-      if (next === 2) setStrategyGenerationError(
-        message.includes("当前客户信息不足") ? message : "生成失败，请稍后重试",
-      );
+      if (next === 2) {
+        if (message.includes("当前客户信息不足") || message.includes("请先完成意图识别")) {
+          setStrategyGenerationError(message);
+        } else if (message.includes("合作快递") || message.includes("物流顾虑")) {
+          setStrategyGenerationError(message);
+          setCarrierName("");
+          setCarrierDialogMode("next");
+        } else {
+          setStrategyGenerationError("生成失败，请稍后重试");
+        }
+      }
       setError(message);
     } finally {
       setGenerating(false);
@@ -368,9 +381,9 @@ export default function App() {
     setCurrentStep(1);
   };
 
-  const generateReply = async (selectedCarrierName?: string) => {
+  const generateReply = async (selectedCarrierName?: string): Promise<boolean> => {
     const question = draft.trim();
-    if (!question || generating || !currentPlatform) return;
+    if (!question || generating || !currentPlatform) return false;
     const sameQuestion = Boolean(
       selectedConversation
       && latestMessage
@@ -379,12 +392,15 @@ export default function App() {
     const confirmedIntent = typeof latestMessage?.intentRecognition === "string"
       ? latestMessage.intentRecognition.trim()
       : "";
-    if (sameQuestion && currentStep === 2 && !confirmedIntent) return;
+    if (sameQuestion && currentStep === 2 && !confirmedIntent) {
+      setStrategyGenerationError("请先完成意图识别");
+      return false;
+    }
     if (sameQuestion && currentStep === 2 && !isCurStepGenerated
         && requiresCarrierName(latestMessage) && !selectedCarrierName?.trim()) {
       setCarrierName("");
       setCarrierDialogMode("current");
-      return;
+      return false;
     }
 
     setGenerating(true);
@@ -429,6 +445,12 @@ export default function App() {
       } else {
         throw new Error("输入新的客户问题前，请先切换回第1步");
       }
+      if (selectedConversation && latestMessage && sameQuestion
+          && currentStep === 2 && isCurStepGenerated) {
+        // AC11：重新生成成功后，旧的编辑确认不再生效，避免被重新套用
+        clearConfirmedEdit(selectedConversation.conversationId,
+          latestMessage.id, STEP_FIELDS[currentStep - 1]);
+      }
       updated = applyConfirmedEdits(updated);
       setSelectedConversation(updated);
       setPlatformId(platformFor(updated.platform).id);
@@ -438,15 +460,53 @@ export default function App() {
         ...current.filter((item) => item.conversationId !== updated.conversationId),
       ]);
       setTokenInfo(await workbenchApi.getTokenUsage());
+      return true;
     } catch (generationError) {
       const message = generationError instanceof Error ? generationError.message : "生成失败，请稍后重试";
-      if (currentStep === 2) setStrategyGenerationError(
-        message.includes("当前客户信息不足") ? message : "生成失败，请稍后重试",
-      );
+      if (currentStep === 2) {
+        if (message.includes("当前客户信息不足") || message.includes("请先完成意图识别")) {
+          setStrategyGenerationError(message);
+        } else if (message.includes("合作快递") || message.includes("物流顾虑")) {
+          // AC11：重新生成缺少合作快递名称时，自动弹出填写快递弹窗，填完后重试
+          setStrategyGenerationError(message);
+          setCarrierName("");
+          setCarrierDialogMode("current");
+        } else {
+          setStrategyGenerationError("生成失败，请稍后重试");
+        }
+      }
       setError(message);
+      return false;
     } finally {
       setGenerating(false);
     }
+  };
+
+  const clearConfirmedEdit = (conversationId: string, messageId: number, field: keyof ChatMessage) => {
+    const editKey = confirmedEditKey(conversationId, messageId, field);
+    if (!Object.prototype.hasOwnProperty.call(confirmedEditsRef.current, editKey)) return;
+    confirmedEditsRef.current = { ...confirmedEditsRef.current };
+    delete confirmedEditsRef.current[editKey];
+    sessionStorage.setItem(CONFIRMED_EDITS_STORAGE_KEY, JSON.stringify(confirmedEditsRef.current));
+  };
+
+  const requestRegenerateStrategy = () => {
+    if (!selectedConversation || !latestMessage || currentStep !== 2) return;
+    const field = STEP_FIELDS[currentStep - 1];
+    const editKey = confirmedEditKey(selectedConversation.conversationId, latestMessage.id, field);
+    const hasConfirmedEdit = Object.prototype.hasOwnProperty.call(confirmedEditsRef.current, editKey);
+    if (hasConfirmedEdit) {
+      setConfirmRegenerateOverwrite(true);
+      return;
+    }
+    void generateReply();
+  };
+
+  const confirmRegenerateStrategy = () => {
+    if (!selectedConversation || !latestMessage || currentStep !== 2) return;
+    // 重新生成成功后才清除旧的编辑确认（在 generateReply 成功分支中处理）
+    setConfirmRegenerateOverwrite(false);
+    void generateReply();
   };
 
   if (!isAuthenticatedCustomerService) {
@@ -560,6 +620,7 @@ export default function App() {
                   if (currentStep === 1) void handleNextStep();
                   else void generateReply();
                 }}
+                onRegenerateStrategy={requestRegenerateStrategy}
                 onJumpStep={handleJumpStep}
                 onContentChange={handleAssistantContentChange}
               />
@@ -598,6 +659,27 @@ export default function App() {
                   }}
                 >
                   确认并生成
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {confirmRegenerateOverwrite && (
+          <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/35 p-5">
+            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+              <h2 className="text-lg font-bold text-slate-800">重新生成回复策略</h2>
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                当前内容已修改，重新生成将覆盖，是否继续？
+              </p>
+              <div className="mt-5 flex justify-end gap-3">
+                <button type="button" className="rounded-lg px-4 py-2 text-sm text-slate-600 hover:bg-slate-100" onClick={() => setConfirmRegenerateOverwrite(false)}>取消</button>
+                <button
+                  type="button"
+                  disabled={generating}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                  onClick={confirmRegenerateStrategy}
+                >
+                  确认重新生成
                 </button>
               </div>
             </div>

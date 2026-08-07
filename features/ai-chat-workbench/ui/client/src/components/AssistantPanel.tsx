@@ -24,6 +24,7 @@ type Props = {
   step: number;
   onNextStep: () => void;
   onRetryStrategy?: () => void;
+  onRegenerateStrategy?: () => void;
   onJumpStep: (targetStep: number) => void;
   onContentChange?: (text: string) => void | Promise<void>;
 };
@@ -39,6 +40,7 @@ export default function AssistantPanel({
   step,
   onNextStep,
   onRetryStrategy,
+  onRegenerateStrategy,
   onJumpStep,
   onContentChange,
 }: Props) {
@@ -56,7 +58,8 @@ export default function AssistantPanel({
   const dirtyRef = useRef(false);
   const draftKeyRef = useRef("");
   const onContentChangeRef = useRef(onContentChange);
-  const MAX_CONTENT_LENGTH = 500;
+  const onRegenerateStrategyRef = useRef(onRegenerateStrategy);
+  const MAX_CONTENT_LENGTH = 2000;
 
   const [favoriteMessage, setFavoriteMessage] = useState("");
   const [favoriteError, setFavoriteError] = useState("");
@@ -106,6 +109,10 @@ export default function AssistantPanel({
   useEffect(() => {
     onContentChangeRef.current = onContentChange;
   }, [onContentChange]);
+
+  useEffect(() => {
+    onRegenerateStrategyRef.current = onRegenerateStrategy;
+  }, [onRegenerateStrategy]);
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -208,6 +215,14 @@ export default function AssistantPanel({
     void commitCurrentEdit();
   };
 
+  const handleRegenerateStrategy = async () => {
+    if (dirtyRef.current) {
+      await commitCurrentEdit();
+    }
+    if (dirtyRef.current) return;
+    onRegenerateStrategyRef.current?.();
+  };
+
   const jumpStep = (targetStep: number) => {
     stashCurrentEdit();
     onJumpStep(targetStep);
@@ -216,6 +231,7 @@ export default function AssistantPanel({
   const intentRecognitionComplete = typeof latestMessage?.intentRecognition === "string"
     && latestMessage.intentRecognition.trim().length > 0;
   const intentRequired = step === 1 && !dirty && !intentRecognitionComplete;
+  const contentGenerated = typeof originContent === "string" && originContent.trim().length > 0;
 
   return (
     <section ref={panelRef} className="flex min-h-0 flex-col gap-4">
@@ -331,6 +347,18 @@ export default function AssistantPanel({
                 </span>
               </div>
 
+              {step === 2 && (
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={() => void handleRegenerateStrategy()}
+                    disabled={strategyGenerating || generating || savingEdit || !editContent || !String(editContent).trim()}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-[12.5px] font-medium text-slate-600 transition-colors hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    重新生成回复策略
+                  </button>
+                </div>
+              )}
               <div className="mt-3 flex items-center justify-between">
                 <div className="flex flex-col gap-1">
                   <span className="text-[12.5px] text-slate-400">
@@ -339,15 +367,17 @@ export default function AssistantPanel({
                   {favoriteMessage && <span className="text-[12px] text-emerald-600">{favoriteMessage}</span>}
                   {favoriteError && <span className="text-[12px] text-red-600">{favoriteError}</span>}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => void handleFavorite()}
-                  disabled={favoriting || !editContent || !String(editContent).trim()}
-                  className="flex items-center gap-1.5 rounded-lg border border-blue-200 px-3 py-1.5 text-[12.5px] font-medium text-blue-600 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  <Flag className="h-4 w-4" />
-                  {favoriting ? "收藏中..." : "收藏到话术库"}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void handleFavorite()}
+                    disabled={favoriting || !editContent || !String(editContent).trim()}
+                    className="flex items-center gap-1.5 rounded-lg border border-blue-200 px-3 py-1.5 text-[12.5px] font-medium text-blue-600 transition-colors hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Flag className="h-4 w-4" />
+                    {favoriting ? "收藏中..." : "收藏到话术库"}
+                  </button>
+                </div>
               </div>
               {editSaveError && (
                 <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-[12.5px] text-red-600">
@@ -380,7 +410,9 @@ export default function AssistantPanel({
         ? saveEditedContent
         : strategyGenerationError && step <= 2
           ? onRetryStrategy
-          : advance}
+          : step === 2 && !contentGenerated && !strategyGenerating
+            ? onRetryStrategy
+            : advance}
       disabled={!latestMessage || generating || savingEdit || intentRequired}
       className={`w-full rounded-xl py-3 text-[14px] font-semibold text-white transition-all active:scale-[.99] ${
         dirty
@@ -398,7 +430,9 @@ export default function AssistantPanel({
             ? "保存已编辑内容"
             : strategyGenerationError && step <= 2
               ? "重试生成回复策略"
-              : step >= 5
+              : step === 2 && !contentGenerated && !strategyGenerating
+                ? "生成回复策略"
+                : step >= 5
                 ? "已完成，结束此次对话"
                 : "确认，生成下一步"}
     </button>

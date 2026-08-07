@@ -3,6 +3,7 @@ package com.carepilot.chatworkbench.controller;
 import com.acme.aicslogin.security.AuthenticatedUser;
 import com.carepilot.chatworkbench.dto.request.CreateConversationRequest;
 import com.carepilot.chatworkbench.dto.request.GenerateStepRequest;
+import com.carepilot.chatworkbench.dto.request.StepContentUpdateRequest;
 import com.carepilot.chatworkbench.dto.response.ApiResponse;
 import com.carepilot.chatworkbench.dto.response.AiDialogStepResponse;
 import com.carepilot.chatworkbench.dto.response.ConversationResponse;
@@ -116,6 +117,22 @@ public class ConversationController {
         return ResponseEntity.ok(ApiResponse.success(
                 aiService.generateStep(customerId, conversationId, dialogRound, stepNo,
                         request == null ? null : request.getCarrierName())));
+    }
+
+
+    @PutMapping("/{id}/dialogs/{dialogRound}/steps/{stepNo}/content")
+    public ResponseEntity<ApiResponse<ConversationResponse>> updateStepContent(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable("id") String conversationId,
+            @PathVariable Integer dialogRound,
+            @PathVariable Integer stepNo,
+            @Valid @RequestBody StepContentUpdateRequest request) {
+        String customerId = user.id().toString();
+        log.info("Update step content: customerId={}, conversationId={}, dialogRound={}, stepNo={}",
+                customerId, conversationId, dialogRound, stepNo);
+        return ResponseEntity.ok(ApiResponse.success(
+                aiService.updateStepContent(customerId, conversationId, dialogRound, stepNo,
+                        request.getContent())));
     }
 
     @DeleteMapping("/{id}")

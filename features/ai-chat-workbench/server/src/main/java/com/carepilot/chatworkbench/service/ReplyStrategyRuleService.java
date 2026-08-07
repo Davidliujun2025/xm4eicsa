@@ -16,9 +16,9 @@ public class ReplyStrategyRuleService {
     private static final Pattern DAMAGE_MARKER = Pattern.compile("破损.{0,8}(包赔|赔付)|(包赔|赔付).{0,8}破损");
     private static final Pattern LOST_MARKER = Pattern.compile("丢件.{0,8}(补发|赔付)|(补发|赔付).{0,8}丢件");
     private static final Pattern TRACKING_MARKER = Pattern.compile("(全程)?(物流)?(跟踪|追踪)|(异常).{0,8}(处理|跟进)");
-    private static final Pattern URGENCY_MARKER = Pattern.compile("今天.{0,8}(下单|拍下).{0,12}(发|出库)|下单.{0,12}(发货|出库)|尽快.{0,8}(发货|安排)");
+    private static final Pattern URGENCY_MARKER = Pattern.compile("(今天|现在|马上|立即|尽快|尽早|当天|今日|此刻|这就).{0,12}(下单|拍下|发出|发货|出库|安排)|下单.{0,12}(发货|出库|发出|安排)");
     private static final Pattern FORBIDDEN_DEFENCE = Pattern.compile("快递.{0,4}(挺好|很好|没问题)|不用担心.{0,8}(快递|物流)");
-    private static final Pattern VAGUE_CARRIER = Pattern.compile("随机快递|仓库安排|默认快递|任意快递");
+    private static final Pattern VAGUE_CARRIER = Pattern.compile("(?<!不是)(?<!并非)(?<!不会)(?<!没有)(?<!不采用)(随机快递|仓库安排|默认快递|任意快递)");
 
     public ReplyStrategyPlan plan(String platform, String customerQuestion, String intentRecognition,
                                   String carrierName) {
@@ -35,8 +35,10 @@ public class ReplyStrategyRuleService {
                     + "1) 先共情并站在客户角度认可其顾虑；"
                     + "2) 明确说明本次合作快递为“" + normalizedCarrier + "”；"
                     + "3) 明确给出破损包赔、丢件补发、全程物流跟踪并在异常时处理三项保障；"
-                    + "4) 结尾使用明确的时效下单推进钩子。"
-                    + "禁止反驳、辩护或美化当前快递服务，禁止使用随机快递、仓库安排等模糊表述。"
+                    + "4) 结尾必须使用明确的时效推进话术引导客户下单（如“今天下单今天发”“现在下单，今天就能发出”“尽快发出”等），"
+                    + "不得仅陈述事实，必须包含下单/发货的时间紧迫感。"
+                    + "禁止反驳、辩护或美化当前快递服务。直接写“我们发" + normalizedCarrier + "”即可，"
+                    + "不要出现“随机快递”“仓库安排”“默认快递”“任意快递”等字样，也不要写“不是随机快递”这类否定句。"
                     + "平台适配要求：" + platformGuidance;
             return new ReplyStrategyPlan(true, normalizedCarrier, prompt);
         }
@@ -49,8 +51,8 @@ public class ReplyStrategyRuleService {
     }
 
     public boolean hasLogisticsConcern(String customerQuestion, String intentRecognition) {
-        String source = safe(customerQuestion) + "\n" + safe(intentRecognition);
-        return LOGISTICS_MARKER.matcher(source).find();
+        // 仅以客户原话判断物流顾虑，避免意图识别文本中的“发货/物流”等泛化措辞（如引导问题）误触发
+        return LOGISTICS_MARKER.matcher(safe(customerQuestion)).find();
     }
 
     public ValidationResult validate(String content, ReplyStrategyPlan plan) {

@@ -226,6 +226,222 @@ class AIServiceRegenerationTest {
                 .doesNotContain("六维意图识别", "关键词");
     }
 
+    @Test
+    void updatingStepContentPersistsEditAndKeepsStepEffective() {
+        Conversation conversation = Conversation.builder()
+                .id(10L)
+                .conversationId("conversation-1")
+                .customerId("6")
+                .platform("拼多多")
+                .build();
+        AiDialogStepRecord strategy = record(2, 3, 2, 1, "原始回复策略");
+        ConversationResponse expected = ConversationResponse.builder()
+                .conversationId("conversation-1")
+                .build();
+
+        when(conversationRepository.findByConversationId("conversation-1"))
+                .thenReturn(Optional.of(conversation));
+        when(stepRecordRepository
+                .findBySessionTaskIdAndDialogRoundAndStepNoAndIsDeleteOrderByStepRoundDesc(
+                        10L, 3, (byte) 2, (byte) 0))
+                .thenReturn(List.of(strategy));
+        when(stepRecordRepository
+                .findBySessionTaskIdAndIsDeleteOrderByDialogRoundAscStepNoAscStepRoundAsc(
+                        10L, (byte) 0))
+                .thenReturn(List.of(strategy));
+        when(conversationService.getConversationById("6", "conversation-1"))
+                .thenReturn(expected);
+
+        ConversationResponse actual = service.updateStepContent(
+                "6", "conversation-1", 3, 2, "编辑后的回复策略内容");
+
+        assertThat(actual).isSameAs(expected);
+        verify(stepRecordRepository).save(strategy);
+        assertThat(strategy.getAiContent()).isEqualTo("编辑后的回复策略内容");
+        assertThat(strategy.getIsManualEdit()).isEqualTo((byte) 1);
+        assertThat(strategy.getIsEffective()).isEqualTo((byte) 1);
+        assertThat(strategy.getDialogContext()).contains("回复策略历史：", "编辑后的回复策略内容");
+    }
+
+    @Test
+    void updatingStepContentRejectsBlankContent() {
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalArgumentException.class,
+                () -> service.updateStepContent("6", "conversation-1", 3, 2, "  "));
+    }
+
+    @Test
+    void generatingStepTwoWithLogisticsWordInSparseIntentStillFailsWithInsufficientInfoMessage() {
+        Conversation conversation = Conversation.builder()
+                .id(10L)
+                .conversationId("conversation-1")
+                .customerId("6")
+                .platform("淘宝")
+                .build();
+        AiDialogStepRecord intent = record(1, 3, 1, 1,
+                "结论：有效意图少于3个，当前信息不足\n引导问题：3. 您主要关注价格、功能，还是发货和售后方面？");
+        intent.setCustomerDialog("随便看看");
+
+        when(conversationRepository.findByConversationId("conversation-1"))
+                .thenReturn(Optional.of(conversation));
+        when(stepRecordRepository
+                .findBySessionTaskIdAndDialogRoundAndStepNoAndIsDeleteOrderByStepRoundDesc(
+                        10L, 3, (byte) 2, (byte) 0))
+                .thenReturn(List.of());
+        when(stepRecordRepository
+                .findBySessionTaskIdAndIsEffectiveAndIsDeleteOrderByDialogRoundAscStepNoAsc(
+                        10L, (byte) 1, (byte) 0))
+                .thenReturn(List.of(intent));
+
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
+                () -> service.generateStep("6", "conversation-1", 3, 2));
+    }
+
+    @Test
+    void generatingStepTwoWithSparseIntentFailsWithInsufficientInfoMessage() {
+        Conversation conversation = Conversation.builder()
+                .id(10L)
+                .conversationId("conversation-1")
+                .customerId("6")
+                .platform("拼多多")
+                .build();
+        AiDialogStepRecord intent = record(1, 3, 1, 1, "结论：有效意图少于3个，当前信息不足");
+        intent.setCustomerDialog("随便看看");
+
+        when(conversationRepository.findByConversationId("conversation-1"))
+                .thenReturn(Optional.of(conversation));
+        when(stepRecordRepository
+                .findBySessionTaskIdAndDialogRoundAndStepNoAndIsDeleteOrderByStepRoundDesc(
+                        10L, 3, (byte) 2, (byte) 0))
+                .thenReturn(List.of());
+        when(stepRecordRepository
+                .findBySessionTaskIdAndIsEffectiveAndIsDeleteOrderByDialogRoundAscStepNoAsc(
+                        10L, (byte) 1, (byte) 0))
+                .thenReturn(List.of(intent));
+
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
+                () -> service.generateStep("6", "conversation-1", 3, 2));
+    }
+
+    @Test
+    void generatingStepTwoWithBareGreetingFailsWithInsufficientInfoMessage() {
+        Conversation conversation = Conversation.builder()
+                .id(10L)
+                .conversationId("conversation-1")
+                .customerId("6")
+                .platform("淘宝")
+                .build();
+        AiDialogStepRecord intent = record(1, 3, 1, 1,
+                "消费者情绪/心情：无法识别，客户未表达明确情绪。\n结论：客户仅打招呼，无有效意图。");
+        intent.setCustomerDialog("在吗？");
+
+        when(conversationRepository.findByConversationId("conversation-1"))
+                .thenReturn(Optional.of(conversation));
+        when(stepRecordRepository
+                .findBySessionTaskIdAndDialogRoundAndStepNoAndIsDeleteOrderByStepRoundDesc(
+                        10L, 3, (byte) 2, (byte) 0))
+                .thenReturn(List.of());
+        when(stepRecordRepository
+                .findBySessionTaskIdAndIsEffectiveAndIsDeleteOrderByDialogRoundAscStepNoAsc(
+                        10L, (byte) 1, (byte) 0))
+                .thenReturn(List.of(intent));
+
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
+                () -> service.generateStep("6", "conversation-1", 3, 2));
+    }
+
+    @Test
+    void generatingStepTwoWithUncertaintyWordsInNormalIntentIsNotBlocked() {
+        Conversation conversation = Conversation.builder()
+                .id(10L)
+                .conversationId("conversation-1")
+                .customerId("6")
+                .platform("淘宝")
+                .build();
+        AiDialogStepRecord intent = record(1, 3, 1, 1,
+                "消费者情绪/心情：语气整体平和、带有试探性，客户主动询问商品适配性。\n"
+                        + "进店理由/场景：可能处于静默浏览转咨询临界点，是否首次了解尚无法确认。\n"
+                        + "痛点/爽点：客户明确关注商品是否适合送礼，是否构成核心痛点尚无法确认。\n"
+                        + "购买意向：可能存在初步兴趣，预算与购买时间尚无法确认。\n"
+                        + "性格/决策链路：无法识别，当前信息不足以判断客户的决策偏好。\n"
+                        + "结论：客户当前核心意图是确认商品适配性，信息较为充分。");
+        intent.setCustomerDialog("这个杯子适合送礼吗？");
+        ConversationResponse expected = ConversationResponse.builder()
+                .conversationId("conversation-1")
+                .build();
+
+        when(conversationRepository.findByConversationId("conversation-1"))
+                .thenReturn(Optional.of(conversation));
+        when(stepRecordRepository
+                .findBySessionTaskIdAndDialogRoundAndStepNoAndIsDeleteOrderByStepRoundDesc(
+                        10L, 3, (byte) 2, (byte) 0))
+                .thenReturn(List.of());
+        when(stepRecordRepository
+                .findBySessionTaskIdAndIsEffectiveAndIsDeleteOrderByDialogRoundAscStepNoAsc(
+                        10L, (byte) 1, (byte) 0))
+                .thenReturn(List.of(intent));
+        when(stepRecordRepository
+                .findBySessionTaskIdAndIsDeleteOrderByDialogRoundAscStepNoAscStepRoundAsc(
+                        10L, (byte) 0))
+                .thenReturn(List.of(intent));
+        when(deepSeekClient.complete(anyString(), anyString()))
+                .thenReturn(new DeepSeekClient.DeepSeekResult(
+                        "亲，欢迎光临！不着急哈～您主要是自己用还是送人呢？方便的话可以说下使用场景。",
+                        60, 30, 90, "deepseek-request-3", "deepseek-v4-flash"));
+        when(conversationService.getConversationById("6", "conversation-1"))
+                .thenReturn(expected);
+
+        ConversationResponse actual = service.generateStep("6", "conversation-1", 3, 2);
+
+        assertThat(actual).isSameAs(expected);
+    }
+
+    @Test
+    void generatingStepTwoWithSparseMarkerButConcreteProductQuestionIsNotBlocked() {
+        // AC8：商品功能/场景询单即使意图识别输出“有效意图少于3个”，也不按 AC13 拦截
+        Conversation conversation = Conversation.builder()
+                .id(10L)
+                .conversationId("conversation-1")
+                .customerId("6")
+                .platform("淘宝")
+                .build();
+        AiDialogStepRecord intent = record(1, 3, 1, 1,
+                "消费者情绪/心情：语气整体平和、带有试探性，客户主动询问商品适配性。\n"
+                        + "进店理由/场景：可能处于静默浏览转咨询临界点，是否首次了解尚无法确认。\n"
+                        + "痛点/爽点：客户关注商品是否适合送礼，是否构成核心痛点尚无法确认。\n"
+                        + "购买意向：可能存在初步兴趣，预算与购买时间尚无法确认。\n"
+                        + "性格/决策链路：无法识别，当前信息不足以判断客户的决策偏好。\n"
+                        + "结论：有效意图少于3个，当前信息不足");
+        intent.setCustomerDialog("这个杯子适合送礼吗？");
+        ConversationResponse expected = ConversationResponse.builder()
+                .conversationId("conversation-1")
+                .build();
+
+        when(conversationRepository.findByConversationId("conversation-1"))
+                .thenReturn(Optional.of(conversation));
+        when(stepRecordRepository
+                .findBySessionTaskIdAndDialogRoundAndStepNoAndIsDeleteOrderByStepRoundDesc(
+                        10L, 3, (byte) 2, (byte) 0))
+                .thenReturn(List.of());
+        when(stepRecordRepository
+                .findBySessionTaskIdAndIsEffectiveAndIsDeleteOrderByDialogRoundAscStepNoAsc(
+                        10L, (byte) 1, (byte) 0))
+                .thenReturn(List.of(intent));
+        when(stepRecordRepository
+                .findBySessionTaskIdAndIsDeleteOrderByDialogRoundAscStepNoAscStepRoundAsc(
+                        10L, (byte) 0))
+                .thenReturn(List.of(intent));
+        when(deepSeekClient.complete(anyString(), anyString()))
+                .thenReturn(new DeepSeekClient.DeepSeekResult(
+                        "亲，欢迎光临！不着急哈～您主要是自己用还是送人呢？方便的话可以说下使用场景。",
+                        60, 30, 90, "deepseek-request-3", "deepseek-v4-flash"));
+        when(conversationService.getConversationById("6", "conversation-1"))
+                .thenReturn(expected);
+
+        ConversationResponse actual = service.generateStep("6", "conversation-1", 3, 2);
+
+        assertThat(actual).isSameAs(expected);
+    }
+
     private AiDialogStepRecord record(int recordId, int dialogRound, int stepNo,
                                       int stepRound, String content) {
         return AiDialogStepRecord.builder()

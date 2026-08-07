@@ -2,6 +2,8 @@ package com.carepilot.chatworkbench.exception;
 
 import com.carepilot.chatworkbench.dto.response.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -12,7 +14,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.stream.Collectors;
 
 @Slf4j
-@RestControllerAdvice
+@Order(Ordered.HIGHEST_PRECEDENCE)
+@RestControllerAdvice(basePackages = "com.carepilot.chatworkbench")
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalStateException.class)
