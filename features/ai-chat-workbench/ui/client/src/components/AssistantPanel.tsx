@@ -55,6 +55,7 @@ export default function AssistantPanel({
   const totalLimit = tokenInfo?.totalLimit ?? 0;
   const usagePercent = Math.min(100, Math.max(0, tokenInfo?.usagePercent ?? 0));
   const originContent = latestMessage?.[STEP_FIELDS[step - 1]];
+  const successCloseReadOnly = step === 5;
   const [editContent, setEditContent] = useState("");
   const [editing, setEditing] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -103,16 +104,17 @@ export default function AssistantPanel({
   useEffect(() => {
     const text = typeof originContent === "string" ? originContent : "";
     const draftKey = `assistant-panel-draft:${conversationId ?? "none"}:${latestMessage?.id ?? "none"}:${latestMessage?.dialogRound ?? 0}:${step}`;
-    const stashedContent = sessionStorage.getItem(draftKey);
+    const stashedContent = successCloseReadOnly ? null : sessionStorage.getItem(draftKey);
     const restoredContent = stashedContent ?? text;
-    const restoredDirty = stashedContent !== null && stashedContent !== text;
+    const restoredDirty = !successCloseReadOnly && stashedContent !== null && stashedContent !== text;
     draftKeyRef.current = draftKey;
+    if (successCloseReadOnly) sessionStorage.removeItem(draftKey);
     setEditContent(restoredContent);
     editContentRef.current = restoredContent;
     setEditing(restoredDirty);
     setDirty(restoredDirty);
     dirtyRef.current = restoredDirty;
-  }, [conversationId, originContent, latestMessage?.dialogRound, latestMessage?.id, step]);
+  }, [conversationId, latestMessage?.dialogRound, latestMessage?.id, originContent, step, successCloseReadOnly]);
 
   useEffect(() => {
     onContentChangeRef.current = onContentChange;
@@ -344,13 +346,18 @@ export default function AssistantPanel({
                   ref={textareaRef}
                   value={editContent}
                   onChange={handleTextChange}
-                  onFocus={() => setEditing(true)}
+                  onFocus={() => {
+                    if (!successCloseReadOnly) setEditing(true);
+                  }}
+                  readOnly={successCloseReadOnly}
                   aria-label={`${STEPS[step - 1]}生成结果`}
                   placeholder="该步骤暂无生成内容"
                   className={`min-h-40 w-full overflow-hidden rounded-xl border bg-white p-3.5 pb-8 text-[13px] leading-relaxed text-slate-700 whitespace-pre-wrap outline-none resize-none ${
-                    editing
-                      ? "border-blue-300 ring-2 ring-blue-50 focus:border-blue-400"
-                      : "cursor-text border-slate-200"
+                    successCloseReadOnly
+                      ? "cursor-default border-slate-200 bg-slate-50"
+                      : editing
+                        ? "border-blue-300 ring-2 ring-blue-50 focus:border-blue-400"
+                        : "cursor-text border-slate-200"
                   }`}
                 />
                 <span className={`absolute bottom-3.5 right-3.5 text-[11.5px] ${

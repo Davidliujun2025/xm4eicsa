@@ -14,6 +14,7 @@ type Props = {
   onGenerate: () => void;
   isCurStepGenerated: boolean;
   generationDisabledReason?: string;
+  generationLocked?: boolean;
   readOnly?: boolean;
 };
 
@@ -36,6 +37,7 @@ export default function ChatPanel({
   onGenerate,
   isCurStepGenerated,
   generationDisabledReason,
+  generationLocked = false,
   readOnly,
 }: Props) {
   const [open, setOpen] = useState(false);
@@ -46,7 +48,7 @@ export default function ChatPanel({
   const noPlatformSelected = !currentPlatform;
   const btnText = isCurStepGenerated ? "重新生成AI回复" : "生成AI回复";
 
-  const disableGenerateBtn = generating || !text.trim() || !currentPlatform || readOnly || Boolean(generationDisabledReason);
+  const disableGenerateBtn = generating || generationLocked || !text.trim() || !currentPlatform || readOnly || Boolean(generationDisabledReason);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
