@@ -24,7 +24,6 @@ type Props = {
   step: number;
   onNextStep: () => void;
   onRetryStrategy?: () => void;
-  onRegenerateStrategy?: () => void;
   onJumpStep: (targetStep: number) => void;
   onContentChange?: (text: string) => void | Promise<void>;
 };
@@ -40,7 +39,6 @@ export default function AssistantPanel({
   step,
   onNextStep,
   onRetryStrategy,
-  onRegenerateStrategy,
   onJumpStep,
   onContentChange,
 }: Props) {
@@ -58,7 +56,6 @@ export default function AssistantPanel({
   const dirtyRef = useRef(false);
   const draftKeyRef = useRef("");
   const onContentChangeRef = useRef(onContentChange);
-  const onRegenerateStrategyRef = useRef(onRegenerateStrategy);
   const MAX_CONTENT_LENGTH = 2000;
 
   const [favoriteMessage, setFavoriteMessage] = useState("");
@@ -109,10 +106,6 @@ export default function AssistantPanel({
   useEffect(() => {
     onContentChangeRef.current = onContentChange;
   }, [onContentChange]);
-
-  useEffect(() => {
-    onRegenerateStrategyRef.current = onRegenerateStrategy;
-  }, [onRegenerateStrategy]);
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -213,14 +206,6 @@ export default function AssistantPanel({
 
   const saveEditedContent = () => {
     void commitCurrentEdit();
-  };
-
-  const handleRegenerateStrategy = async () => {
-    if (dirtyRef.current) {
-      await commitCurrentEdit();
-    }
-    if (dirtyRef.current) return;
-    onRegenerateStrategyRef.current?.();
   };
 
   const jumpStep = (targetStep: number) => {
@@ -347,18 +332,6 @@ export default function AssistantPanel({
                 </span>
               </div>
 
-              {step === 2 && (
-                <div className="mt-3">
-                  <button
-                    type="button"
-                    onClick={() => void handleRegenerateStrategy()}
-                    disabled={strategyGenerating || generating || savingEdit || !editContent || !String(editContent).trim()}
-                    className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-[12.5px] font-medium text-slate-600 transition-colors hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    重新生成回复策略
-                  </button>
-                </div>
-              )}
               <div className="mt-3 flex items-center justify-between">
                 <div className="flex flex-col gap-1">
                   <span className="text-[12.5px] text-slate-400">

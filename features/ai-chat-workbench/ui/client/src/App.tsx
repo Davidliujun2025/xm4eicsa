@@ -13,7 +13,6 @@ import type { ChatMessage, Conversation, TokenInfo } from "./types";
 import { getLoginUrl } from "./utils/auth";
 
 type WorkbenchView = "conversation" | "history" | "evaluation";
-type CarrierDialogMode = "next" | "current";
 
 const STEP_FIELDS: Array<keyof ChatMessage> = [
   "intentRecognition",
@@ -80,11 +79,8 @@ export default function App() {
   const confirmedEditsRef = useRef<ConfirmedEdits>(loadConfirmedEdits());
   const conversationStepsRef = useRef<Record<string, number>>(loadConversationSteps());
   const selectedConversationIdRef = useRef<string | null>(null);
-  const [carrierDialogMode, setCarrierDialogMode] = useState<CarrierDialogMode | null>(null);
-  const [carrierName, setCarrierName] = useState("");
   const [strategyGenerating, setStrategyGenerating] = useState(false);
   const [strategyGenerationError, setStrategyGenerationError] = useState("");
-  const [confirmRegenerateOverwrite, setConfirmRegenerateOverwrite] = useState(false);
 
   const [currentStep, setCurrentStep] = useState(1);
   const latestMessage = selectedConversation?.messages?.at(-1);
@@ -142,11 +138,8 @@ export default function App() {
       return;
     }
 
-    if (next === 2 && requiresCarrierName(latestMessage) && !selectedCarrierName?.trim()) {
-      setCarrierName("");
-      setCarrierDialogMode("next");
-      return;
-    }
+    const resolvedCarrierName = selectedCarrierName?.trim()
+      || (next === 2 && requiresCarrierName(latestMessage) ? "快递" : undefined);
 
     setGenerating(true);
     setError("");
@@ -156,7 +149,7 @@ export default function App() {
           latestMessage.dialogRound,
           next,
           next === 2 ? {
-            carrierName: selectedCarrierName?.trim(),
+            carrierName: resolvedCarrierName,
             intentRecognition: confirmedIntent,
             customerQuestion: latestMessage.question,
             platform: currentPlatform?.name,
@@ -181,8 +174,6 @@ export default function App() {
           setStrategyGenerationError(message);
         } else if (message.includes("合作快递") || message.includes("物流顾虑")) {
           setStrategyGenerationError(message);
-          setCarrierName("");
-          setCarrierDialogMode("next");
         } else {
           setStrategyGenerationError("生成失败，请稍后重试");
         }
@@ -396,12 +387,8 @@ export default function App() {
       setStrategyGenerationError("请先完成意图识别");
       return false;
     }
-    if (sameQuestion && currentStep === 2 && !isCurStepGenerated
-        && requiresCarrierName(latestMessage) && !selectedCarrierName?.trim()) {
-      setCarrierName("");
-      setCarrierDialogMode("current");
-      return false;
-    }
+    const resolvedCarrierName = selectedCarrierName?.trim()
+      || (currentStep === 2 && requiresCarrierName(latestMessage) ? "快递" : undefined);
 
     setGenerating(true);
     setError("");
@@ -414,7 +401,7 @@ export default function App() {
       let updated: Conversation;
       if (selectedConversation && latestMessage && sameQuestion) {
         const strategyInput = currentStep === 2 ? {
-          carrierName: selectedCarrierName?.trim(),
+          carrierName: resolvedCarrierName,
           intentRecognition: confirmedIntent,
           customerQuestion: latestMessage.question,
           platform: currentPlatform.name,
@@ -467,10 +454,7 @@ export default function App() {
         if (message.includes("当前客户信息不足") || message.includes("请先完成意图识别")) {
           setStrategyGenerationError(message);
         } else if (message.includes("合作快递") || message.includes("物流顾虑")) {
-          // AC11：重新生成缺少合作快递名称时，自动弹出填写快递弹窗，填完后重试
           setStrategyGenerationError(message);
-          setCarrierName("");
-          setCarrierDialogMode("current");
         } else {
           setStrategyGenerationError("生成失败，请稍后重试");
         }
@@ -488,25 +472,6 @@ export default function App() {
     confirmedEditsRef.current = { ...confirmedEditsRef.current };
     delete confirmedEditsRef.current[editKey];
     sessionStorage.setItem(CONFIRMED_EDITS_STORAGE_KEY, JSON.stringify(confirmedEditsRef.current));
-  };
-
-  const requestRegenerateStrategy = () => {
-    if (!selectedConversation || !latestMessage || currentStep !== 2) return;
-    const field = STEP_FIELDS[currentStep - 1];
-    const editKey = confirmedEditKey(selectedConversation.conversationId, latestMessage.id, field);
-    const hasConfirmedEdit = Object.prototype.hasOwnProperty.call(confirmedEditsRef.current, editKey);
-    if (hasConfirmedEdit) {
-      setConfirmRegenerateOverwrite(true);
-      return;
-    }
-    void generateReply();
-  };
-
-  const confirmRegenerateStrategy = () => {
-    if (!selectedConversation || !latestMessage || currentStep !== 2) return;
-    // 重新生成成功后才清除旧的编辑确认（在 generateReply 成功分支中处理）
-    setConfirmRegenerateOverwrite(false);
-    void generateReply();
   };
 
   if (!isAuthenticatedCustomerService) {
@@ -620,71 +585,12 @@ export default function App() {
                   if (currentStep === 1) void handleNextStep();
                   else void generateReply();
                 }}
-                onRegenerateStrategy={requestRegenerateStrategy}
                 onJumpStep={handleJumpStep}
                 onContentChange={handleAssistantContentChange}
               />
             </main>
           )}
         </div>
-        {carrierDialogMode && (
-          <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/35 p-5">
-            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-              <h2 className="text-lg font-bold text-slate-800">填写本次合作快递</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                已识别到客户存在物流顾虑。填写具体快递后，AI 才能生成准确的物流保障策略。
-              </p>
-              <label className="mt-5 block text-sm font-medium text-slate-700" htmlFor="carrier-name">合作快递名称</label>
-              <input
-                id="carrier-name"
-                value={carrierName}
-                onChange={(event) => setCarrierName(event.target.value)}
-                placeholder="例如：顺丰、中通、圆通"
-                maxLength={30}
-                autoFocus
-                className="mt-2 w-full rounded-xl border border-slate-300 px-3.5 py-3 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-              />
-              <div className="mt-5 flex justify-end gap-3">
-                <button type="button" className="rounded-lg px-4 py-2 text-sm text-slate-600 hover:bg-slate-100" onClick={() => setCarrierDialogMode(null)}>取消</button>
-                <button
-                  type="button"
-                  disabled={!carrierName.trim() || generating}
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-                  onClick={() => {
-                    const confirmedCarrier = carrierName.trim();
-                    const mode = carrierDialogMode;
-                    setCarrierDialogMode(null);
-                    if (mode === "next") void handleNextStep(confirmedCarrier);
-                    else void generateReply(confirmedCarrier);
-                  }}
-                >
-                  确认并生成
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-        {confirmRegenerateOverwrite && (
-          <div className="fixed inset-0 z-50 grid place-items-center bg-slate-900/35 p-5">
-            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-              <h2 className="text-lg font-bold text-slate-800">重新生成回复策略</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                当前内容已修改，重新生成将覆盖，是否继续？
-              </p>
-              <div className="mt-5 flex justify-end gap-3">
-                <button type="button" className="rounded-lg px-4 py-2 text-sm text-slate-600 hover:bg-slate-100" onClick={() => setConfirmRegenerateOverwrite(false)}>取消</button>
-                <button
-                  type="button"
-                  disabled={generating}
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-                  onClick={confirmRegenerateStrategy}
-                >
-                  确认重新生成
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
