@@ -17,9 +17,9 @@ pkill -f 'xm4eicsa-application-1.0.0-SNAPSHOT.jar' || true
 
 nohup env \
   SERVER_PORT=8080 \
-  DB_URL="$XM4_MYSQL_URL" \
-  DB_USERNAME="$XM4_MYSQL_USERNAME" \
-  DB_PASSWORD="$XM4_MYSQL_PASSWORD" \
+  DB_URL="${XM4_MYSQL_URL:-${DB_URL:-}}" \
+  DB_USERNAME="${XM4_MYSQL_USERNAME:-${DB_USERNAME:-}}" \
+  DB_PASSWORD="${XM4_MYSQL_PASSWORD:-${DB_PASSWORD:-}}" \
   DEEPSEEK_API_KEY="${DEEPSEEK_API_KEY:-${AI_API_KEY:-}}" \
   AI_BASE_URL="${AI_BASE_URL:-https://api.deepseek.com}" \
   AI_MODEL="${AI_MODEL:-deepseek-v4-flash}" \
