@@ -138,19 +138,24 @@ import { apiClient } from '../utils/api'
 import type { LoginForm, PwdChecks } from '../types'
 
 const isLocalDevelopment =
-  window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost'
+  import.meta.env.DEV &&
+  (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost')
 const localUrl = (port: number, path = '/') =>
   `${window.location.protocol}//${window.location.hostname}:${port}${path}`
+const productionOrigin = 'https://42.193.201.236'
 
 const defaultForgotUrl =
-  import.meta.env.VITE_FORGOT_PASSWORD_URL ||
-  (isLocalDevelopment ? localUrl(5175) : `${window.location.origin}/forgot-password/`)
+  isLocalDevelopment
+    ? import.meta.env.VITE_FORGOT_PASSWORD_URL || localUrl(5175)
+    : `${productionOrigin}/forgot-password/`
 const workbenchUrl =
-  import.meta.env.VITE_WORKBENCH_URL ||
-  (isLocalDevelopment ? localUrl(5174) : `${window.location.origin}/workbench/`)
+  isLocalDevelopment
+    ? import.meta.env.VITE_WORKBENCH_URL || localUrl(5174)
+    : `${productionOrigin}/workbench/`
 const adminUsersUrl =
-  import.meta.env.VITE_ADMIN_USERS_URL ||
-  (isLocalDevelopment ? localUrl(5176) : `${window.location.origin}/admin/users/`)
+  isLocalDevelopment
+    ? import.meta.env.VITE_ADMIN_USERS_URL || localUrl(5176)
+    : `${productionOrigin}/admin/users/`
 const SAFE_LOCAL_PORTS = new Set(['5173', '5174', '5175', '5176', '5177', '5178', '5179', '5180'])
 
 const FORGOT_PASSWORD_URL =
@@ -342,13 +347,15 @@ async function handleLogin() {
       const roleType = typeof data?.user?.roleType === 'string' ? data.user.roleType : ''
       const backendPath = typeof data?.redirectPath === 'string' ? data.redirectPath : ''
       const normalizedPath = backendPath === '/ai-customer-service' ? '/workbench/' : backendPath
+      // A stale returnUrl must never send an authenticated user to a page for
+      // another role. Known roles always use their canonical destination.
       const normalizedReturnUrl = normalizeReturnUrl(RETURN_URL)
-      const redirectUrl = normalizedReturnUrl
-        ? normalizedReturnUrl
-        : roleType === 'CUSTOMER_SERVICE'
-          ? workbenchUrl
-          : roleType === 'ADMIN'
-            ? adminUsersUrl
+      const redirectUrl = roleType === 'CUSTOMER_SERVICE'
+        ? workbenchUrl
+        : roleType === 'ADMIN'
+          ? adminUsersUrl
+          : normalizedReturnUrl
+            ? normalizedReturnUrl
             : normalizedPath && normalizedPath.startsWith('/')
               ? `${window.location.origin}${normalizedPath}`
               : `${window.location.origin}/`

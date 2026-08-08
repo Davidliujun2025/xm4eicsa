@@ -15,16 +15,9 @@ import type {
 } from "../types/user";
 
 function resolveApiBaseUrl(): string {
-  const configuredBaseUrl =
-    import.meta.env.VITE_ADMIN_API_BASE_URL ??
-    import.meta.env.VITE_API_BASE_URL ??
-    "";
-
-  if (import.meta.env.DEV) {
-    return "";
-  }
-
-  return configuredBaseUrl.replace(/\/$/, "");
+  // Local development uses the Vite proxy and production uses Nginx. Both
+  // must call /api on the current origin, never a baked 127.0.0.1 address.
+  return "";
 }
 
 const API_BASE_URL = resolveApiBaseUrl();

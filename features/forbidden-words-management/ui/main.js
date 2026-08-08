@@ -1,8 +1,11 @@
 const PAGE_PARAMS = new URLSearchParams(window.location.search);
-const API_BASE =
-  PAGE_PARAMS.get("apiBase") ||
-  window.localStorage.getItem("forbiddenWordsApiBase") ||
-  `${window.location.origin}/api`;
+const IS_LOCAL_DEVELOPMENT =
+  window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost";
+const API_BASE = IS_LOCAL_DEVELOPMENT
+  ? PAGE_PARAMS.get("apiBase") ||
+    window.localStorage.getItem("forbiddenWordsApiBase") ||
+    `${window.location.origin}/api`
+  : `${window.location.origin}/api`;
 const PAGE_SIZE = 20;
 const state = {
   currentPlatform: "ALL",
@@ -575,13 +578,17 @@ function bindFilters() {
 }
 
 function bindSidebarNavigation() {
-  const isLocalDevelopment =
-    window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost";
   const localUrl = (port) => `${window.location.protocol}//${window.location.hostname}:${port}/`;
   const navMap = {
-    "用户管理": PAGE_PARAMS.get("usersUrl") || (isLocalDevelopment ? localUrl(5176) : `${window.location.origin}/admin/users/`),
-    "Token 管理": PAGE_PARAMS.get("tokensUrl") || (isLocalDevelopment ? localUrl(5177) : `${window.location.origin}/admin/tokens/`),
-    "违禁词管理": PAGE_PARAMS.get("forbiddenUrl") || (isLocalDevelopment ? localUrl(5179) : `${window.location.origin}/admin/forbidden-words/`)
+    "用户管理": IS_LOCAL_DEVELOPMENT
+      ? PAGE_PARAMS.get("usersUrl") || localUrl(5176)
+      : `${window.location.origin}/admin/users/`,
+    "Token 管理": IS_LOCAL_DEVELOPMENT
+      ? PAGE_PARAMS.get("tokensUrl") || localUrl(5177)
+      : `${window.location.origin}/admin/tokens/`,
+    "违禁词管理": IS_LOCAL_DEVELOPMENT
+      ? PAGE_PARAMS.get("forbiddenUrl") || localUrl(5179)
+      : `${window.location.origin}/admin/forbidden-words/`
   };
 
   document.querySelectorAll(".nav-menu .nav-item").forEach((btn) => {
@@ -664,8 +671,7 @@ async function ensureCsrfToken() {
 }
 
 function logoutAndRedirect(returnUrl) {
-  const isLocal = window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost";
-  const loginUrl = isLocal
+  const loginUrl = IS_LOCAL_DEVELOPMENT
     ? `${window.location.protocol}//${window.location.hostname}:15173/`
     : `${window.location.origin}/`;
   return ensureCsrfToken()

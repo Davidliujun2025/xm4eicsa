@@ -85,13 +85,20 @@ const avatar = computed(() =>
   (currentUser.value?.username || '?').slice(0, 1),
 )
 const isLocalDevelopment =
-  window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost'
+  import.meta.env.DEV &&
+  (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost')
 const localUrl = (port: number) => `${window.location.protocol}//${window.location.hostname}:${port}/`
 
 const links: Record<string, string> = {
-  users: import.meta.env.VITE_ADMIN_USERS_URL || (isLocalDevelopment ? localUrl(5176) : '/admin/users/'),
-  tokens: import.meta.env.VITE_ADMIN_TOKENS_URL || (isLocalDevelopment ? localUrl(5177) : '/admin/tokens/'),
-  forbidden: import.meta.env.VITE_ADMIN_FORBIDDEN_WORDS_URL || (isLocalDevelopment ? localUrl(5179) : '/admin/forbidden-words/'),
+  users: isLocalDevelopment
+    ? import.meta.env.VITE_ADMIN_USERS_URL || localUrl(5176)
+    : `${window.location.origin}/admin/users/`,
+  tokens: isLocalDevelopment
+    ? import.meta.env.VITE_ADMIN_TOKENS_URL || localUrl(5177)
+    : `${window.location.origin}/admin/tokens/`,
+  forbidden: isLocalDevelopment
+    ? import.meta.env.VITE_ADMIN_FORBIDDEN_WORDS_URL || localUrl(5179)
+    : `${window.location.origin}/admin/forbidden-words/`,
 }
 
 function go(key: string) {
@@ -161,7 +168,9 @@ async function logoutAndRedirect(returnUrl: string) {
       // ignore network errors and still redirect
     }
   } finally {
-    const loginUrl = import.meta.env.VITE_LOGIN_URL || (isLocalDevelopment ? localUrl(15173) : `${window.location.origin}/`)
+    const loginUrl = isLocalDevelopment
+      ? import.meta.env.VITE_LOGIN_URL || localUrl(15173)
+      : `${window.location.origin}/`
     const url = new URL(loginUrl, window.location.origin)
     url.searchParams.set('returnUrl', returnUrl)
     window.location.replace(url.toString())

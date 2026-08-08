@@ -1,15 +1,12 @@
 function isLocalDevelopment() {
-  return window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost";
+  return import.meta.env.DEV &&
+    (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost");
 }
 
 function buildBaseLoginUrl() {
-  const configuredUrl = import.meta.env.VITE_LOGIN_URL;
-  if (configuredUrl) {
-    return configuredUrl;
-  }
-
   if (isLocalDevelopment()) {
-    return `${window.location.protocol}//${window.location.hostname}:15173/`;
+    return import.meta.env.VITE_LOGIN_URL ||
+      `${window.location.protocol}//${window.location.hostname}:15173/`;
   }
 
   return `${window.location.origin}/`;

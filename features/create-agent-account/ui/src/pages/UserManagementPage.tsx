@@ -41,11 +41,13 @@ type StatusFilter = "ALL" | UserStatus;
 
 const PAGE_SIZE = 10;
 const isLocalDevelopment =
-  window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost";
+  import.meta.env.DEV &&
+  (window.location.hostname === "127.0.0.1" || window.location.hostname === "localhost");
 const localUrl = (port: number) => `${window.location.protocol}//${window.location.hostname}:${port}/`;
 const LOGIN_URL =
-  import.meta.env.VITE_LOGIN_URL ||
-  (isLocalDevelopment ? localUrl(15173) : `${window.location.origin}/`);
+  isLocalDevelopment
+    ? import.meta.env.VITE_LOGIN_URL || localUrl(15173)
+    : `${window.location.origin}/`;
 
 const NAVIGATION_ITEMS = [
   { label: "管理看板", icon: Gauge },
@@ -58,9 +60,15 @@ const NAVIGATION_ITEMS = [
 ];
 
 const NAV_LINKS: Record<string, string> = {
-  "用户管理": import.meta.env.VITE_ADMIN_USERS_URL || (isLocalDevelopment ? localUrl(5176) : `${window.location.origin}/admin/users/`),
-  "Token 管理": import.meta.env.VITE_ADMIN_TOKENS_URL || (isLocalDevelopment ? localUrl(5177) : `${window.location.origin}/admin/tokens/`),
-  "违禁词管理": import.meta.env.VITE_ADMIN_FORBIDDEN_WORDS_URL || (isLocalDevelopment ? localUrl(5179) : `${window.location.origin}/admin/forbidden-words/`),
+  "用户管理": isLocalDevelopment
+    ? import.meta.env.VITE_ADMIN_USERS_URL || localUrl(5176)
+    : `${window.location.origin}/admin/users/`,
+  "Token 管理": isLocalDevelopment
+    ? import.meta.env.VITE_ADMIN_TOKENS_URL || localUrl(5177)
+    : `${window.location.origin}/admin/tokens/`,
+  "违禁词管理": isLocalDevelopment
+    ? import.meta.env.VITE_ADMIN_FORBIDDEN_WORDS_URL || localUrl(5179)
+    : `${window.location.origin}/admin/forbidden-words/`,
 };
 
 export default function UserManagementPage() {
