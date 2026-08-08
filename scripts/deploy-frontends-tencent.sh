@@ -70,6 +70,13 @@ copy_dir_contents "${ROOT_DIR}/features/ai-chat-workbench/ui/client/dist" "${STA
 copy_dir_contents "${ROOT_DIR}/features/forbidden-words-management/ui" "${STAGE_DIR}/admin-forbidden-words"
 copy_dir_contents "${ROOT_DIR}/features/token-usage-view/ui" "${STAGE_DIR}/token-usage"
 
+# The production Nginx routes use /admin/users/, /admin/tokens/ and
+# /admin/forbidden-words/. Keep the legacy flat directories above for
+# compatibility, and also stage assets at the canonical route paths.
+copy_dir_contents "${ROOT_DIR}/features/create-agent-account/ui/dist" "${STAGE_DIR}/admin/users"
+copy_dir_contents "${ROOT_DIR}/features/token-quota-management/token-quota-adminvue/dist" "${STAGE_DIR}/admin/tokens"
+copy_dir_contents "${ROOT_DIR}/features/forbidden-words-management/ui" "${STAGE_DIR}/admin/forbidden-words"
+
 copy_dir_contents "${ROOT_DIR}/features/favorite-script-library/UI/dist" "${STAGE_DIR}/favorite-script-library"
 
 if [[ "${MODE}" == "build-only" ]]; then
