@@ -90,29 +90,11 @@ export default function App() {
   const selectedConversationIdRef = useRef<string | null>(null);
   const [strategyGenerating, setStrategyGenerating] = useState(false);
   const [strategyGenerationError, setStrategyGenerationError] = useState("");
-  const [successCloseFollowUpLock, setSuccessCloseFollowUpLock] = useState<{
-    conversationId: string;
-    question: string;
-  } | null>(null);
 
   const [currentStep, setCurrentStep] = useState(1);
   const latestMessage = selectedConversation?.messages?.at(-1);
   const currentStepContent = latestMessage?.[STEP_FIELDS[currentStep - 1]];
   const isCurStepGenerated = typeof currentStepContent === "string" && currentStepContent.trim().length > 0;
-  const draftMatchesLatestQuestion = Boolean(
-    latestMessage && draft.trim() === latestMessage.question.trim(),
-  );
-  const generationLocked = Boolean(
-    selectedConversation
-    && latestMessage
-    && draftMatchesLatestQuestion
-    && (
-      (currentStep === 5 && isCurStepGenerated)
-      || (currentStep === 1
-        && successCloseFollowUpLock?.conversationId === selectedConversation.conversationId
-        && successCloseFollowUpLock.question === draft.trim())
-    ),
-  );
 
   const runStrategyGeneration = async (request: (signal: AbortSignal) => Promise<Conversation>) => {
     const controller = new AbortController();
@@ -464,20 +446,6 @@ export default function App() {
       && latestMessage
       && latestMessage.question.trim() === question,
     );
-    const addingQuestionAfterSuccessClose = Boolean(
-      selectedConversation
-      && latestMessage
-      && !sameQuestion
-      && currentStep === 5
-      && isCurStepGenerated,
-    );
-    const shouldLockGeneratedQuestion = addingQuestionAfterSuccessClose || Boolean(
-      selectedConversation
-      && latestMessage
-      && !sameQuestion
-      && currentStep === 1
-      && successCloseFollowUpLock?.conversationId === selectedConversation.conversationId,
-    );
     const confirmedIntent = typeof latestMessage?.intentRecognition === "string"
       ? latestMessage.intentRecognition.trim()
       : "";
@@ -522,7 +490,7 @@ export default function App() {
         updated = currentStep === 2
           ? await runStrategyGeneration((signal) => request(signal))
           : await request();
-      } else if (currentStep === 1 || addingQuestionAfterSuccessClose) {
+      } else if (currentStep === 1) {
         updated = selectedConversation
           ? await workbenchApi.addMessage(selectedConversation.conversationId, input)
           : await workbenchApi.createConversation(input);
@@ -537,12 +505,6 @@ export default function App() {
           latestMessage.id, STEP_FIELDS[currentStep - 1]);
       }
       updated = applyConfirmedEdits(updated);
-      if (shouldLockGeneratedQuestion) {
-        setSuccessCloseFollowUpLock({
-          conversationId: updated.conversationId,
-          question,
-        });
-      }
       setSelectedConversation(updated);
       setPlatformId(platformFor(updated.platform).id);
       setDraft(question);
@@ -663,7 +625,7 @@ export default function App() {
                 text={draft}
                 onTextChange={(value) => {
                   setDraft(value);
-                  if (currentStep !== 5 && latestMessage && value.trim() !== latestMessage.question.trim()) {
+                  if (latestMessage && value.trim() !== latestMessage.question.trim()) {
                     setCurrentStep(1);
                   }
                 }}
@@ -674,7 +636,6 @@ export default function App() {
                 generationDisabledReason={currentStep === 2 && !latestMessage?.intentRecognition?.trim()
                   ? "请先完成意图识别"
                   : undefined}
-                generationLocked={generationLocked}
               />
               <AssistantPanel
                 conversationId={selectedConversation?.conversationId}
