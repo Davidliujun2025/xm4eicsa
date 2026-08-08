@@ -16,7 +16,8 @@ class ReplyStrategyRuleServiceTest {
         ReplyStrategyRuleService.ReplyStrategyPlan plan = service.plan(
                 "抖音", "在吗", "引导问题：2. 您主要关注价格、功能，还是发货和售后方面？", null);
         assertThat(plan.logisticsConcern()).isFalse();
-        assertThat(plan.prompt()).contains("热情破冰");
+        assertThat(plan.prompt()).contains("热情破冰", "回复策略：", "回复理由：", "预期效果：", "对转化的影响：")
+                .contains("全部正文合计不得超过200字", "引导问题不计入该字数限制");
     }
 
     @Test
@@ -56,7 +57,8 @@ class ReplyStrategyRuleServiceTest {
                 "其他平台", "这款耳机适合打游戏吗", "客户在咨询商品功能", null);
 
         assertThat(plan.logisticsConcern()).isFalse();
-        assertThat(plan.prompt()).contains("热情破冰", "选择具体平台可提升策略精准度");
+        assertThat(plan.prompt()).contains("热情破冰", "选择具体平台可提升策略精准度")
+                .contains("不直接推品", "使用场景", "连接设备", "将被动等待转化为主动引导");
         assertThat(service.validate("先欢迎客户，再询问主要是通勤还是游戏使用。", plan).valid()).isTrue();
         assertThat(service.validate("我们会全程物流跟踪，今天下单今天发。", plan).valid()).isFalse();
     }

@@ -23,6 +23,7 @@ type Props = {
   generating: boolean;
   strategyGenerating?: boolean;
   strategyGenerationError?: string;
+  archiving?: boolean;
   step: number;
   onNextStep: () => void;
   onRetryStrategy?: () => void;
@@ -43,6 +44,7 @@ export default function AssistantPanel({
   generating,
   strategyGenerating = false,
   strategyGenerationError = "",
+  archiving = false,
   step,
   onNextStep,
   onRetryStrategy,
@@ -66,7 +68,7 @@ export default function AssistantPanel({
   const draftKeyRef = useRef("");
   const onContentChangeRef = useRef(onContentChange);
   const onConversationArchivedRef = useRef(onConversationArchived);
-  const MAX_CONTENT_LENGTH = 2000;
+  const MAX_CONTENT_LENGTH = 500;
 
   const [favoriteMessage, setFavoriteMessage] = useState("");
   const [favoriteError, setFavoriteError] = useState("");
@@ -345,6 +347,7 @@ export default function AssistantPanel({
                 <textarea
                   ref={textareaRef}
                   value={editContent}
+                  maxLength={MAX_CONTENT_LENGTH}
                   onChange={handleTextChange}
                   onFocus={() => {
                     if (!successCloseReadOnly) setEditing(true);
@@ -423,7 +426,7 @@ export default function AssistantPanel({
             : step >= 5
               ? () => onConversationArchivedRef.current?.("completed")
               : advance}
-      disabled={!latestMessage || generating || savingEdit || intentRequired}
+      disabled={!latestMessage || generating || savingEdit || archiving || conversationStatus === "HISTORY" || intentRequired}
       className={`w-full rounded-xl py-3 text-[14px] font-semibold text-white transition-all active:scale-[.99] ${
         dirty
           ? "bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300"
@@ -432,7 +435,9 @@ export default function AssistantPanel({
           : "bg-blue-600 hover:bg-blue-700 disabled:bg-slate-300"
       }`}
     >
-      {savingEdit
+      {archiving && step >= 5
+        ? "正在生成评估报告"
+        : savingEdit
         ? "保存中..."
         : strategyGenerating && step <= 2
           ? "生成中"

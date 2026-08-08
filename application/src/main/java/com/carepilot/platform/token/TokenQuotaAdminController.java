@@ -61,12 +61,22 @@ public class TokenQuotaAdminController {
                 GROUP BY u.id, u.username, u.status, q.daily_token_limit
                 ORDER BY u.id DESC
                 """,
-                (rs, rowNum) -> new QuotaItem(
-                        rs.getLong("id"),
-                        rs.getString("username"),
-                        rs.getString("status"),
-                        rs.getLong("daily_token_limit"),
-                        rs.getLong("used_today")),
+                (rs, rowNum) -> {
+                    long dailyTokenLimit = rs.getLong("daily_token_limit");
+                    long usedToday = rs.getLong("used_today");
+                    long remaining = Math.max(0, dailyTokenLimit - usedToday);
+                    double usageRate = dailyTokenLimit <= 0
+                            ? 0d
+                            : (double) usedToday / dailyTokenLimit;
+                    return new QuotaItem(
+                            rs.getLong("id"),
+                            rs.getString("username"),
+                            rs.getString("status"),
+                            dailyTokenLimit,
+                            usedToday,
+                            remaining,
+                            usageRate);
+                },
                 Timestamp.from(from),
                 Timestamp.from(to),
                 normalizedKeyword,
@@ -127,15 +137,10 @@ public class TokenQuotaAdminController {
             String username,
             String status,
             long dailyTokenLimit,
-            long usedToday
+            long usedToday,
+            long remaining,
+            double usageRate
     ) {
-        public long remaining() {
-            return dailyTokenLimit - usedToday;
-        }
-
-        public double usageRate() {
-            return dailyTokenLimit == 0 ? 0d : (double) usedToday / dailyTokenLimit;
-        }
     }
 
     public record UpdateQuotaRequest(@Min(0) long dailyTokenLimit, String reason) {

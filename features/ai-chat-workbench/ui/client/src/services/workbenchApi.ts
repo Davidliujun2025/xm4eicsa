@@ -33,19 +33,41 @@ type PersonalFavoriteToggleResponse = {
   message: string;
 };
 
+async function readJson<T>(response: Response): Promise<T | null> {
+  const text = await response.text();
+  if (!text.trim()) {
+    return null;
+  }
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return null;
+  }
+}
+
+function responseError(response: Response, message?: string) {
+  if (message) {
+    return message;
+  }
+  if (response.status >= 500) {
+    return "暂时无法连接后端服务，请确认后端已启动后重试";
+  }
+  return "服务请求失败，请稍后重试";
+}
+
 async function parseResponse<T>(response: Response): Promise<T> {
-  const payload = await response.json() as ApiResponse<T>;
-  if (!response.ok || payload.code !== 200) {
-    throw new Error(payload.message || "服务请求失败");
+  const payload = await readJson<ApiResponse<T>>(response);
+  if (!response.ok || !payload || payload.code !== 200) {
+    throw new Error(responseError(response, payload?.message));
   }
   return payload.data;
 }
 
 async function csrfToken(signal?: AbortSignal) {
   const response = await fetch("/api/v1/auth/csrf", { credentials: "include", signal });
-  const payload = await response.json() as { data?: { token?: string }; message?: string };
-  if (!response.ok || !payload.data?.token) {
-    throw new Error(payload.message || "无法获取安全令牌");
+  const payload = await readJson<{ data?: { token?: string }; message?: string }>(response);
+  if (!response.ok || !payload?.data?.token) {
+    throw new Error(responseError(response, payload?.message || (response.ok ? "无法获取安全令牌" : undefined)));
   }
   return payload.data.token;
 }
@@ -75,9 +97,9 @@ async function mutateJson<T>(url: string, method: "POST" | "DELETE", body?: unkn
     },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  const payload = await response.json() as T & { message?: string };
-  if (!response.ok) {
-    throw new Error(payload?.message || "服务请求失败");
+  const payload = await readJson<T & { message?: string }>(response);
+  if (!response.ok || !payload) {
+    throw new Error(responseError(response, payload?.message));
   }
   return payload;
 }

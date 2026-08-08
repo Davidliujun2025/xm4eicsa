@@ -50,8 +50,6 @@ app:
     model: ${AI_MODEL:deepseek-v4-flash}
     max-tokens: ${AI_MAX_TOKENS:1400}
     thinking-enabled: ${AI_THINKING_ENABLED:false}
-  token:
-    daily-limit: ${TOKEN_DAILY_LIMIT:50000}
   cache:
     sync-window-minutes: ${FORBIDDEN_WORD_CACHE_SYNC_MINUTES:5}
   script-library:
@@ -67,6 +65,14 @@ app:
     phone: ${BOOTSTRAP_ADMIN_PHONE:}
     email: ${BOOTSTRAP_ADMIN_EMAIL:}
     password: ${BOOTSTRAP_ADMIN_PASSWORD:}
+  evaluation:
+    weights:
+      service-attitude: ${EVALUATION_WEIGHT_SERVICE_ATTITUDE:20}
+      problem-solving: ${EVALUATION_WEIGHT_PROBLEM_SOLVING:25}
+      empathy: ${EVALUATION_WEIGHT_EMPATHY:15}
+      compliance: ${EVALUATION_WEIGHT_COMPLIANCE:20}
+      conversion-guidance: ${EVALUATION_WEIGHT_CONVERSION_GUIDANCE:15}
+      response-efficiency: ${EVALUATION_WEIGHT_RESPONSE_EFFICIENCY:5}
 
 carepilot:
   password-reset:

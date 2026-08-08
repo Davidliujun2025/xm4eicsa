@@ -14,7 +14,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 @RestController
-@RequestMapping("/api/v1/evaluations")
+@RequestMapping("/api/v1/risk-evaluations")
 public class AgentEvaluationController {
 
     private final HitAuditService hitAuditService;

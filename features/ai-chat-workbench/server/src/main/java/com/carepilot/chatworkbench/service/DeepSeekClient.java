@@ -39,7 +39,7 @@ public class DeepSeekClient {
     public DeepSeekResult recognizeIntent(String renderedPrompt) {
         return complete(
                 renderedPrompt,
-                "请严格按照提示词中的固定格式完成本次意图识别。");
+                "请严格按照提示词中的分析与输出规则完成本次意图识别。");
     }
 
     public DeepSeekResult complete(String systemPrompt, String userPrompt) {

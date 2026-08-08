@@ -1,7 +1,11 @@
 package com.carepilot.chatworkbench.service;
 
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -19,6 +23,16 @@ public class ReplyStrategyRuleService {
     private static final Pattern URGENCY_MARKER = Pattern.compile("(今天|现在|马上|立即|尽快|尽早|当天|今日|此刻|这就).{0,12}(下单|拍下|发出|发货|出库|安排)|下单.{0,12}(发货|出库|发出|安排)");
     private static final Pattern FORBIDDEN_DEFENCE = Pattern.compile("快递.{0,4}(挺好|很好|没问题)|不用担心.{0,8}(快递|物流)");
     private static final Pattern VAGUE_CARRIER = Pattern.compile("(?<!不是)(?<!并非)(?<!不会)(?<!没有)(?<!不采用)(随机快递|仓库安排|默认快递|任意快递)");
+    private final String promptTemplate;
+
+    public ReplyStrategyRuleService() {
+        try {
+            promptTemplate = new ClassPathResource("prompts/reply-strategy.txt")
+                    .getContentAsString(StandardCharsets.UTF_8);
+        } catch (IOException exception) {
+            throw new UncheckedIOException("无法加载回复策略提示词", exception);
+        }
+    }
 
     public ReplyStrategyPlan plan(String platform, String customerQuestion, String intentRecognition,
                                   String carrierName) {
@@ -30,8 +44,7 @@ public class ReplyStrategyRuleService {
 
         String platformGuidance = platformGuidance(platform);
         if (logisticsConcern) {
-            String prompt = "你正在生成五步生成法第2步“回复策略”。客户存在物流/快递顾虑。"
-                    + "只输出简明、可执行的策略正文，不输出Markdown标题。必须严格按以下顺序组织："
+            String prompt = promptTemplate + "\n\n本次客户存在物流/快递顾虑。必须严格按以下顺序组织回复策略："
                     + "1) 先共情并站在客户角度认可其顾虑；"
                     + "2) 明确说明本次合作快递为“" + normalizedCarrier + "”；"
                     + "3) 明确给出破损包赔、丢件补发、全程物流跟踪并在异常时处理三项保障；"
@@ -43,8 +56,7 @@ public class ReplyStrategyRuleService {
             return new ReplyStrategyPlan(true, normalizedCarrier, prompt);
         }
 
-        String prompt = "你正在生成五步生成法第2步“回复策略”。客户没有物流/快递顾虑。"
-                + "只输出简明、可执行的策略正文，不输出Markdown标题。采用“热情破冰 + 不催促"
+        String prompt = promptTemplate + "\n\n本次客户没有物流/快递顾虑。采用“热情破冰 + 不催促"
                 + " + 场景/设备提问 + 降低决策门槛”的策略，不得输出物流安抚、快递承诺或发货承诺。"
                 + "优先用1至2个回答成本低的问题引导客户补充使用场景。平台适配要求：" + platformGuidance;
         return new ReplyStrategyPlan(false, null, prompt);

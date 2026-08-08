@@ -24,9 +24,6 @@ app:
     model: ${AI_MODEL:deepseek-v4-flash}
     max-tokens: ${AI_MAX_TOKENS:1400}
     thinking-enabled: ${AI_THINKING_ENABLED:false}
-  token:
-    daily-limit: 50000
-
 ---
 spring:
   config:

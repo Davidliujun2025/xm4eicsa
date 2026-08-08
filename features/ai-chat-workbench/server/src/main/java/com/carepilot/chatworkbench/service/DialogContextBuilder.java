@@ -13,14 +13,26 @@ import java.util.Map;
 @Component
 public class DialogContextBuilder {
 
+    static final int MAX_HISTORY_DIALOG_ROUNDS = 5;
+
     public String buildConversationContext(List<AiDialogStepRecord> historyRecords) {
+        int currentDialogRound = historyRecords.stream()
+                .map(AiDialogStepRecord::getDialogRound)
+                .filter(round -> round != null && round > 0)
+                .max(Integer::compareTo)
+                .orElse(0) + 1;
+        return buildConversationContext(historyRecords, currentDialogRound);
+    }
+
+    public String buildConversationContext(List<AiDialogStepRecord> historyRecords,
+                                           int currentDialogRound) {
         List<AiDialogStepRecord> sortedRecords = sortedRecords(historyRecords);
         Map<Integer, String> questionHistory = new LinkedHashMap<>();
         Map<Integer, String> intentHistory = new LinkedHashMap<>();
 
         for (AiDialogStepRecord record : sortedRecords) {
             Integer dialogRound = record.getDialogRound();
-            if (dialogRound == null || dialogRound <= 0) {
+            if (!isInHistoryWindow(dialogRound, currentDialogRound)) {
                 continue;
             }
             if (record.getCustomerDialog() != null && !record.getCustomerDialog().isBlank()) {
@@ -56,7 +68,7 @@ public class DialogContextBuilder {
 
         for (AiDialogStepRecord record : sortedRecords) {
             Integer dialogRound = record.getDialogRound();
-            if (dialogRound == null || dialogRound <= 0) {
+            if (!isInHistoryWindow(dialogRound, currentDialogRound)) {
                 continue;
             }
             if (record.getCustomerDialog() != null && !record.getCustomerDialog().isBlank()) {
@@ -70,10 +82,6 @@ public class DialogContextBuilder {
             }
         }
 
-        if (currentQuestion != null && !currentQuestion.isBlank()) {
-            questionHistory.put(currentDialogRound, currentQuestion);
-        }
-
         StringBuilder builder = new StringBuilder("用户问题历史：");
         appendHistory(builder, questionHistory);
         builder.append("\n\n")
@@ -82,12 +90,7 @@ public class DialogContextBuilder {
         for (AiDialogStepRecord record : sameStepHistory) {
             appendStepOutput(builder, record.getDialogRound(), record.getStepRound(), record.getAiContent());
         }
-        if (currentAiContent != null && !currentAiContent.isBlank()) {
-            appendStepOutput(
-                    builder, currentDialogRound, currentStepRound, currentAiContent);
-        }
-        if (sameStepHistory.isEmpty()
-                && (currentAiContent == null || currentAiContent.isBlank())) {
+        if (sameStepHistory.isEmpty()) {
             builder.append("\n无");
         }
         return builder.toString();
@@ -129,19 +132,16 @@ public class DialogContextBuilder {
         }
 
         int currentDialogRound = maxDialogRound + 1;
-        if (currentQuestion != null && !currentQuestion.isBlank()) {
-            questionHistory.put(currentDialogRound, currentQuestion);
-        }
+        questionHistory.entrySet().removeIf(entry ->
+                !isInHistoryWindow(entry.getKey(), currentDialogRound));
 
         List<String> contexts = new ArrayList<>(steps.length);
         for (int index = 0; index < steps.length; index++) {
             int stepNo = index + 1;
             Map<Integer, String> currentStepHistory = new LinkedHashMap<>(
                     stepHistory.getOrDefault(stepNo, Map.of()));
-            String currentContent = currentStepContents.get(index);
-            if (currentContent != null && !currentContent.isBlank()) {
-                currentStepHistory.put(currentDialogRound, currentContent);
-            }
+            currentStepHistory.entrySet().removeIf(entry ->
+                    !isInHistoryWindow(entry.getKey(), currentDialogRound));
             contexts.add(formatContext(questionHistory, currentStepHistory, steps[index].getDescription()));
         }
 
@@ -155,6 +155,13 @@ public class DialogContextBuilder {
                         .thenComparing(AiDialogStepRecord::getStepNo, Comparator.nullsLast(Byte::compareTo))
                         .thenComparing(AiDialogStepRecord::getStepRound, Comparator.nullsLast(Integer::compareTo)))
                 .toList();
+    }
+
+    private boolean isInHistoryWindow(Integer dialogRound, int currentDialogRound) {
+        return dialogRound != null
+                && dialogRound > 0
+                && dialogRound < currentDialogRound
+                && dialogRound >= currentDialogRound - MAX_HISTORY_DIALOG_ROUNDS;
     }
 
     private String formatContext(Map<Integer, String> questionHistory,

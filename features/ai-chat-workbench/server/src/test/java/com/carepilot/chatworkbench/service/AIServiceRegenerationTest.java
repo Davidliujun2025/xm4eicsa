@@ -55,7 +55,9 @@ class AIServiceRegenerationTest {
                 tokenService,
                 deepSeekClient,
                 new IntentRecognitionPromptService(),
-                new ReplyStrategyRuleService());
+                new ReplyStrategyRuleService(),
+                new RecommendedScriptPromptService(),
+                new HookAndClosingPromptService());
         ReflectionTestUtils.setField(service, "timeoutSeconds", 5);
     }
 
@@ -121,8 +123,8 @@ class AIServiceRegenerationTest {
         assertThat(regenerated.getCompletionTokens()).isEqualTo(40);
         assertThat(regenerated.getTotalTokens()).isEqualTo(120);
         assertThat(regenerated.getDialogContext())
-                .contains("用户问题历史：", "回复策略历史：", "第一次回复策略", "第二次回复策略")
-                .doesNotContain("六维意图识别", "关键词");
+                .isEqualTo("用户问题历史：\n无\n\n回复策略历史：\n无")
+                .doesNotContain("第一次回复策略", "第二次回复策略", "六维意图识别", "关键词");
     }
 
     @Test
@@ -170,8 +172,8 @@ class AIServiceRegenerationTest {
         assertThat(saved.getAiContent()).isEqualTo(intent);
         assertThat(saved.getTotalTokens()).isEqualTo(150);
         assertThat(saved.getDialogContext())
-                .contains("用户问题历史：", "这个商品有货吗", "意图识别历史：", intent)
-                .doesNotContain("关键词", "角色", "平台规则");
+                .isEqualTo("用户问题历史：\n无\n\n意图识别历史：\n无")
+                .doesNotContain("这个商品有货吗", intent, "关键词", "角色", "平台规则");
     }
 
     @Test
@@ -222,8 +224,8 @@ class AIServiceRegenerationTest {
         assertThat(saved.getIsEffective()).isEqualTo((byte) 1);
         assertThat(saved.getTotalTokens()).isEqualTo(100);
         assertThat(saved.getDialogContext())
-                .contains("用户问题历史：", "这个商品有货吗", "回复策略历史：", "回复策略内容")
-                .doesNotContain("六维意图识别", "关键词");
+                .isEqualTo("用户问题历史：\n无\n\n回复策略历史：\n无")
+                .doesNotContain("这个商品有货吗", "回复策略内容", "六维意图识别", "关键词");
     }
 
     @Test
@@ -260,7 +262,9 @@ class AIServiceRegenerationTest {
         assertThat(strategy.getAiContent()).isEqualTo("编辑后的回复策略内容");
         assertThat(strategy.getIsManualEdit()).isEqualTo((byte) 1);
         assertThat(strategy.getIsEffective()).isEqualTo((byte) 1);
-        assertThat(strategy.getDialogContext()).contains("回复策略历史：", "编辑后的回复策略内容");
+        assertThat(strategy.getDialogContext())
+                .isEqualTo("用户问题历史：\n无\n\n回复策略历史：\n无")
+                .doesNotContain("编辑后的回复策略内容");
     }
 
     @Test

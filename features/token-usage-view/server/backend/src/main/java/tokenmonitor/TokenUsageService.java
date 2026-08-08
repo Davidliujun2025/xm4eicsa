@@ -71,6 +71,13 @@ public final class TokenUsageService {
         return () -> listeners.remove(listener);
     }
 
+    /** Publishes a fresh database-backed snapshot after another module writes the shared ledger. */
+    public void publishCurrent(String userId) {
+        if (listeners.isEmpty()) return;
+        TokenUsageSummary summary = today(userId);
+        for (UsageUpdateListener listener : listeners) listener.onUpdate(summary);
+    }
+
     public TokenUsageSummary today(String userId) {
         LocalDate today = LocalDate.now(clock.withZone(businessZone));
         Instant from = today.atStartOfDay(businessZone).toInstant();

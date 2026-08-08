@@ -24,7 +24,7 @@ public class TokenController {
         String customerId = user.id().toString();
         log.info("Get token usage: customerId={}", customerId);
         Integer usedToday = tokenService.getTodayUsedTokens(customerId);
-        Integer dailyLimit = tokenService.getDailyLimit();
+        Integer dailyLimit = tokenService.getDailyLimit(customerId);
         Double usagePercent = tokenService.getUsagePercent(customerId);
 
         TokenInfo tokenInfo = TokenInfo.builder()

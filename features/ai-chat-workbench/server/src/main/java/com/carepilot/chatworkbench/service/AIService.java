@@ -19,6 +19,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @Slf4j
 @Service
@@ -34,6 +35,8 @@ public class AIService {
     private final DeepSeekClient deepSeekClient;
     private final IntentRecognitionPromptService promptService;
     private final ReplyStrategyRuleService replyStrategyRuleService;
+    private final RecommendedScriptPromptService recommendedScriptPromptService;
+    private final HookAndClosingPromptService hookAndClosingPromptService;
 
     @Value("${app.ai.timeout-seconds:15}")
     private Integer timeoutSeconds;
@@ -214,6 +217,7 @@ public class AIService {
                 conversation, customerId, current, nextStepRound, result,
                 stepNo == 2 && carrierMetadata != null ? carrierMetadata : current.getExtraJson());
         stepRecordRepository.saveAll(List.of(current, regenerated));
+        tokenService.recordAiUsage(regenerated, conversation.getConversationId(), result.model());
         conversation.setUpdatedAt(LocalDateTime.now());
         conversationRepository.save(conversation);
         return conversationService.getConversationById(customerId, conversationId);
@@ -278,7 +282,7 @@ public class AIService {
         String storedContext = dialogContextBuilder.buildStoredStepContext(
                 loadStoredContextHistory(conversation.getId()),
                 question, dialogRound, stepNo, stepRound, result.content());
-        stepRecordRepository.save(AiDialogStepRecord.builder()
+        AiDialogStepRecord saved = stepRecordRepository.save(AiDialogStepRecord.builder()
                 .sessionTaskId(conversation.getId())
                 .platformId(platformId(conversation.getPlatform()))
                 .customerDialog(question)
@@ -302,6 +306,7 @@ public class AIService {
                 .completionTokens(result.completionTokens())
                 .totalTokens(result.totalTokens())
                 .build());
+        tokenService.recordAiUsage(saved, conversation.getConversationId(), result.model());
     }
 
     private StepGenerationResult generateCurrentStep(Integer stepNo, String question, String platform,
@@ -314,7 +319,7 @@ public class AIService {
                         platform,
                         extractKeywords(question),
                         question,
-                        dialogContextBuilder.buildConversationContext(historyRecords));
+                        dialogContextBuilder.buildConversationContext(historyRecords, dialogRound));
                 DeepSeekClient.DeepSeekResult response = deepSeekClient.recognizeIntent(prompt);
                 promptService.validateOutput(response.content());
                 return StepGenerationResult.from(response);
@@ -333,7 +338,7 @@ public class AIService {
                         platform, question, intentRecognition, carrierName);
                 String userPrompt = "服务平台：" + platform + "\n\n客户当前问题：" + question
                         + "\n\n意图识别及上下文：\n" + generationContext
-                        + "\n\n请只输出第2步回复策略正文。";
+                        + "\n\n请按提示词规定的“回复策略、回复理由、预期效果、对转化的影响”四部分输出第2步正文。";
                 DeepSeekClient.DeepSeekResult response = deepSeekClient.complete(plan.prompt(), userPrompt);
                 ReplyStrategyRuleService.ValidationResult validation = replyStrategyRuleService.validate(response.content(), plan);
                 for (int attempt = 0; attempt < 2 && !validation.valid(); attempt++) {
@@ -348,6 +353,28 @@ public class AIService {
                 if (!validation.valid()) {
                     throw new IllegalStateException("回复策略未通过业务校验：" + validation.message());
                 }
+                return StepGenerationResult.from(response);
+            }
+            if (stepNo == 3) {
+                String userPrompt = "服务平台：" + platform
+                        + "\n\n客户当前问题：" + question
+                        + "\n\n当前对话、意图识别及回复策略：\n" + generationContext
+                        + "\n\n请严格按“直接复制话术（平台版）”和“话术点评”两部分输出第3步内容。"
+                        + "推荐话术必须能直接发送给客户，点评只说明表达设计；不得补充输入中不存在的商品或服务事实。";
+                DeepSeekClient.DeepSeekResult response = deepSeekClient.complete(
+                        recommendedScriptPromptService.render(platform), userPrompt);
+                recommendedScriptPromptService.validateOutput(response.content());
+                return StepGenerationResult.from(response);
+            }
+            if (stepNo == 4 || stepNo == 5) {
+                String userPrompt = "服务平台：" + platform
+                        + "\n\n客户当前问题：" + question
+                        + "\n\n当前对话及全部前序步骤：\n" + generationContext
+                        + "\n\n请严格按提示词规定的结构输出第" + stepNo + "步内容。"
+                        + "只可使用上述输入中已经确认的事实；示例中的优惠、快递、时效和售后承诺不得直接套用。";
+                DeepSeekClient.DeepSeekResult response = deepSeekClient.complete(
+                        hookAndClosingPromptService.render(stepNo), userPrompt);
+                hookAndClosingPromptService.validateOutput(stepNo, response.content());
                 return StepGenerationResult.from(response);
             }
             DeepSeekClient.DeepSeekResult response = deepSeekClient.complete(
@@ -369,6 +396,9 @@ public class AIService {
             log.error("Step {} regeneration timeout or failure after {} seconds",
                     stepNo, timeoutSeconds, exception);
             Throwable cause = exception.getCause() == null ? exception : exception.getCause();
+            if (exception instanceof TimeoutException || cause instanceof TimeoutException) {
+                throw new DeepSeekClient.DeepSeekApiException("DeepSeek 响应超时，请稍后重试", cause);
+            }
             if (cause instanceof RuntimeException runtimeException) {
                 throw runtimeException;
             }
@@ -504,9 +534,6 @@ public class AIService {
     private String stepSystemPrompt(Integer stepNo) {
         return switch (stepNo) {
             case 2 -> "你是电商客服回复策略助手。根据客户问题和意图识别结果，生成简明、可执行的回复策略；只分析策略，不直接编造客户事实，不输出Markdown标题。";
-            case 3 -> "你是电商客服话术助手。根据客户问题、意图和回复策略，生成一段可直接发送给客户的专业友好话术；不得虚构优惠、库存、物流或售后承诺。";
-            case 4 -> "你是电商客服钩子引导助手。根据前序内容生成1至3个自然的引导问题，用于继续了解需求，不强推、不虚构事实。";
-            case 5 -> "你是电商客服成功收尾助手。根据完整上下文生成简洁、友好的收尾内容，明确下一步但不得作出未经证实的承诺。";
             default -> throw new IllegalArgumentException("当前步骤不支持通用生成");
         };
     }
@@ -596,7 +623,8 @@ public class AIService {
             Integer promptTokens,
             Integer completionTokens,
             Integer totalTokens,
-            String requestId
+            String requestId,
+            String model
     ) {
         static StepGenerationResult from(DeepSeekClient.DeepSeekResult response) {
             return new StepGenerationResult(
@@ -604,7 +632,8 @@ public class AIService {
                     response.promptTokens(),
                     response.completionTokens(),
                     response.totalTokens(),
-                    response.requestId());
+                    response.requestId(),
+                    response.model());
         }
     }
 }

@@ -24,6 +24,7 @@ public class ConversationService {
     private final AiDialogStepRecordRepository stepRecordRepository;
     private final AiDialogStepAssembler stepAssembler;
     private final TokenService tokenService;
+    private final EvaluationService evaluationService;
 
     public ConversationResponse getConversationById(String customerId, String conversationId) {
         Conversation conversation = ownedConversation(customerId, conversationId);
@@ -46,6 +47,7 @@ public class ConversationService {
     @Transactional
     public ConversationResponse archiveConversation(String customerId, String conversationId) {
         ownedConversation(customerId, conversationId);
+        evaluationService.generateForCompletedConversation(customerId, conversationId);
         conversationRepository.archiveOwnedConversation(customerId, conversationId);
         return getConversationById(customerId, conversationId);
     }
@@ -75,7 +77,7 @@ public class ConversationService {
 
     private ConversationResponse toResponse(Conversation conversation, String customerId) {
         Integer usedToday = tokenService.getTodayUsedTokens(customerId);
-        Integer dailyLimit = tokenService.getDailyLimit();
+        Integer dailyLimit = tokenService.getDailyLimit(customerId);
         List<AiDialogStepRecord> records = stepRecordRepository
                 .findBySessionTaskIdAndIsEffectiveAndIsDeleteOrderByDialogRoundAscStepNoAsc(
                         conversation.getId(), (byte) 1, (byte) 0);

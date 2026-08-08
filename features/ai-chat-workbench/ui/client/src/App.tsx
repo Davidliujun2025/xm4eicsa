@@ -90,6 +90,8 @@ export default function App() {
   const selectedConversationIdRef = useRef<string | null>(null);
   const [strategyGenerating, setStrategyGenerating] = useState(false);
   const [strategyGenerationError, setStrategyGenerationError] = useState("");
+  const [archiving, setArchiving] = useState(false);
+  const [evaluationGenerated, setEvaluationGenerated] = useState(false);
 
   const [currentStep, setCurrentStep] = useState(1);
   const latestMessage = selectedConversation?.messages?.at(-1);
@@ -242,7 +244,7 @@ export default function App() {
   };
 
   const archiveSelectedConversation = async () => {
-    if (!selectedConversation) return;
+    if (!selectedConversation || archiving) return;
     const conversationId = selectedConversation.conversationId;
     if (selectedConversation.status === undefined || isHistoryConversation(selectedConversation)) {
       sessionStorage.removeItem(ACTIVE_CONVERSATION_STORAGE_KEY);
@@ -250,6 +252,7 @@ export default function App() {
       return;
     }
     setError("");
+    setArchiving(true);
     try {
       const archived = applyConfirmedEdits(await workbenchApi.archiveConversation(conversationId));
       sessionStorage.removeItem(ACTIVE_CONVERSATION_STORAGE_KEY);
@@ -257,10 +260,19 @@ export default function App() {
       setConversations((current) => current.map((conversation) =>
         conversation.conversationId === conversationId ? archived : conversation,
       ));
-      openConversationHistory(conversationId);
+      setEvaluationGenerated(true);
     } catch (archiveError) {
-      setError(archiveError instanceof Error ? archiveError.message : "对话归档失败，请重试");
+      setError(archiveError instanceof Error ? archiveError.message : "评估报告生成失败，请重试");
+    } finally {
+      setArchiving(false);
     }
+  };
+
+  const openMyEvaluation = () => {
+    const target = new URL(window.location.href);
+    target.searchParams.set("view", "evaluation");
+    target.searchParams.delete("conversationId");
+    window.location.assign(target.toString());
   };
 
   const currentPlatform = PLATFORMS.find((platform) => platform.id === platformId);
@@ -664,6 +676,7 @@ export default function App() {
                 generating={generating}
                 strategyGenerating={strategyGenerating}
                 strategyGenerationError={strategyGenerationError}
+                archiving={archiving}
                 step={currentStep}
                 onNextStep={() => void handleNextStep()}
                 onRetryStrategy={() => {
@@ -678,6 +691,39 @@ export default function App() {
           )}
         </div>
       </div>
+      {evaluationGenerated ? (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/35 px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="evaluation-generated-title"
+        >
+          <div className="w-full max-w-[420px] rounded-2xl bg-white p-7 shadow-2xl">
+            <h2 id="evaluation-generated-title" className="text-center text-xl font-semibold text-slate-900">
+              评估报告已生成
+            </h2>
+            <p className="mt-3 text-center text-sm leading-6 text-slate-500">
+              本次接待评估已保存至个人评估页面。
+            </p>
+            <div className="mt-7 grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setEvaluationGenerated(false)}
+                className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                关闭
+              </button>
+              <button
+                type="button"
+                onClick={openMyEvaluation}
+                className="rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+              >
+                查看
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
