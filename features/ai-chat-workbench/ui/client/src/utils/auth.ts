@@ -9,7 +9,7 @@ function buildBaseLoginUrl() {
   }
 
   if (isLocalDevelopment()) {
-    return `${window.location.protocol}//${window.location.hostname}:5173/`;
+    return `${window.location.protocol}//${window.location.hostname}:15173/index.html`;
   }
 
   return `${window.location.origin}/`;

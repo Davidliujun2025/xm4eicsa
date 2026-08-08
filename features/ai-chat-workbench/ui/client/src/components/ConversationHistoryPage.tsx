@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { platformFor } from "../config/workbench";
 import type { Conversation } from "../types";
 import { Clock, Search } from "./icons";
+import { isHistoryConversation } from "../utils/conversationStatus";
 
 type ApiResponse<T> = {
   code: number;
@@ -22,43 +23,12 @@ export default function ConversationHistoryPage() {
   const [loading, setLoading] = useState(true);
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState("");
+  const requestedConversationId = useMemo(
+    () => new URLSearchParams(window.location.search).get("conversationId"),
+    [],
+  );
 
-  useEffect(() => {
-    const controller = new AbortController();
-
-    const loadConversations = async () => {
-      try {
-        const response = await fetch("/api/v1/conversations", {
-          credentials: "include",
-          signal: controller.signal,
-        });
-        const payload: ApiResponse<Conversation[]> = await response.json();
-        if (!response.ok || payload.code !== 200) {
-          throw new Error(payload.message || "对话记录加载失败");
-        }
-        setConversations(payload.data || []);
-      } catch (loadError) {
-        if (!controller.signal.aborted) {
-          setError(loadError instanceof Error ? loadError.message : "对话记录加载失败");
-        }
-      } finally {
-        if (!controller.signal.aborted) setLoading(false);
-      }
-    };
-
-    void loadConversations();
-    return () => controller.abort();
-  }, []);
-
-  const filtered = useMemo(() => {
-    const normalizedKeyword = keyword.trim().toLowerCase();
-    if (!normalizedKeyword) return conversations;
-    return conversations.filter((conversation) =>
-      `${conversation.title} ${conversation.platform}`.toLowerCase().includes(normalizedKeyword),
-    );
-  }, [conversations, keyword]);
-
-  const openConversation = async (conversation: Conversation) => {
+  const openConversation = useCallback(async (conversation: Conversation) => {
     setSelected(conversation);
     setDetailLoading(true);
     setError("");
@@ -76,7 +46,53 @@ export default function ConversationHistoryPage() {
     } finally {
       setDetailLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const loadConversations = async () => {
+      try {
+        const response = await fetch("/api/v1/conversations", {
+          credentials: "include",
+          signal: controller.signal,
+        });
+        const payload: ApiResponse<Conversation[]> = await response.json();
+        if (!response.ok || payload.code !== 200) {
+          throw new Error(payload.message || "对话记录加载失败");
+        }
+        const loadedConversations = (payload.data || []).filter(isHistoryConversation);
+        setConversations(loadedConversations);
+        if (requestedConversationId) {
+          const requestedConversation = loadedConversations.find(
+            (conversation) => conversation.conversationId === requestedConversationId,
+          );
+          if (requestedConversation) {
+            void openConversation(requestedConversation);
+          } else {
+            setError("未找到指定的对话记录");
+          }
+        }
+      } catch (loadError) {
+        if (!controller.signal.aborted) {
+          setError(loadError instanceof Error ? loadError.message : "对话记录加载失败");
+        }
+      } finally {
+        if (!controller.signal.aborted) setLoading(false);
+      }
+    };
+
+    void loadConversations();
+    return () => controller.abort();
+  }, [openConversation, requestedConversationId]);
+
+  const filtered = useMemo(() => {
+    const normalizedKeyword = keyword.trim().toLowerCase();
+    if (!normalizedKeyword) return conversations;
+    return conversations.filter((conversation) =>
+      `${conversation.title} ${conversation.platform}`.toLowerCase().includes(normalizedKeyword),
+    );
+  }, [conversations, keyword]);
 
   return (
     <main className="grid min-h-0 flex-1 grid-cols-[360px_minmax(0,1fr)] gap-5 overflow-hidden p-5">

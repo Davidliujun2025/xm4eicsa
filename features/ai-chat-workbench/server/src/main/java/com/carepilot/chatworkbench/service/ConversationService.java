@@ -43,6 +43,13 @@ public class ConversationService {
                 .toList();
     }
 
+    @Transactional
+    public ConversationResponse archiveConversation(String customerId, String conversationId) {
+        ownedConversation(customerId, conversationId);
+        conversationRepository.archiveOwnedConversation(customerId, conversationId);
+        return getConversationById(customerId, conversationId);
+    }
+
     public List<ConversationResponse> getRecentConversations(String customerId, Integer limit) {
         return conversationRepository.findRecentByCustomerId(customerId, limit).stream()
                 .map(conversation -> toResponse(conversation, customerId))
@@ -88,6 +95,7 @@ public class ConversationService {
                 .sessionTaskId(conversation.getId())
                 .platform(conversation.getPlatform())
                 .title(conversation.getTitle())
+                .status(conversation.getStatus())
                 .messages(messages)
                 .tokenInfo(tokenInfo)
                 .createdAt(conversation.getCreatedAt())

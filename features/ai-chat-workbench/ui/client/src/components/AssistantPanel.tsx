@@ -15,6 +15,8 @@ const STEP_FIELDS: Array<keyof ChatMessage> = [
 
 type Props = {
   conversationId?: string;
+  conversationStatus?: "ACTIVE" | "HISTORY";
+  lastActivityAt?: string;
   platformName: string;
   messages: ChatMessage[];
   tokenInfo?: TokenInfo;
@@ -26,10 +28,15 @@ type Props = {
   onRetryStrategy?: () => void;
   onJumpStep: (targetStep: number) => void;
   onContentChange?: (text: string) => void | Promise<void>;
+  onConversationArchived?: (reason: "completed" | "inactive") => void;
 };
+
+const INACTIVITY_TIMEOUT_MS = 25 * 60 * 1000;
 
 export default function AssistantPanel({
   conversationId,
+  conversationStatus,
+  lastActivityAt,
   platformName,
   messages,
   tokenInfo,
@@ -41,6 +48,7 @@ export default function AssistantPanel({
   onRetryStrategy,
   onJumpStep,
   onContentChange,
+  onConversationArchived,
 }: Props) {
   const latestMessage = messages.at(-1);
   const usedToday = useCountUp(tokenInfo?.usedToday ?? 0);
@@ -56,6 +64,7 @@ export default function AssistantPanel({
   const dirtyRef = useRef(false);
   const draftKeyRef = useRef("");
   const onContentChangeRef = useRef(onContentChange);
+  const onConversationArchivedRef = useRef(onConversationArchived);
   const MAX_CONTENT_LENGTH = 2000;
 
   const [favoriteMessage, setFavoriteMessage] = useState("");
@@ -67,8 +76,8 @@ export default function AssistantPanel({
 
   const advance = () => onNextStep();
 
-  const commitCurrentEdit = async () => {
-    if (!dirtyRef.current) return;
+  const commitCurrentEdit = async (): Promise<boolean> => {
+    if (!dirtyRef.current) return false;
     setSavingEdit(true);
     setEditSaveError("");
     try {
@@ -77,11 +86,13 @@ export default function AssistantPanel({
       dirtyRef.current = false;
       setDirty(false);
       setEditing(false);
+      return true;
     } catch (saveError) {
       setEditSaveError(saveError instanceof Error ? saveError.message : "编辑内容保存失败，请重试");
     } finally {
       setSavingEdit(false);
     }
+    return false;
   };
 
   const stashCurrentEdit = () => {
@@ -106,6 +117,23 @@ export default function AssistantPanel({
   useEffect(() => {
     onContentChangeRef.current = onContentChange;
   }, [onContentChange]);
+
+  useEffect(() => {
+    onConversationArchivedRef.current = onConversationArchived;
+  }, [onConversationArchived]);
+
+  useEffect(() => {
+    // status 缺失代表前后端版本尚未同步，此时不发起归档请求，避免旧后端返回“系统繁忙”。
+    if (!conversationId || !latestMessage?.id || conversationStatus !== "ACTIVE") return;
+    const lastActivityTime = lastActivityAt ? new Date(lastActivityAt).getTime() : Date.now();
+    const elapsed = Number.isNaN(lastActivityTime) ? 0 : Math.max(0, Date.now() - lastActivityTime);
+    const remaining = Math.max(0, INACTIVITY_TIMEOUT_MS - elapsed);
+    const timeout = window.setTimeout(() => {
+      stashCurrentEdit();
+      onConversationArchivedRef.current?.("inactive");
+    }, remaining);
+    return () => window.clearTimeout(timeout);
+  }, [conversationId, conversationStatus, lastActivityAt, latestMessage?.id]);
 
   useEffect(() => {
     const textarea = textareaRef.current;
@@ -204,8 +232,8 @@ export default function AssistantPanel({
     }
   };
 
-  const saveEditedContent = () => {
-    void commitCurrentEdit();
+  const saveEditedContent = async () => {
+    await commitCurrentEdit();
   };
 
   const jumpStep = (targetStep: number) => {
@@ -380,12 +408,14 @@ export default function AssistantPanel({
     <button
       type="button"
       onClick={dirty
-        ? saveEditedContent
+        ? () => void saveEditedContent()
         : strategyGenerationError && step <= 2
           ? onRetryStrategy
           : step === 2 && !contentGenerated && !strategyGenerating
             ? onRetryStrategy
-            : advance}
+            : step >= 5
+              ? () => onConversationArchivedRef.current?.("completed")
+              : advance}
       disabled={!latestMessage || generating || savingEdit || intentRequired}
       className={`w-full rounded-xl py-3 text-[14px] font-semibold text-white transition-all active:scale-[.99] ${
         dirty

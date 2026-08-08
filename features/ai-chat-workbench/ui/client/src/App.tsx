@@ -11,6 +11,7 @@ import MyEvaluationPage from "./components/MyEvaluationPage";
 import type { SidebarItemId } from "./components/Sidebar";
 import type { ChatMessage, Conversation, TokenInfo } from "./types";
 import { getLoginUrl } from "./utils/auth";
+import { isHistoryConversation } from "./utils/conversationStatus";
 
 type WorkbenchView = "conversation" | "history" | "evaluation";
 
@@ -24,6 +25,7 @@ const STEP_FIELDS: Array<keyof ChatMessage> = [
 
 const CONFIRMED_EDITS_STORAGE_KEY = "assistant-panel-confirmed-edits";
 const CONVERSATION_STEPS_STORAGE_KEY = "assistant-panel-conversation-steps";
+const ACTIVE_CONVERSATION_STORAGE_KEY = "assistant-panel-active-conversation";
 const STRATEGY_GENERATION_TIMEOUT_MS = 15_000;
 
 type ConfirmedEdits = Record<string, string>;
@@ -53,6 +55,13 @@ function loadConversationSteps(): Record<string, number> {
 function getWorkbenchView(): WorkbenchView {
   const requestedView = new URLSearchParams(window.location.search).get("view");
   return requestedView === "history" || requestedView === "evaluation" ? requestedView : "conversation";
+}
+
+function openConversationHistory(conversationId: string) {
+  const target = new URL(window.location.href);
+  target.searchParams.set("view", "history");
+  target.searchParams.set("conversationId", conversationId);
+  window.location.assign(target.toString());
 }
 
 function requiresCarrierName(message?: ChatMessage) {
@@ -226,6 +235,28 @@ export default function App() {
     ));
   };
 
+  const archiveSelectedConversation = async () => {
+    if (!selectedConversation) return;
+    const conversationId = selectedConversation.conversationId;
+    if (selectedConversation.status === undefined || isHistoryConversation(selectedConversation)) {
+      sessionStorage.removeItem(ACTIVE_CONVERSATION_STORAGE_KEY);
+      openConversationHistory(conversationId);
+      return;
+    }
+    setError("");
+    try {
+      const archived = applyConfirmedEdits(await workbenchApi.archiveConversation(conversationId));
+      sessionStorage.removeItem(ACTIVE_CONVERSATION_STORAGE_KEY);
+      setSelectedConversation(archived);
+      setConversations((current) => current.map((conversation) =>
+        conversation.conversationId === conversationId ? archived : conversation,
+      ));
+      openConversationHistory(conversationId);
+    } catch (archiveError) {
+      setError(archiveError instanceof Error ? archiveError.message : "对话归档失败，请重试");
+    }
+  };
+
   const currentPlatform = PLATFORMS.find((platform) => platform.id === platformId);
   const view = getWorkbenchView();
   const activeItem: SidebarItemId = view;
@@ -273,8 +304,23 @@ export default function App() {
         workbenchApi.listConversations(),
         workbenchApi.getTokenUsage(),
       ]);
-      setConversations(loadedConversations.map(applyConfirmedEdits));
+      const restoredConversations = loadedConversations.map(applyConfirmedEdits);
+      setConversations(restoredConversations);
       setTokenInfo(loadedTokenInfo);
+      const activeConversationId = sessionStorage.getItem(ACTIVE_CONVERSATION_STORAGE_KEY);
+      const activeConversation = restoredConversations.find(
+        (conversation) => conversation.conversationId === activeConversationId
+          && !isHistoryConversation(conversation),
+      );
+      if (activeConversation) {
+        setIsUserManualSelect(true);
+        setSelectedConversation(activeConversation);
+        setPlatformId(platformFor(activeConversation.platform).id);
+        setDraft(activeConversation.messages?.at(-1)?.question ?? "");
+        setCurrentStep(conversationStepsRef.current[activeConversation.conversationId] ?? 1);
+      } else if (activeConversationId) {
+        sessionStorage.removeItem(ACTIVE_CONVERSATION_STORAGE_KEY);
+      }
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "工作台数据加载失败");
     } finally {
@@ -300,6 +346,17 @@ export default function App() {
   }, [selectedConversation?.conversationId]);
 
   useEffect(() => {
+    if (!selectedConversation || isHistoryConversation(selectedConversation)) return;
+    const conversationId = selectedConversation.conversationId;
+    conversationStepsRef.current = {
+      ...conversationStepsRef.current,
+      [conversationId]: currentStep,
+    };
+    sessionStorage.setItem(CONVERSATION_STEPS_STORAGE_KEY, JSON.stringify(conversationStepsRef.current));
+    sessionStorage.setItem(ACTIVE_CONVERSATION_STORAGE_KEY, conversationId);
+  }, [currentStep, selectedConversation]);
+
+  useEffect(() => {
     if (!platformId) {
       setSelectedConversation(null);
       setDraft("");
@@ -313,7 +370,7 @@ export default function App() {
 
     const samePlatformConvs = conversations.filter(conv => {
       const convPlatform = platformFor(conv.platform);
-      return convPlatform.id === platformId;
+      return convPlatform.id === platformId && !isHistoryConversation(conv);
     });
 
     if (samePlatformConvs.length > 0) {
@@ -334,6 +391,10 @@ export default function App() {
   }, []);
 
   const selectConversation = async (conversation: Conversation) => {
+    if (isHistoryConversation(conversation)) {
+      openConversationHistory(conversation.conversationId);
+      return;
+    }
     if (selectedConversation) {
       conversationStepsRef.current = {
         ...conversationStepsRef.current,
@@ -352,6 +413,10 @@ export default function App() {
     try {
       const detail = applyConfirmedEdits(await workbenchApi.getConversation(targetConversationId));
       if (selectedConversationIdRef.current !== targetConversationId) return;
+      if (isHistoryConversation(detail)) {
+        openConversationHistory(detail.conversationId);
+        return;
+      }
       setSelectedConversation(detail);
       setDraft(detail.messages?.at(-1)?.question ?? "");
       setConversations((current) => current.map((item) =>
@@ -364,6 +429,7 @@ export default function App() {
 
   const newConversation = () => {
     selectedConversationIdRef.current = null;
+    sessionStorage.removeItem(ACTIVE_CONVERSATION_STORAGE_KEY);
     setSelectedConversation(null);
     setDraft("");
     setError("");
@@ -573,6 +639,8 @@ export default function App() {
               />
               <AssistantPanel
                 conversationId={selectedConversation?.conversationId}
+                conversationStatus={selectedConversation?.status}
+                lastActivityAt={selectedConversation?.updatedAt || selectedConversation?.createdAt}
                 platformName={currentPlatform?.name ?? ""}
                 messages={selectedConversation?.messages ?? []}
                 tokenInfo={tokenInfo}
@@ -587,6 +655,7 @@ export default function App() {
                 }}
                 onJumpStep={handleJumpStep}
                 onContentChange={handleAssistantContentChange}
+                onConversationArchived={() => void archiveSelectedConversation()}
               />
             </main>
           )}

@@ -1,5 +1,6 @@
 package com.carepilot.chatworkbench.dto.response;
 
+import com.carepilot.chatworkbench.enums.ConversationStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -18,6 +19,7 @@ public class ConversationResponse {
     private Long sessionTaskId;
     private String platform;
     private String title;
+    private ConversationStatus status;
     private List<ChatMessageResponse> messages;
     private TokenInfo tokenInfo;
     private LocalDateTime createdAt;

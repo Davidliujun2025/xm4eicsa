@@ -28,6 +28,8 @@ export type Conversation = {
   sessionTaskId: number;
   platform: string;
   title: string;
+  /** 旧版后端响应可能暂时不含 status；完成滚动升级后始终存在。 */
+  status?: "ACTIVE" | "HISTORY";
   messages: ChatMessage[];
   tokenInfo: TokenInfo;
   createdAt?: string;

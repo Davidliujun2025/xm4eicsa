@@ -302,6 +302,8 @@ if (Test-PortInUse -Port $ForgotPasswordPort) {
 }
 $env:VITE_API_BASE_URL = $previousForgotApiBaseUrl
 
+$previousFavoriteApiBaseUrl = $env:VITE_API_BASE_URL
+$env:VITE_API_BASE_URL = ""
 Install-FrontendDependencies -AppDirectory (Join-Path $projectRoot "features\favorite-script-library\UI")
 if (Test-PortInUse -Port $FavoriteScriptPort) {
     if (-not $ReuseExisting) {
@@ -321,6 +323,7 @@ if (Test-PortInUse -Port $FavoriteScriptPort) {
         -PassThru
     Write-Output "FAVORITE_SCRIPT_PID=$($favorite.Id)"
 }
+$env:VITE_API_BASE_URL = $previousFavoriteApiBaseUrl
 
 if (Test-PortInUse -Port $TokenUsagePort) {
     if (-not $ReuseExisting) {

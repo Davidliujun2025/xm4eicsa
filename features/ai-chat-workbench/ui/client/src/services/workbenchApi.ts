@@ -114,6 +114,13 @@ export const workbenchApi = {
     );
   },
 
+  async archiveConversation(conversationId: string) {
+    return mutate<Conversation>(
+      `/api/v1/conversations/${encodeURIComponent(conversationId)}/archive`,
+      "POST",
+    );
+  },
+
   async regenerateStep(conversationId: string, dialogRound: number, stepNo: number, input?: StepGenerationInput, signal?: AbortSignal) {
     return mutate<Conversation>(
       `/api/v1/conversations/${encodeURIComponent(conversationId)}`

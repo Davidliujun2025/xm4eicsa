@@ -56,6 +56,16 @@ public class ConversationController {
                 conversationService.getEffectiveSteps(customerId, conversationId)));
     }
 
+    @PostMapping("/{id}/archive")
+    public ResponseEntity<ApiResponse<ConversationResponse>> archiveConversation(
+            @AuthenticationPrincipal AuthenticatedUser user,
+            @PathVariable("id") String conversationId) {
+        String customerId = user.id().toString();
+        log.info("Archive conversation: customerId={}, conversationId={}", customerId, conversationId);
+        return ResponseEntity.ok(ApiResponse.success(
+                conversationService.archiveConversation(customerId, conversationId)));
+    }
+
     @PostMapping
     public ResponseEntity<ApiResponse<ConversationResponse>> createConversation(
             @AuthenticationPrincipal AuthenticatedUser user,

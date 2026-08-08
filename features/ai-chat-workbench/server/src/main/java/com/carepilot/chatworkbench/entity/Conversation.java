@@ -1,5 +1,6 @@
 package com.carepilot.chatworkbench.entity;
 
+import com.carepilot.chatworkbench.enums.ConversationStatus;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -36,6 +37,11 @@ public class Conversation {
 
     @Column(name = "title", length = 255)
     private String title;
+
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 16)
+    private ConversationStatus status = ConversationStatus.ACTIVE;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
