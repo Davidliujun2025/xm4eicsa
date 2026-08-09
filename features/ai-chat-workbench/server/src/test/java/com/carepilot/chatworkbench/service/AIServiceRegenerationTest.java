@@ -55,7 +55,6 @@ class AIServiceRegenerationTest {
                 tokenService,
                 deepSeekClient,
                 new IntentRecognitionPromptService(),
-                new ReplyStrategyRuleService(),
                 new RecommendedScriptPromptService(),
                 new HookAndClosingPromptService());
         ReflectionTestUtils.setField(service, "timeoutSeconds", 5);
