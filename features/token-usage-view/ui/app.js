@@ -2,16 +2,12 @@ let trendChart = null;
 let tokenData = null;
 let tokenUsageInfo = null;
 let tokenTrendData = null;
+let currentUserId = null;
 let currentPeriod = 'day';
-let currentFilter = {
-    type: 'range',
-    range: 7,
-    startDate: null,
-    endDate: null
-};
 let currentPage = 1;
 let itemsPerPage = 10;
 let filteredRecords = [];
+let eventsBound = false;
 
 function getCustomerNavMap() {
     const local = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
@@ -95,39 +91,33 @@ function applySidebarRender() {
 // =================================================================================
 
 function getCustomerId() {
-    return new URLSearchParams(window.location.search).get('customerId') || localStorage.getItem('customerId') || 'demo-customer';
+    return currentUserId
+        || new URLSearchParams(window.location.search).get('customerId')
+        || localStorage.getItem('customerId')
+        || '';
 }
 
 async function loadTokenData() {
-    // Prefer backend records via tokenApi with server pagination, fallback to mockData
     const userId = getCustomerId();
-    try {
-        if (!window.tokenApi || !window.tokenApi.getRecords) throw new Error('tokenApi not loaded');
-        const page = 1;
-        const size = 20;
-        const res = await window.tokenApi.getRecords(userId, { page, size });
-        // server response expected: { items, page, size, totalElements, totalPages }
-        const items = res?.items || res?.data?.items || res?.data || res || [];
-        const mapped = Array.isArray(items) ? items.map(normalizeRecord) : [];
-        const totalElements = res?.totalElements || res?.data?.totalElements || 0;
-        const totalPages = res?.totalPages || res?.data?.totalPages || Math.ceil(totalElements / (res?.size || size));
-        tokenData = {
-            records: mapped,
-            page: res?.page || page,
-            size: res?.size || size,
-            totalElements: totalElements,
-            totalPages: totalPages,
-            fromServer: true
-        };
-        updateDataSourceNote('真实数据库记录');
-        return tokenData;
-    } catch (error) {
-        updateDataSourceNote('本地模拟数据');
-        // normalize mock data structure if present
-        const mockRecords = (typeof mockData !== 'undefined' && Array.isArray(mockData.records)) ? mockData.records.map(normalizeRecord) : (typeof mockData !== 'undefined' && Array.isArray(mockData) ? mockData.map(normalizeRecord) : []);
-        tokenData = { records: mockRecords, fromServer: false };
-        return tokenData;
-    }
+    if (!window.tokenApi || !window.tokenApi.getRecords) throw new Error('tokenApi not loaded');
+    const page = 1;
+    const size = 20;
+    const res = await window.tokenApi.getRecords(userId, { page, size });
+    // server response expected: { items, page, size, totalElements, totalPages }
+    const items = res?.items || res?.data?.items || res?.data || res || [];
+    const mapped = Array.isArray(items) ? items.map(normalizeRecord) : [];
+    const totalElements = res?.totalElements || res?.data?.totalElements || 0;
+    const totalPages = res?.totalPages || res?.data?.totalPages || Math.ceil(totalElements / (res?.size || size));
+    tokenData = {
+        records: mapped,
+        page: res?.page || page,
+        size: res?.size || size,
+        totalElements: totalElements,
+        totalPages: totalPages,
+        fromServer: true
+    };
+    updateDataSourceNote();
+    return tokenData;
 }
 
 async function loadTokenUsageInfo() {
@@ -140,7 +130,7 @@ async function loadTokenUsageInfo() {
                 // ensure usedToday field for UI
                 data.usedToday = data.totalTokens ?? data.total_tokens ?? data.total ?? data.usedToday ?? null;
                 tokenUsageInfo = data;
-                updateDataSourceNote('真实数据库统计');
+                updateDataSourceNote();
             }
             return data;
         }
@@ -159,7 +149,7 @@ async function loadSummary() {
             if (data) {
                 tokenUsageInfo = tokenUsageInfo || {};
                 tokenUsageInfo.summary = data;
-                updateDataSourceNote('真实数据库汇总');
+                updateDataSourceNote();
             }
             return data;
         }
@@ -172,7 +162,7 @@ async function loadTrend() {
     try {
         const userId = getCustomerId();
         if (window.tokenApi && window.tokenApi.getTrend) {
-            const res = await window.tokenApi.getTrend(userId, { range: currentFilter.range === 30 ? 'LAST_30_DAYS' : 'LAST_7_DAYS' });
+            const res = await window.tokenApi.getTrend(userId, getTrendRequestParams());
             const data = res?.data || res || null;
             if (Array.isArray(data)) {
                 tokenTrendData = data.map(normalizeTrendPoint).filter(Boolean);
@@ -181,7 +171,7 @@ async function loadTrend() {
             } else {
                 tokenTrendData = null;
             }
-            if (tokenTrendData) updateDataSourceNote('真实数据库趋势');
+            if (tokenTrendData) updateDataSourceNote();
             return tokenTrendData;
         }
     } catch (e) {
@@ -205,11 +195,15 @@ function startStream() {
         // support different event shapes
         const payload = evt.today || evt.summary || evt.data || evt;
         if (payload) {
-            tokenUsageInfo = payload;
-            renderStats();
+            tokenUsageInfo = { ...(tokenUsageInfo || {}), ...payload };
+            // Refresh the authoritative four-card overview so week, month and
+            // history stay consistent with each newly recorded token event.
+            loadSummary().then(renderStats).catch(() => renderStats());
         }
         if (evt.recordAdded || evt.newRecord) {
-            loadTokenData().then(() => { renderTable(); renderChart(); }).catch(()=>{});
+            Promise.all([loadTokenData(), loadTrend()])
+                .then(() => { renderTable(); renderChart(); })
+                .catch(()=>{});
         }
     };
 
@@ -229,26 +223,12 @@ function startStream() {
     });
 }
 
-function updateDataSourceNote(source) {
+function updateDataSourceNote() {
     const note = document.getElementById('dataSourceNote');
     if (note) {
-        let detail = '';
-        try {
-            const base = window.tokenApi && window.tokenApi.getBaseURL ? window.tokenApi.getBaseURL() : (window.TOKEN_API_BASE_URL || '');
-            if (base && !/模拟|本地|mock/i.test((source||''))) {
-                detail = `（接口：${base}）`;
-            }
-        } catch (e) {}
-        note.textContent = `当前数据来源：${source}${detail}`.trim();
-    }
-    const banner = document.getElementById('mockBanner');
-    if (banner) {
-        const s = (source || '').toString();
-        if (/模拟|本地|mock/i.test(s)) {
-            banner.style.display = 'block';
-        } else {
-            banner.style.display = 'none';
-        }
+        // Keep the original subtitle line height and spacing without showing
+        // the data-source text.
+        note.textContent = '\u00a0';
     }
 }
 
@@ -293,15 +273,9 @@ function getLatestRecordDate() {
 }
 
 function getRangeDates() {
-    if (currentFilter.type === 'custom' && currentFilter.startDate && currentFilter.endDate) {
-        return {
-            start: normalizeDate(currentFilter.startDate),
-            end: normalizeDate(currentFilter.endDate)
-        };
-    }
     const end = getLatestRecordDate();
     const start = new Date(end);
-    start.setDate(end.getDate() - currentFilter.range + 1);
+    start.setDate(end.getDate() - 6);
     return {
         start: normalizeDate(start),
         end: normalizeDate(end)
@@ -382,39 +356,32 @@ function getWeekStart(date) {
 }
 
 function getDashboardStats() {
-    const refDate = getLatestRecordDate();
-    const today = normalizeDate(refDate);
-    const weekStart = getWeekStart(today);
-    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    const overview = tokenUsageInfo?.summary;
+    const total = (summary) => Number(
+        summary?.totalTokens
+        ?? summary?.totalToken
+        ?? summary?.total_tokens
+        ?? 0
+    );
 
-    const stats = {
-        today: 0,
+    if (overview) {
+        return {
+            today: total(overview.today),
+            week: total(overview.thisWeek ?? overview.week),
+            month: total(overview.thisMonth ?? overview.month),
+            history: total(overview.history)
+        };
+    }
+
+    // Keep the independently returned real today value available if the
+    // overview request is temporarily unavailable. Never derive card totals
+    // from the paginated records list.
+    return {
+        today: Number(tokenUsageInfo?.usedToday ?? tokenUsageInfo?.totalTokens ?? 0),
         week: 0,
         month: 0,
         history: 0
     };
-
-    (tokenData?.records || []).forEach(record => {
-        const recordDate = normalizeDate(parseMockDate(record.callTime));
-        if (!recordDate) return;
-        const value = record.totalToken || (record.inputToken + record.outputToken);
-        stats.history += value;
-        if (recordDate.getTime() === today.getTime()) {
-            stats.today += value;
-        }
-        if (recordDate >= weekStart && recordDate <= today) {
-            stats.week += value;
-        }
-        if (recordDate >= monthStart && recordDate <= today) {
-            stats.month += value;
-        }
-    });
-
-    if (tokenUsageInfo?.usedToday != null) {
-        stats.today = tokenUsageInfo.usedToday;
-    }
-
-    return stats;
 }
 
 async function initApp() {
@@ -431,8 +398,7 @@ async function initApp() {
         renderTable();
         bindEvents();
         applySidebarRender(); // 初次渲染侧边栏状态
-        // Start SSE only when records came from the backend. In local mock mode,
-        // the static server has no /api/v1 stream endpoint.
+        // Start SSE after the initial real-data request succeeds.
         if (tokenData?.fromServer) {
             startStream();
         }
@@ -443,18 +409,52 @@ async function initApp() {
 }
 
 async function loadCurrentUser() {
-    try {
-        if (!window.tokenApi?.getCurrentUser) return;
-        const payload = await window.tokenApi.getCurrentUser();
-        const user = payload?.data || payload;
-        const displayName = user?.username || user?.account || '客服';
-        const nameElement = document.querySelector('.user-name');
-        const avatarElement = document.querySelector('.avatar');
-        if (nameElement) nameElement.textContent = displayName;
-        if (avatarElement) avatarElement.textContent = displayName.trim().slice(0, 1) || '客';
-    } catch (error) {
-        // Keep the neutral page defaults if account details are unavailable.
+    if (!window.tokenApi?.getCurrentUser) throw new Error('tokenApi not loaded');
+    const payload = await window.tokenApi.getCurrentUser();
+    const user = payload?.data || payload;
+    currentUserId = String(user?.userId ?? user?.id ?? '');
+    if (!currentUserId) throw new Error('Current user id is missing');
+    const displayName = user?.username || user?.account || '客服';
+    const nameElement = document.querySelector('.user-name');
+    const avatarElement = document.querySelector('.avatar');
+    if (nameElement) nameElement.textContent = displayName;
+    if (avatarElement) avatarElement.textContent = displayName.trim().slice(0, 1) || '客';
+    return user;
+}
+
+function getTrendRequestParams() {
+    const { start, end } = getTrendRangeDates();
+
+    // The backend treats `to` as the exclusive upper bound. Use the beginning
+    // of the following day so the selected end date is included completely.
+    const endExclusive = new Date(end);
+    endExclusive.setDate(endExclusive.getDate() + 1);
+
+    return {
+        range: 'LAST_7_DAYS',
+        from: start.toISOString(),
+        to: endExclusive.toISOString(),
+        bucket: 'DAY'
+    };
+}
+
+function getTrendRangeDates() {
+    let start;
+    const end = normalizeDate(new Date());
+
+    // With the date controls removed, each view uses one stable real-data
+    // window: 7 days, 12 natural weeks, or 12 natural months.
+    if (currentPeriod === 'week') {
+        start = getWeekStart(end);
+        start.setDate(start.getDate() - 11 * 7);
+    } else if (currentPeriod === 'month') {
+        start = new Date(end.getFullYear(), end.getMonth() - 11, 1);
+    } else {
+        start = new Date(end);
+        start.setDate(end.getDate() - 6);
     }
+
+    return { start, end };
 }
 
 function renderStats() {
@@ -575,6 +575,86 @@ function buildTrendByPeriod(records, period) {
     return Object.values(groups).sort((a, b) => a.key.localeCompare(b.key));
 }
 
+function buildServerTrendByPeriod(points, period) {
+    const groups = {};
+
+    // Seed every natural week/month in the selected trend window. Periods
+    // without API events remain zero and are still visible on the timeline.
+    const { start, end } = getTrendRangeDates();
+    if (period === 'week') {
+        const lastWeek = getWeekStart(end);
+        for (let cursor = getWeekStart(start); cursor <= lastWeek; cursor.setDate(cursor.getDate() + 7)) {
+            const weekStart = new Date(cursor);
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekStart.getDate() + 6);
+            const key = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`;
+            groups[key] = {
+                date: `${weekStart.getMonth() + 1}/${weekStart.getDate()}-${weekEnd.getMonth() + 1}/${weekEnd.getDate()}`,
+                inputToken: 0,
+                outputToken: 0,
+                totalToken: 0,
+                key
+            };
+        }
+    } else {
+        const lastMonth = new Date(end.getFullYear(), end.getMonth(), 1);
+        for (let cursor = new Date(start.getFullYear(), start.getMonth(), 1); cursor <= lastMonth; cursor.setMonth(cursor.getMonth() + 1)) {
+            const monthStart = new Date(cursor);
+            const key = `${monthStart.getFullYear()}-${String(monthStart.getMonth() + 1).padStart(2, '0')}`;
+            groups[key] = {
+                date: `${monthStart.getMonth() + 1}月`,
+                inputToken: 0,
+                outputToken: 0,
+                totalToken: 0,
+                key
+            };
+        }
+    }
+
+    points.forEach(point => {
+        const parsedDate = new Date(point.date);
+        if (Number.isNaN(parsedDate.getTime())) return;
+        const recordDate = normalizeDate(parsedDate);
+        let key;
+        let label;
+
+        if (period === 'week') {
+            const weekStart = getWeekStart(recordDate);
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekStart.getDate() + 6);
+            key = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`;
+            label = `${weekStart.getMonth() + 1}/${weekStart.getDate()}-${weekEnd.getMonth() + 1}/${weekEnd.getDate()}`;
+        } else {
+            key = `${recordDate.getFullYear()}-${String(recordDate.getMonth() + 1).padStart(2, '0')}`;
+            label = `${recordDate.getMonth() + 1}月`;
+        }
+
+        if (!groups[key]) {
+            groups[key] = { date: label, inputToken: 0, outputToken: 0, totalToken: 0, key };
+        }
+        groups[key].inputToken += Number(point.inputToken || 0);
+        groups[key].outputToken += Number(point.outputToken || 0);
+        groups[key].totalToken += Number(point.totalToken || 0);
+    });
+
+    return Object.values(groups).sort((a, b) => a.key.localeCompare(b.key));
+}
+
+function buildServerDailyTrend(points) {
+    return points.map(point => {
+        const parsedDate = new Date(point.date);
+        const label = Number.isNaN(parsedDate.getTime())
+            ? point.date
+            : `${parsedDate.getMonth() + 1}/${parsedDate.getDate()}`;
+        return {
+            date: label,
+            inputToken: Number(point.inputToken || 0),
+            outputToken: Number(point.outputToken || 0),
+            totalToken: Number(point.totalToken || 0)
+        };
+    });
+}
+
 function getLatestHistoricalTime() {
     const records = tokenData?.records || [];
     const dates = records
@@ -614,25 +694,15 @@ function renderChart() {
         return;
     }
     let data = [];
-    // Prefer server-provided trend data if available and period is day
-    if (tokenTrendData && currentPeriod === 'day') {
-        data = tokenTrendData.map(d => ({
-            date: d.date || d.label || d.day,
-            inputToken: d.inputToken || d.input_tokens || d.input || 0,
-            outputToken: d.outputToken || d.output_tokens || d.output || 0,
-            totalToken: d.totalToken || d.total_tokens || d.total || 0
-        }));
-    } else {
-        const records = getFilteredRecords();
-        switch (currentPeriod) {
-            case 'week':
-                data = buildTrendByPeriod(records, 'week');
-                break;
-            case 'month':
-                data = buildTrendByPeriod(records, 'month');
-                break;
-            default:
-                data = buildDailyTrend(records);
+    // Use the complete daily series returned by the real trend API, then
+    // aggregate those points for the weekly and monthly views.
+    if (Array.isArray(tokenTrendData)) {
+        if (currentPeriod === 'week') {
+            data = buildServerTrendByPeriod(tokenTrendData, 'week');
+        } else if (currentPeriod === 'month') {
+            data = buildServerTrendByPeriod(tokenTrendData, 'month');
+        } else {
+            data = buildServerDailyTrend(tokenTrendData);
         }
     }
 
@@ -1030,6 +1100,9 @@ function closeModal() {
 }
 
 function bindEvents() {
+    if (eventsBound) return;
+    eventsBound = true;
+
     const dashboardToggle = document.getElementById('dashboardSectionToggle');
     const tokenStatsMenuItem = document.getElementById('tokenStatsMenuItem');
 
@@ -1040,56 +1113,12 @@ function bindEvents() {
         });
     }
 
-    document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-            
-            const range = parseInt(this.dataset.range);
-            const customPanel = document.getElementById('customRangePanel');
-            if (range === 0) {
-                currentFilter = { type: 'custom', range: 0, startDate: null, endDate: null };
-                customPanel.style.display = 'flex';
-                return;
-            }
-            customPanel.style.display = 'none';
-            if (!isNaN(range)) {
-                currentFilter = { type: 'range', range, startDate: null, endDate: null };
-                currentPage = 1;
-                currentPeriod = 'day';
-                updateAll();
-            }
-        });
-    });
-
-    const applyCustom = document.getElementById('applyCustomRange');
-    if (applyCustom) {
-        applyCustom.addEventListener('click', function() {
-            const start = document.getElementById('customStart').value;
-            const end = document.getElementById('customEnd').value;
-            if (!start || !end) return;
-            const startDate = new Date(start);
-            const endDate = new Date(end);
-            const diffDays = Math.round((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
-            if (diffDays <= 0) return;
-            currentFilter = {
-                type: 'custom',
-                range: diffDays,
-                startDate,
-                endDate
-            };
-            currentPage = 1;
-            currentPeriod = 'day';
-            updateAll();
-        });
-    }
-    
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', function() {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             this.classList.add('active');
             currentPeriod = this.dataset.period;
-            renderChart();
+            loadTrend().then(renderChart).catch(() => renderChart());
         });
     });
     

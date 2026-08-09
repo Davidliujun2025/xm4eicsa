@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Token统计</title>
-  <link rel="stylesheet" href="styles.css?v=20260807-settings-icon">
+  <link rel="stylesheet" href="styles.css?v=20260810-remove-date-controls">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script>
     // 默认后端地址与当前页面同源，避免 127.0.0.1 与 localhost 的 CORS 问题。
@@ -25,13 +25,12 @@
 </head>
 <body>
   <div class="page">
-    <div id="mockBanner" class="mock-banner" style="display:none;">正在使用本地模拟数据 — 非真实数据，仅用于开发调试</div>
     <div class="page-content">
       <div class="container">
         <div class="dashboard-header">
           <div class="dashboard-title">
             <h1>Token统计</h1>
-            <div class="data-note" id="dataSourceNote">正在连接真实数据...</div>
+            <div id="dataSourceNote" class="data-note" aria-hidden="true">&nbsp;</div>
           </div>
           <div class="dashboard-actions">
             <button class="top-link help-link" type="button" aria-label="帮助中心">
@@ -69,20 +68,6 @@
             </div>
           </div>
         </div>
-        <div class="header-row">
-          <div></div>
-          <div class="time-filters">
-            <button class="filter-btn active" data-range="7">最近7天</button>
-            <button class="filter-btn" data-range="30">最近30天</button>
-            <button class="filter-btn" data-range="0">自定义</button>
-          </div>
-        </div>
-        <div class="custom-range-panel" id="customRangePanel" style="display:none;">
-          <label>开始：<input type="date" id="customStart" /></label>
-          <label>结束：<input type="date" id="customEnd" /></label>
-          <button id="applyCustomRange" class="filter-btn">确定</button>
-        </div>
-
         <div class="stats-cards"></div>
 
         <div class="chart-panel">
@@ -201,7 +186,6 @@
   </div>
 
   <script src="runtime-config.js?v=20260806-runtime-navigation"></script>
-  <script src="mockData.js?v=20260801-remove-token-demo"></script>
   <script src="tokenApi.js?v=20260731-sidebar-integration"></script>
   <div id="accountConfirmModal" class="confirm-overlay" style="display:none;">
     <div class="confirm-box">
@@ -213,6 +197,6 @@
     </div>
   </div>
 
-  <script src="app.js?v=20260807-account-menu"></script>
+  <script src="app.js?v=20260810-real-overview-cards"></script>
 </body>
 </html>
