@@ -55,6 +55,7 @@ class AIServiceRegenerationTest {
                 tokenService,
                 deepSeekClient,
                 new IntentRecognitionPromptService(),
+                new ReplyStrategyPromptService(),
                 new RecommendedScriptPromptService(),
                 new HookAndClosingPromptService());
         ReflectionTestUtils.setField(service, "timeoutSeconds", 5);
@@ -124,6 +125,17 @@ class AIServiceRegenerationTest {
         assertThat(regenerated.getDialogContext())
                 .isEqualTo("用户问题历史：\n无\n\n回复策略历史：\n无")
                 .doesNotContain("第一次回复策略", "第二次回复策略", "六维意图识别", "关键词");
+        ArgumentCaptor<String> systemPromptCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> userPromptCaptor = ArgumentCaptor.forClass(String.class);
+        verify(deepSeekClient).complete(systemPromptCaptor.capture(), userPromptCaptor.capture());
+        assertThat(systemPromptCaptor.getValue())
+                .contains("第二步：回复策略")
+                .contains("【回复策略】", "【意图识别】", "【策略点评】");
+        assertThat(userPromptCaptor.getValue())
+                .contains("服务平台：拼多多")
+                .contains("客户当前问题：这个商品有货吗")
+                .contains("六维意图识别")
+                .contains("上一次本步骤输出：第一次回复策略");
     }
 
     @Test
@@ -214,7 +226,16 @@ class AIServiceRegenerationTest {
         assertThat(actual).isSameAs(expected);
         ArgumentCaptor<AiDialogStepRecord> captor = ArgumentCaptor.forClass(AiDialogStepRecord.class);
         verify(stepRecordRepository).save(captor.capture());
-        verify(deepSeekClient, times(1)).complete(anyString(), anyString());
+        ArgumentCaptor<String> systemPromptCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<String> userPromptCaptor = ArgumentCaptor.forClass(String.class);
+        verify(deepSeekClient, times(1)).complete(systemPromptCaptor.capture(), userPromptCaptor.capture());
+        assertThat(systemPromptCaptor.getValue())
+                .contains("第二步：回复策略")
+                .contains("结合第1步意图识别的结果");
+        assertThat(userPromptCaptor.getValue())
+                .contains("服务平台：拼多多")
+                .contains("客户当前问题：这个商品有货吗")
+                .contains("六维意图识别");
         AiDialogStepRecord saved = captor.getValue();
         assertThat(saved.getDialogRound()).isEqualTo(3);
         assertThat(saved.getStepNo()).isEqualTo((byte) 2);
@@ -273,7 +294,7 @@ class AIServiceRegenerationTest {
     }
 
     @Test
-    void generatingStepTwoWithLogisticsWordInSparseIntentStillFailsWithInsufficientInfoMessage() {
+    void generatingStepTwoWithLogisticsWordInSparseIntentCallsDeepSeek() {
         Conversation conversation = Conversation.builder()
                 .id(10L)
                 .conversationId("conversation-1")
@@ -294,13 +315,16 @@ class AIServiceRegenerationTest {
                 .findBySessionTaskIdAndIsEffectiveAndIsDeleteOrderByDialogRoundAscStepNoAsc(
                         10L, (byte) 1, (byte) 0))
                 .thenReturn(List.of(intent));
+        when(deepSeekClient.complete(anyString(), anyString()))
+                .thenReturn(new DeepSeekClient.DeepSeekResult(
+                        "回复策略内容", 60, 30, 90, "deepseek-request-3", "deepseek-v4-flash"));
 
-        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
-                () -> service.generateStep("6", "conversation-1", 3, 2));
+        service.generateStep("6", "conversation-1", 3, 2);
+        verify(deepSeekClient).complete(anyString(), anyString());
     }
 
     @Test
-    void generatingStepTwoWithSparseIntentFailsWithInsufficientInfoMessage() {
+    void generatingStepTwoWithSparseIntentCallsDeepSeek() {
         Conversation conversation = Conversation.builder()
                 .id(10L)
                 .conversationId("conversation-1")
@@ -320,13 +344,16 @@ class AIServiceRegenerationTest {
                 .findBySessionTaskIdAndIsEffectiveAndIsDeleteOrderByDialogRoundAscStepNoAsc(
                         10L, (byte) 1, (byte) 0))
                 .thenReturn(List.of(intent));
+        when(deepSeekClient.complete(anyString(), anyString()))
+                .thenReturn(new DeepSeekClient.DeepSeekResult(
+                        "回复策略内容", 60, 30, 90, "deepseek-request-3", "deepseek-v4-flash"));
 
-        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
-                () -> service.generateStep("6", "conversation-1", 3, 2));
+        service.generateStep("6", "conversation-1", 3, 2);
+        verify(deepSeekClient).complete(anyString(), anyString());
     }
 
     @Test
-    void generatingStepTwoWithBareGreetingFailsWithInsufficientInfoMessage() {
+    void generatingStepTwoWithBareGreetingCallsDeepSeek() {
         Conversation conversation = Conversation.builder()
                 .id(10L)
                 .conversationId("conversation-1")
@@ -347,9 +374,12 @@ class AIServiceRegenerationTest {
                 .findBySessionTaskIdAndIsEffectiveAndIsDeleteOrderByDialogRoundAscStepNoAsc(
                         10L, (byte) 1, (byte) 0))
                 .thenReturn(List.of(intent));
+        when(deepSeekClient.complete(anyString(), anyString()))
+                .thenReturn(new DeepSeekClient.DeepSeekResult(
+                        "回复策略内容", 60, 30, 90, "deepseek-request-3", "deepseek-v4-flash"));
 
-        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
-                () -> service.generateStep("6", "conversation-1", 3, 2));
+        service.generateStep("6", "conversation-1", 3, 2);
+        verify(deepSeekClient).complete(anyString(), anyString());
     }
 
     @Test

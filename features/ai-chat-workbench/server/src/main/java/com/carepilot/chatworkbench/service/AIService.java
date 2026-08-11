@@ -34,6 +34,7 @@ public class AIService {
     private final TokenService tokenService;
     private final DeepSeekClient deepSeekClient;
     private final IntentRecognitionPromptService promptService;
+    private final ReplyStrategyPromptService replyStrategyPromptService;
     private final RecommendedScriptPromptService recommendedScriptPromptService;
     private final HookAndClosingPromptService hookAndClosingPromptService;
 
@@ -300,6 +301,17 @@ public class AIService {
 
             String generationContext = buildStepGenerationContext(
                     dialogRound, stepNo, historyRecords, previousContent);
+            if (stepNo == 2) {
+                String userPrompt = "服务平台：" + platform
+                        + "\n\n客户当前问题：" + question
+                        + "\n\n当前轮意图识别及重新生成参考：\n" + generationContext
+                        + "\n\n请严格按照回复策略提示词规定的结构输出第2步内容。"
+                        + "只输出回复策略分析，不直接生成发送给客户的话术。";
+                DeepSeekClient.DeepSeekResult response = deepSeekClient.complete(
+                        replyStrategyPromptService.render(), userPrompt);
+                replyStrategyPromptService.validateOutput(response.content());
+                return StepGenerationResult.from(response);
+            }
             if (stepNo == 3) {
                 String userPrompt = "服务平台：" + platform
                         + "\n\n客户当前问题：" + question
@@ -322,16 +334,7 @@ public class AIService {
                 hookAndClosingPromptService.validateOutput(stepNo, response.content());
                 return StepGenerationResult.from(response);
             }
-            DeepSeekClient.DeepSeekResult response = deepSeekClient.complete(
-                    stepSystemPrompt(stepNo),
-                    "服务平台：" + platform + "\n\n客户当前问题：" + question
-                            + "\n\n当前对话及前序步骤：\n" + generationContext
-                            + "\n\n请重新生成第" + stepNo + "步内容，只输出本步骤正文。"
-            );
-            if (response.content() == null || response.content().isBlank()) {
-                throw new DeepSeekClient.DeepSeekApiException("DeepSeek 返回了空的步骤生成结果");
-            }
-            return StepGenerationResult.from(response);
+            throw new IllegalArgumentException("当前步骤不支持生成");
         }, executorService);
 
         try {
@@ -435,13 +438,6 @@ public class AIService {
                     .append("本次需要在遵循事实的前提下给出不同且更优的版本。\n");
         }
         return context.isEmpty() ? "无" : context.toString().trim();
-    }
-
-    private String stepSystemPrompt(Integer stepNo) {
-        return switch (stepNo) {
-            case 2 -> "你是电商客服回复策略助手。根据客户问题和意图识别结果，生成简明、可执行的回复策略；只分析策略，不直接编造客户事实，不输出Markdown标题。";
-            default -> throw new IllegalArgumentException("当前步骤不支持通用生成");
-        };
     }
 
     private String stepDescription(Byte stepNo) {

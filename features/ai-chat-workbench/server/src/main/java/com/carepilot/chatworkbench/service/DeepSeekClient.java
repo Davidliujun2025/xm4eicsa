@@ -21,6 +21,9 @@ public class DeepSeekClient {
     private final Integer maxTokens;
     private final boolean thinkingEnabled;
 
+    @Value("${app.ai.log-request:false}")
+    private boolean logRequest;
+
     public DeepSeekClient(RestClient.Builder restClientBuilder,
                           @Value("${app.ai.base-url:https://api.deepseek.com}") String baseUrl,
                           @Value("${app.ai.api-key:}") String apiKey,
@@ -57,6 +60,19 @@ public class DeepSeekClient {
                 false,
                 maxTokens
         );
+
+        if (logRequest) {
+            log.info(
+                    "DeepSeek request parameters: model={}, thinking={}, stream={}, maxTokens={}"
+                            + "\nsystemPrompt:\n{}\nuserPrompt:\n{}",
+                    request.model(),
+                    request.thinking().type(),
+                    request.stream(),
+                    request.maxTokens(),
+                    systemPrompt,
+                    userPrompt
+            );
+        }
 
         try {
             ChatCompletionResponse response = restClient.post()

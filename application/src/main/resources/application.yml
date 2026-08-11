@@ -50,6 +50,7 @@ app:
     model: ${AI_MODEL:deepseek-v4-flash}
     max-tokens: ${AI_MAX_TOKENS:1400}
     thinking-enabled: ${AI_THINKING_ENABLED:false}
+    log-request: ${AI_LOG_REQUESTS:false}
   cache:
     sync-window-minutes: ${FORBIDDEN_WORD_CACHE_SYNC_MINUTES:5}
   script-library:
