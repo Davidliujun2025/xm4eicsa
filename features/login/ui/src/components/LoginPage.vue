@@ -32,7 +32,7 @@
     <!-- ======== 右侧登录区（保持不变） ======== -->
     <div class="login-panel">
       <h1 class="page-title">欢迎回来</h1>
-      <p class="page-sub">登录您的 CarePilot AI 账号</p>
+      <p class="page-sub">登录您的 ServicePilot AI 账号</p>
 
       <!-- 错误信息 -->
       <div class="error-msg" :class="{ hidden: !loginError }">
@@ -126,7 +126,7 @@
           <a href="#">服务条款</a>
           <a href="#">隐私政策</a>
         </div>
-        <div class="right-copy">© 2026 CarePilot AI</div>
+        <div class="right-copy">© 2026 ServicePilot AI</div>
       </div>
     </div>
   </div>
