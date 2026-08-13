@@ -32,6 +32,25 @@ public class InMemoryStore implements DataStore {
     }
 
     @Override
+    public long countWords() {
+        return words.size();
+    }
+
+    @Override
+    public long countCoveredPlatforms() {
+        if (words.stream().anyMatch(word -> word.getPlatform() == Platform.ALL)) {
+            return java.util.Arrays.stream(Platform.values())
+                    .filter(platform -> platform != Platform.ALL)
+                    .count();
+        }
+        return words.stream()
+                .map(ForbiddenWord::getPlatform)
+                .filter(platform -> platform != Platform.ALL)
+                .distinct()
+                .count();
+    }
+
+    @Override
     public ForbiddenWord addWord(String word, Platform platform, String createdBy, LocalDateTime createdAt) {
         ForbiddenWord created = new ForbiddenWord(
                 wordIdGenerator.getAndIncrement(),
@@ -96,6 +115,13 @@ public class InMemoryStore implements DataStore {
     public long countActorHitsOnDate(String actor, LocalDateTime dateTime) {
         return hitLogs.stream()
                 .filter(log -> Objects.equals(log.getActor(), actor))
+                .filter(log -> log.getActionTime().toLocalDate().equals(dateTime.toLocalDate()))
+                .count();
+    }
+
+    @Override
+    public long countHitsOnDate(LocalDateTime dateTime) {
+        return hitLogs.stream()
                 .filter(log -> log.getActionTime().toLocalDate().equals(dateTime.toLocalDate()))
                 .count();
     }

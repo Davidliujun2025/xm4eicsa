@@ -41,6 +41,8 @@ class AIServiceRegenerationTest {
     private TokenService tokenService;
     @Mock
     private DeepSeekClient deepSeekClient;
+    @Mock
+    private WorkbenchForbiddenWordAuditService forbiddenWordAuditService;
 
     private AIService service;
 
@@ -57,7 +59,8 @@ class AIServiceRegenerationTest {
                 new IntentRecognitionPromptService(),
                 new ReplyStrategyPromptService(),
                 new RecommendedScriptPromptService(),
-                new HookAndClosingPromptService());
+                new HookAndClosingPromptService(),
+                forbiddenWordAuditService);
         ReflectionTestUtils.setField(service, "timeoutSeconds", 5);
     }
 

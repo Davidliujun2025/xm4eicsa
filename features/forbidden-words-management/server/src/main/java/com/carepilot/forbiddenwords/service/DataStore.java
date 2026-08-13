@@ -12,6 +12,10 @@ import java.util.Optional;
 public interface DataStore {
     List<ForbiddenWord> listWords();
 
+    long countWords();
+
+    long countCoveredPlatforms();
+
     ForbiddenWord addWord(String word, Platform platform, String createdBy, LocalDateTime createdAt);
 
     Optional<ForbiddenWord> removeWordById(Long id);
@@ -25,4 +29,6 @@ public interface DataStore {
     HitAuditLog addHitLog(String actor, Platform platform, String sourceType, String content, String hitWord, String action, LocalDateTime actionTime);
 
     long countActorHitsOnDate(String actor, LocalDateTime dateTime);
+
+    long countHitsOnDate(LocalDateTime dateTime);
 }

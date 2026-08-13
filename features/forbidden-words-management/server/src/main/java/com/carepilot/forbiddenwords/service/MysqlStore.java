@@ -63,6 +63,27 @@ public class MysqlStore implements DataStore {
     }
 
     @Override
+    public long countWords() {
+        Long count = jdbcTemplate.queryForObject("SELECT COUNT(1) FROM forbidden_word", Long.class);
+        return Objects.requireNonNullElse(count, 0L);
+    }
+
+    @Override
+    public long countCoveredPlatforms() {
+        Long allPlatformWords = jdbcTemplate.queryForObject(
+                "SELECT COUNT(1) FROM forbidden_word WHERE platform = 'ALL'", Long.class);
+        if (Objects.requireNonNullElse(allPlatformWords, 0L) > 0) {
+            return java.util.Arrays.stream(Platform.values())
+                    .filter(platform -> platform != Platform.ALL)
+                    .count();
+        }
+        Long count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(DISTINCT platform) FROM forbidden_word WHERE platform <> 'ALL'",
+                Long.class);
+        return Objects.requireNonNullElse(count, 0L);
+    }
+
+    @Override
     public ForbiddenWord addWord(String word, Platform platform, String createdBy, LocalDateTime createdAt) {
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
@@ -160,6 +181,19 @@ public class MysqlStore implements DataStore {
                 "SELECT COUNT(1) FROM hit_audit_log WHERE actor = ? AND action_time >= ? AND action_time < ?",
                 Long.class,
                 actor,
+                Timestamp.valueOf(start),
+                Timestamp.valueOf(end)
+        );
+        return Objects.requireNonNullElse(count, 0L);
+    }
+
+    @Override
+    public long countHitsOnDate(LocalDateTime dateTime) {
+        LocalDateTime start = dateTime.toLocalDate().atStartOfDay();
+        LocalDateTime end = start.plusDays(1);
+        Long count = jdbcTemplate.queryForObject(
+                "SELECT COUNT(1) FROM hit_audit_log WHERE action_time >= ? AND action_time < ?",
+                Long.class,
                 Timestamp.valueOf(start),
                 Timestamp.valueOf(end)
         );

@@ -1,6 +1,7 @@
 package com.carepilot.forbiddenwords.service;
 
 import com.carepilot.forbiddenwords.dto.CsvPreviewItem;
+import com.carepilot.forbiddenwords.dto.ForbiddenWordStats;
 import com.carepilot.forbiddenwords.dto.PageResult;
 import com.carepilot.forbiddenwords.model.ForbiddenWord;
 import com.carepilot.forbiddenwords.model.OperationAuditLog;
@@ -46,6 +47,14 @@ public class ForbiddenWordService {
         }
         int to = Math.min(from + safeSize, filtered.size());
         return new PageResult<>(filtered.subList(from, to), filtered.size(), safePage, safeSize);
+    }
+
+    public ForbiddenWordStats stats() {
+        return new ForbiddenWordStats(
+                store.countWords(),
+                store.countCoveredPlatforms(),
+                store.countHitsOnDate(LocalDateTime.now())
+        );
     }
 
     public ForbiddenWord addWord(String word, Platform platform, String operator, String ip) {

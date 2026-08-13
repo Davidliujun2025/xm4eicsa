@@ -37,6 +37,7 @@ public class AIService {
     private final ReplyStrategyPromptService replyStrategyPromptService;
     private final RecommendedScriptPromptService recommendedScriptPromptService;
     private final HookAndClosingPromptService hookAndClosingPromptService;
+    private final WorkbenchForbiddenWordAuditService forbiddenWordAuditService;
 
     @Value("${app.ai.timeout-seconds:15}")
     private Integer timeoutSeconds;
@@ -54,6 +55,7 @@ public class AIService {
                 .title(truncate(question, 50))
                 .build();
         conversationRepository.saveAndFlush(conversation);
+        forbiddenWordAuditService.auditUserQuestion(customerId, platform, question);
 
         List<AiDialogStepRecord> historyRecords = loadHistory(conversation.getId());
         int dialogRound = stepRecordRepository.findMaxDialogRound(conversation.getId()) + 1;
@@ -63,7 +65,7 @@ public class AIService {
                 "请确认意图识别结果后再进入下一步骤。");
         try {
             StepGenerationResult result = generateCurrentStep(
-                    1, question, platform, dialogRound, historyRecords, null);
+                    customerId, 1, question, platform, dialogRound, historyRecords, null);
             saveSuccessfulStep(
                     conversation, customerId, question, dialogRound, 1, 1,
                     extraJson, result);
@@ -85,6 +87,8 @@ public class AIService {
         if (!customerId.equals(conversation.getCustomerId())) {
             throw new SecurityException("Access to this conversation is forbidden");
         }
+        forbiddenWordAuditService.auditUserQuestion(
+                customerId, conversation.getPlatform(), question);
 
         List<AiDialogStepRecord> historyRecords = loadHistory(conversation.getId());
         int dialogRound = stepRecordRepository.findMaxDialogRound(conversation.getId()) + 1;
@@ -94,7 +98,7 @@ public class AIService {
                 "请确认意图识别结果后再进入下一步骤。");
         try {
             StepGenerationResult result = generateCurrentStep(
-                    1, question, conversation.getPlatform(), dialogRound, historyRecords, null);
+                    customerId, 1, question, conversation.getPlatform(), dialogRound, historyRecords, null);
             saveSuccessfulStep(
                     conversation, customerId, question, dialogRound, 1, 1,
                     extraJson, result);
@@ -147,7 +151,7 @@ public class AIService {
 
         try {
             StepGenerationResult result = generateCurrentStep(
-                    stepNo, previousStep.getCustomerDialog(), conversation.getPlatform(),
+                    customerId, stepNo, previousStep.getCustomerDialog(), conversation.getPlatform(),
                     dialogRound, historyRecords, null);
             saveSuccessfulStep(
                     conversation, customerId, previousStep.getCustomerDialog(), dialogRound,
@@ -196,7 +200,7 @@ public class AIService {
         StepGenerationResult result;
         try {
             result = generateCurrentStep(
-                    stepNo, current.getCustomerDialog(), conversation.getPlatform(),
+                    customerId, stepNo, current.getCustomerDialog(), conversation.getPlatform(),
                     dialogRound, historyRecords, current.getAiContent());
         } catch (RuntimeException exception) {
             saveFailedStep(
@@ -244,6 +248,8 @@ public class AIService {
                 current.getStepNo().intValue(), current.getStepRound(), content);
         current.setDialogContext(storedContext);
         stepRecordRepository.save(current);
+        forbiddenWordAuditService.auditManualEdit(
+                customerId, conversation.getPlatform(), content);
         conversation.setUpdatedAt(LocalDateTime.now());
         conversationRepository.save(conversation);
         return conversationService.getConversationById(customerId, conversationId);
@@ -283,7 +289,8 @@ public class AIService {
         tokenService.recordAiUsage(saved, conversation.getConversationId(), result.model());
     }
 
-    private StepGenerationResult generateCurrentStep(Integer stepNo, String question, String platform,
+    private StepGenerationResult generateCurrentStep(String customerId, Integer stepNo,
+                                                     String question, String platform,
                                                      Integer dialogRound,
                                                      List<AiDialogStepRecord> historyRecords,
                                                      String previousContent) {
@@ -295,6 +302,8 @@ public class AIService {
                         question,
                         dialogContextBuilder.buildConversationContext(historyRecords, dialogRound));
                 DeepSeekClient.DeepSeekResult response = deepSeekClient.recognizeIntent(prompt);
+                forbiddenWordAuditService.auditAiAnswer(
+                        customerId, platform, response.content());
                 promptService.validateOutput(response.content());
                 return StepGenerationResult.from(response);
             }
@@ -309,6 +318,8 @@ public class AIService {
                         + "只输出回复策略分析，不直接生成发送给客户的话术。";
                 DeepSeekClient.DeepSeekResult response = deepSeekClient.complete(
                         replyStrategyPromptService.render(), userPrompt);
+                forbiddenWordAuditService.auditAiAnswer(
+                        customerId, platform, response.content());
                 replyStrategyPromptService.validateOutput(response.content());
                 return StepGenerationResult.from(response);
             }
@@ -320,6 +331,8 @@ public class AIService {
                         + "推荐话术必须能直接发送给客户，点评只说明表达设计；不得补充输入中不存在的商品或服务事实。";
                 DeepSeekClient.DeepSeekResult response = deepSeekClient.complete(
                         recommendedScriptPromptService.render(platform), userPrompt);
+                forbiddenWordAuditService.auditAiAnswer(
+                        customerId, platform, response.content());
                 recommendedScriptPromptService.validateOutput(response.content());
                 return StepGenerationResult.from(response);
             }
@@ -331,6 +344,8 @@ public class AIService {
                         + "只可使用上述输入中已经确认的事实；示例中的优惠、快递、时效和售后承诺不得直接套用。";
                 DeepSeekClient.DeepSeekResult response = deepSeekClient.complete(
                         hookAndClosingPromptService.render(stepNo), userPrompt);
+                forbiddenWordAuditService.auditAiAnswer(
+                        customerId, platform, response.content());
                 hookAndClosingPromptService.validateOutput(stepNo, response.content());
                 return StepGenerationResult.from(response);
             }

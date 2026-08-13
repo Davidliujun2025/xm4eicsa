@@ -45,8 +45,6 @@ const platformLabels = {
   OTHER: "其他平台"
 };
 
-const SUPPORTED_PLATFORM_COUNT = platforms.filter((p) => p !== "ALL").length;
-
 function qs(id) {
   return document.getElementById(id);
 }
@@ -91,14 +89,22 @@ async function api(path, options = {}) {
   return response.json();
 }
 
-function renderStats(totalWords, totalTriggerCount) {
+function renderStats(totalWords, coveredPlatforms, totalTriggerCount) {
   const words = Number.isFinite(totalWords) ? totalWords.toLocaleString("zh-CN") : "-";
+  const platformCount = Number.isFinite(coveredPlatforms)
+    ? coveredPlatforms.toLocaleString("zh-CN")
+    : "-";
   const triggerCount = Number.isFinite(totalTriggerCount) ? totalTriggerCount.toLocaleString("zh-CN") : "-";
   qs("stats").innerHTML = `
     <div class="card"><h5>总违禁词数</h5><strong>${words}</strong></div>
-    <div class="card"><h5>覆盖平台数</h5><strong>${SUPPORTED_PLATFORM_COUNT}</strong></div>
+    <div class="card"><h5>覆盖平台数</h5><strong>${platformCount}</strong></div>
     <div class="card"><h5>今日触发次数</h5><strong>${triggerCount}</strong></div>
   `;
+}
+
+async function loadStats() {
+  const stats = await api("/forbidden-words/stats");
+  renderStats(stats.totalWords, stats.coveredPlatforms, stats.todayTriggerCount);
 }
 
 function actionTag(action) {
@@ -111,6 +117,7 @@ function actionTag(action) {
 function sourceTag(sourceType) {
   if (sourceType === "AI_ANSWER" || sourceType === "AI") return "AI 回复";
   if (sourceType === "USER_QUESTION" || sourceType === "USER") return "用户问题";
+  if (sourceType === "MANUAL_EDIT") return "人工修改";
   return sourceType || "-";
 }
 
@@ -170,8 +177,7 @@ async function loadWords() {
     await loadWords();
   });
 
-  const hits = await api(`/chat-audit/logs?page=1&size=1`);
-  renderStats(data.total, hits.total);
+  await loadStats();
 }
 
 async function loadOperationLogs() {
@@ -253,7 +259,7 @@ async function loadHitLogs() {
       <td><span class="hit-word">${row.hitWord}</span></td>
       <td>${sourceTag(row.sourceType)}</td>
       <td><a href="#" class="conv-id">${buildConversationId(row)}</a></td>
-      <td><span class="action-remind">提醒客服</span></td>
+      <td><span class="action-remind">${row.action === "RECORD_ONLY" ? "仅记录" : "提醒客服"}</span></td>
     </tr>
   `;
   }).join("");
@@ -262,6 +268,7 @@ async function loadHitLogs() {
     state.hitPage = nextPage;
     await loadHitLogs();
   });
+  await loadStats();
 }
 
 function renderCsvPreview(rows) {

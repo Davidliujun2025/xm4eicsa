@@ -26,32 +26,12 @@ public class HitAuditService {
     }
 
     public Map<String, Object> auditChat(ChatAuditRequest req) {
-        List<String> questionHits = cacheService.findHitWords(req.getPlatform(), req.getUserQuestion());
-        List<String> answerHits = cacheService.findHitWords(req.getPlatform(), req.getAiAnswer());
-
-        for (String hit : questionHits) {
-            store.addHitLog(
-                    req.getActor(),
-                    req.getPlatform(),
-                    "USER_QUESTION",
-                    req.getUserQuestion(),
-                    hit,
-                    "WARN_AGENT",
-                    LocalDateTime.now()
-            );
-        }
-
-        for (String hit : answerHits) {
-            store.addHitLog(
-                    req.getActor(),
-                    req.getPlatform(),
-                    "AI_ANSWER",
-                    req.getAiAnswer(),
-                    hit,
-                    "BLOCK_REPLY",
-                    LocalDateTime.now()
-            );
-        }
+        List<String> questionHits = recordHits(
+                req.getActor(), req.getPlatform(), "USER_QUESTION",
+                req.getUserQuestion(), "WARN_AGENT");
+        List<String> answerHits = recordHits(
+                req.getActor(), req.getPlatform(), "AI_ANSWER",
+                req.getAiAnswer(), "BLOCK_REPLY");
 
         long todayCount = store.countActorHitsOnDate(req.getActor(), LocalDateTime.now());
 
@@ -61,6 +41,21 @@ public class HitAuditService {
         response.put("todayTriggerCount", todayCount);
         response.put("shouldRemindAgent", todayCount >= 3);
         return response;
+    }
+
+    /**
+     * Checks one content item and appends one audit row for each distinct hit.
+     * It records only and never blocks or modifies the content.
+     */
+    public List<String> recordHits(String actor, Platform platform, String sourceType,
+                                   String content, String action) {
+        Platform safePlatform = platform == null ? Platform.OTHER : platform;
+        List<String> hits = cacheService.findHitWords(safePlatform, content);
+        LocalDateTime actionTime = LocalDateTime.now();
+        for (String hit : hits) {
+            store.addHitLog(actor, safePlatform, sourceType, content, hit, action, actionTime);
+        }
+        return hits;
     }
 
     public PageResult<HitAuditLog> listHitLogs(String actor, Platform platform, int page, int size) {

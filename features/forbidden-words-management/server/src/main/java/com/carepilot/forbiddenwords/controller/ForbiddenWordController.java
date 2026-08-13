@@ -4,6 +4,7 @@ import com.acme.aicslogin.security.AuthenticatedUser;
 import com.carepilot.forbiddenwords.dto.CreateWordRequest;
 import com.carepilot.forbiddenwords.dto.CsvConfirmRequest;
 import com.carepilot.forbiddenwords.dto.CsvPreviewItem;
+import com.carepilot.forbiddenwords.dto.ForbiddenWordStats;
 import com.carepilot.forbiddenwords.dto.CsvPreviewRequest;
 import com.carepilot.forbiddenwords.dto.PageResult;
 import com.carepilot.forbiddenwords.model.ForbiddenWord;
@@ -35,6 +36,11 @@ public class ForbiddenWordController {
             @RequestParam(defaultValue = "20") int size
     ) {
         return forbiddenWordService.list(platform, page, size);
+    }
+
+    @GetMapping("/stats")
+    public ForbiddenWordStats stats() {
+        return forbiddenWordService.stats();
     }
 
     @PostMapping
