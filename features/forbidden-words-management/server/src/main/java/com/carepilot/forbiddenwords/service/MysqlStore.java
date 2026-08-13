@@ -44,7 +44,7 @@ public class MysqlStore implements DataStore {
 
     private final RowMapper<HitAuditLog> hitRowMapper = (rs, rowNum) -> new HitAuditLog(
             rs.getLong("id"),
-            rs.getString("actor"),
+            rs.getString("actor_name"),
             Platform.valueOf(rs.getString("platform")),
             rs.getString("source_type"),
             rs.getString("content"),
@@ -147,7 +147,27 @@ public class MysqlStore implements DataStore {
     @Override
     public List<HitAuditLog> listHitLogs() {
         return jdbcTemplate.query(
-                "SELECT id, actor, platform, source_type, content, hit_word, action, action_time FROM hit_audit_log",
+                """
+                SELECT h.id,
+                       COALESCE(
+                           (SELECT u.username
+                              FROM sys_user u
+                             WHERE CAST(u.id AS CHAR) = h.actor
+                                OR u.username = h.actor
+                                OR u.phone = h.actor
+                                OR u.email = h.actor
+                             ORDER BY CASE WHEN CAST(u.id AS CHAR) = h.actor THEN 0 ELSE 1 END
+                             LIMIT 1),
+                           CASE WHEN h.actor REGEXP '^[0-9]+$' THEN '未知客服' ELSE h.actor END
+                       ) AS actor_name,
+                       h.platform,
+                       h.source_type,
+                       h.content,
+                       h.hit_word,
+                       h.action,
+                       h.action_time
+                  FROM hit_audit_log h
+                """,
                 hitRowMapper
         );
     }
